@@ -1,9 +1,10 @@
-import { Calendar, MapPin, Users, Share2, Heart, Download, Clock, Tag, ExternalLink, ChevronLeft } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, Tag, ExternalLink, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import LoginModal from '../components/LoginModal';
-import SignupModal from '../components/SignupModal';
+import TicketSelector from '../components/TicketSelector';
+import EventActions from '../components/EventActions';
 
 interface EventDetailPageProps {
   eventId: string;
@@ -11,13 +12,35 @@ interface EventDetailPageProps {
 }
 
 export default function EventDetailPage({ onNavigate }: EventDetailPageProps) {
-  const [isRSVPed, setIsRSVPed] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isRSVPed] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showSignupModal, setShowSignupModal] = useState(false);
+  const [selectedTicketType, setSelectedTicketType] = useState<string>('');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
+  const [copyLinkText, setCopyLinkText] = useState('Copy Link');
 
-  const event = {
+  // Example event with different ticket type configurations
+  // ticketType can be: 'uniform', 'class', 'loyalty', 'season', 'timeslot'
+  const event: {
+    title: string;
+    image: string;
+    description: string;
+    fullDescription: string;
+    date: string;
+    time: string;
+    location: string;
+    category: string;
+    interests: string[];
+    attendees: number;
+    host: { name: string; avatar: string; role: string };
+    ticketType: 'uniform' | 'class' | 'loyalty' | 'season' | 'timeslot';
+    tickets: {
+      class: Array<{ id: string; name: string; price: number; available: number; features: string[] }>;
+      loyalty: Array<{ id: string; name: string; price: number; available: number; discount: string; deadline: string; features: string[] }>;
+      season: Array<{ id: string; name: string; price: number; date: string; available: number; discount?: string; popular?: boolean }>;
+      timeslot: Array<{ id: string; name: string; price: number; available: number }>;
+      uniform: Array<{ id: string; name: string; price: number; available: number }>;
+    };
+  } = {
     title: 'Nairobi Tech Summit 2025',
     image: 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=1200',
     description: 'Join us for the biggest tech summit in East Africa! Connect with industry leaders, innovative startups, and tech enthusiasts. Experience keynote speeches, panel discussions, networking sessions, and hands-on workshops covering AI, blockchain, cloud computing, and more. This is your opportunity to shape the future of technology in Africa.',
@@ -45,12 +68,90 @@ Don't miss this opportunity to be part of Africa's tech revolution!`,
     category: 'Technology',
     interests: ['AI & Machine Learning', 'Blockchain', 'Cloud Computing', 'Startups', 'Innovation'],
     attendees: 847,
-    price: 'KES 2,500',
-    isFree: false,
     host: {
       name: 'Tech Hub Africa',
       avatar: 'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=100',
       role: 'Technology Community'
+    },
+    // Ticket configuration
+    ticketType: 'timeslot', // Options: 'uniform', 'class', 'loyalty', 'season', 'timeslot'
+    tickets: {
+      // For 'class' tickets (VVIP, VIP, Regular)
+      class: [
+        { id: 'vvip', name: 'VVIP', price: 5000, available: 20, features: ['Front row seating', 'VIP lounge access', 'Meet & greet with speakers', 'Exclusive networking dinner', 'Event swag bag'] },
+        { id: 'vip', name: 'VIP', price: 3500, available: 50, features: ['Premium seating', 'VIP lounge access', 'Lunch included', 'Event swag bag'] },
+        { id: 'regular', name: 'Regular', price: 2500, available: 200, features: ['General admission', 'Access to all sessions', 'Coffee breaks included'] }
+      ],
+      // For 'loyalty' tickets (Die Hard, Early Bird, Advance, Gate)
+      loyalty: [
+        { id: 'diehard', name: 'Die Hard Fan', price: 1800, available: 30, discount: '40% OFF', deadline: '15 days left', features: ['Exclusive fan perks', 'Priority seating'] },
+        { id: 'earlybird', name: 'Early Bird', price: 2000, available: 100, discount: '33% OFF', deadline: '30 days left', features: ['Early access', 'Discounted rate'] },
+        { id: 'advance', name: 'Advance', price: 2300, available: 150, discount: '15% OFF', deadline: '7 days left', features: ['Pre-event access'] },
+        { id: 'gate', name: 'Gate Ticket', price: 3000, available: 50, discount: 'Regular Price', deadline: 'At the door', features: ['Walk-in admission'] }
+      ],
+      // For 'season' tickets (3-day event example)
+      season: [
+        { id: 'day1', name: 'Day 1 Only', price: 1500, date: 'Nov 2, 2025', available: 100 },
+        { id: 'day2', name: 'Day 2 Only', price: 1500, date: 'Nov 3, 2025', available: 100 },
+        { id: 'day3', name: 'Day 3 Only', price: 1500, date: 'Nov 4, 2025', available: 100 },
+        { id: 'season', name: '3-Day Season Pass', price: 4000, date: 'Nov 2-4, 2025', available: 80, discount: 'Save KES 500!', popular: true }
+      ],
+      // For 'timeslot' tickets (hourly bookings)
+      timeslot: [
+        { id: 'slot1', name: '9:00 AM - 10:00 AM', price: 500, available: 10 },
+        { id: 'slot2', name: '10:00 AM - 11:00 AM', price: 500, available: 10 },
+        { id: 'slot3', name: '11:00 AM - 12:00 PM', price: 500, available: 8 },
+        { id: 'slot4', name: '2:00 PM - 3:00 PM', price: 500, available: 10 },
+        { id: 'slot5', name: '3:00 PM - 4:00 PM', price: 500, available: 10 },
+        { id: 'slot6', name: '4:00 PM - 5:00 PM', price: 500, available: 5 },
+        { id: 'slot7', name: '5:00 PM - 6:00 PM', price: 500, available: 10 },
+        { id: 'slot8', name: '6:00 PM - 7:00 PM', price: 500, available: 10 }
+      ],
+      // For 'uniform' tickets (single price)
+      uniform: [
+        { id: 'standard', name: 'Standard Ticket', price: 2500, available: 300 }
+      ]
+    }
+  };
+
+  // Share functionality
+  const eventUrl = window.location.href;
+  const shareText = `Check out this event: ${event.title}`;
+
+  const handleWhatsAppShare = () => {
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText}\n${eventUrl}`)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleLinkedInShare = () => {
+    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(eventUrl)}`;
+    window.open(linkedinUrl, '_blank');
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(eventUrl);
+      setCopyLinkText('Link Copied!');
+      setTimeout(() => {
+        setCopyLinkText('Copy Link');
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = eventUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopyLinkText('Link Copied!');
+        setTimeout(() => {
+          setCopyLinkText('Copy Link');
+        }, 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy failed:', fallbackErr);
+      }
+      document.body.removeChild(textArea);
     }
   };
 
@@ -286,7 +387,10 @@ Don't miss this opportunity to be part of Africa's tech revolution!`,
                       </div>
                     </div>
 
-                    <button className="w-full py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:border-[#27aae2] hover:text-[#27aae2] transition-all">
+                    <button 
+                      onClick={() => setShowLoginModal(true)}
+                      className="w-full py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:border-[#27aae2] hover:text-[#27aae2] transition-all"
+                    >
                       Load More Reviews
                     </button>
                   </div>
@@ -297,56 +401,51 @@ Don't miss this opportunity to be part of Africa's tech revolution!`,
 
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
-                <div className="mb-6">
-                  <div className="flex items-baseline justify-between mb-2">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">{event.price}</span>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">per ticket</span>
-                  </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Includes all summit activities</p>
+              {/* Event Map */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center space-x-2">
+                    <MapPin className="w-5 h-5 text-[#27aae2]" />
+                    <span>Event Venue</span>
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{event.location}</p>
                 </div>
-
-                <button
-                  onClick={() => setIsRSVPed(!isRSVPed)}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 ${
-                    isRSVPed
-                      ? 'bg-green-600 text-white hover:bg-green-700'
-                      : 'bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white hover:shadow-xl'
-                  }`}
-                >
-                  {isRSVPed ? 'Ticket Purchased!' : 'Buy Ticket'}
-                </button>
-
-                <div className="grid grid-cols-3 gap-2 mt-4">
-                  <button
-                    onClick={() => setIsFavorited(!isFavorited)}
-                    className={`py-3 rounded-xl border-2 transition-all flex items-center justify-center ${
-                      isFavorited
-                        ? 'border-red-500 bg-red-50 text-red-500'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-red-500 hover:text-red-500'
-                    }`}
+                <div className="relative h-64 bg-gray-200 dark:bg-gray-700">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0 }}
+                    src="https://www.openstreetmap.org/export/embed.html?bbox=36.8170%2C-1.2930%2C36.8270%2C-1.2830&layer=mapnik&marker=-1.2880%2C36.8220"
+                    allowFullScreen
+                    title="Event Location Map"
+                  ></iframe>
+                  <a
+                    href="https://www.openstreetmap.org/?mlat=-1.2880&mlon=36.8220#map=16/-1.2880/36.8220"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-2 right-2 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium text-[#27aae2] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-md flex items-center space-x-1"
                   >
-                    <Heart className={`w-5 h-5 ${isFavorited ? 'fill-red-500' : ''}`} />
-                  </button>
-                  <button className="py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center justify-center">
-                    <Share2 className="w-5 h-5" />
-                  </button>
-                  <button className="py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center justify-center">
-                    <Download className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="mt-6 space-y-3">
-                  <button className="w-full py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center justify-center space-x-2">
-                    <Calendar className="w-5 h-5" />
-                    <span>Add to Calendar</span>
-                  </button>
-                  <button className="w-full py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center justify-center space-x-2">
-                    <ExternalLink className="w-5 h-5" />
-                    <span>View on Map</span>
-                  </button>
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Open in Maps</span>
+                  </a>
                 </div>
               </div>
+
+              {/* Ticketing Section */}
+              <TicketSelector
+                ticketType={event.ticketType}
+                tickets={event.tickets}
+                selectedTicketType={selectedTicketType}
+                selectedTimeSlot={selectedTimeSlot}
+                onSelectTicketType={setSelectedTicketType}
+                onSelectTimeSlot={setSelectedTimeSlot}
+                isRSVPed={isRSVPed}
+                onBuyTicket={() => setShowLoginModal(true)}
+              />
+
+              {/* Event Actions (Favorite, Share, Download, Add to Calendar) */}
+              <EventActions />
 
               <div className="bg-gradient-to-br from-[#27aae2]/10 to-[#27aae2]/20 dark:from-[#27aae2]/20 dark:to-[#27aae2]/30 rounded-2xl p-6">
                 <div className="flex items-start space-x-3 mb-4">
@@ -364,14 +463,23 @@ Don't miss this opportunity to be part of Africa's tech revolution!`,
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
                 <h3 className="font-bold text-gray-900 dark:text-white mb-4">Share Event</h3>
                 <div className="space-y-2">
-                  <button className="w-full py-2.5 px-4 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors text-sm">
+                  <button 
+                    onClick={handleWhatsAppShare}
+                    className="w-full py-2.5 px-4 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors text-sm"
+                  >
                     Share on WhatsApp
                   </button>
-                  <button className="w-full py-2.5 px-4 bg-gray-900 dark:bg-gray-700 text-white rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm">
+                  <button 
+                    onClick={handleLinkedInShare}
+                    className="w-full py-2.5 px-4 bg-gray-900 dark:bg-gray-700 text-white rounded-lg font-medium hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors text-sm"
+                  >
                     Share on LinkedIn
                   </button>
-                  <button className="w-full py-2.5 px-4 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:border-[#27aae2] hover:text-[#27aae2] transition-colors text-sm">
-                    Copy Link
+                  <button 
+                    onClick={handleCopyLink}
+                    className="w-full py-2.5 px-4 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:border-[#27aae2] hover:text-[#27aae2] transition-colors text-sm"
+                  >
+                    {copyLinkText}
                   </button>
                 </div>
               </div>
@@ -387,23 +495,6 @@ Don't miss this opportunity to be part of Africa's tech revolution!`,
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onNavigate={onNavigate}
-        onSwitchToSignup={() => {
-          setShowLoginModal(false);
-          setShowSignupModal(true);
-        }}
-      />
-
-      {/* Signup Modal */}
-      <SignupModal
-        onClose={() => setShowSignupModal(false)}
-        onSignup={() => {
-          setIsLoggedIn(true);
-          setShowSignupModal(false);
-        }}
-        onSwitchToLogin={() => {
-          setShowSignupModal(false);
-          setShowLoginModal(true);
-        }}
       />
       </div>
     </div>

@@ -280,6 +280,60 @@ export default function ThisWeekend({ onNavigate, onEventClick }: ThisWeekendPro
           </p>
         </div>
 
+        {/* Marketing Banner */}
+        <div 
+          className="relative overflow-hidden rounded-3xl mb-12 shadow-2xl"
+          style={{
+            background: 'linear-gradient(135deg, #27aae2 0%, #1a8ec4 100%)'
+          }}
+          data-aos="fade-up"
+        >
+          {/* Decorative circles */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+          
+          <div className="relative px-6 sm:px-12 py-8 sm:py-12 flex flex-col md:flex-row items-center justify-between gap-6">
+            {/* Left Content */}
+            <div className="flex-1 text-center md:text-left">
+              <div className="inline-block px-4 py-1 bg-white/20 backdrop-blur-sm rounded-full mb-4">
+                <span className="text-white text-sm font-semibold">🎉 Special Offer</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-3">
+                Get 20% Off Your First Event!
+              </h2>
+              <p className="text-lg sm:text-xl text-white/90 mb-6 max-w-2xl">
+                Join thousands of event-goers discovering amazing experiences. Use code <span className="font-bold bg-white/20 px-3 py-1 rounded-lg">FIRST20</span> at checkout.
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                <button
+                  onClick={() => onNavigate('calendar')}
+                  className="px-8 py-4 bg-white text-gray-900 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                >
+                  Browse All Events
+                </button>
+                <button
+                  onClick={() => onNavigate('become-partner')}
+                  className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white rounded-xl font-bold hover:bg-white/20 transition-all duration-200"
+                >
+                  Host Your Event
+                </button>
+              </div>
+            </div>
+
+            {/* Right Image/Icon */}
+            <div className="hidden lg:block flex-shrink-0">
+              <div className="w-48 h-48 relative">
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                  <Calendar className="w-24 h-24 text-white" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                  <span className="text-2xl font-bold text-gray-900">20%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Day Selection Buttons */}
         <div className="flex flex-wrap gap-3 mb-8 justify-center" data-aos="fade-up">
           {days.map((day) => (

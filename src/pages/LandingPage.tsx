@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, ChevronLeft, ChevronRight, Plane, Dumbbell, Users, Music, Heart, Dog, Car, Sparkles, Brain, Gamepad2, ShoppingBag, Church, Target, Camera, Calendar, Share2 } from 'lucide-react';
+import { Search, MapPin, ChevronLeft, ChevronRight, Plane, Dumbbell, Users, Music, Heart, Dog, Car, Sparkles, Brain, Gamepad2, ShoppingBag, Church, Target, Camera, Calendar, Share2, Briefcase, Theater } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
@@ -24,6 +24,23 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const locationInputRef = React.useRef<HTMLInputElement>(null);
   const searchContainerRef = React.useRef<HTMLDivElement>(null);
+  const [showAd, setShowAd] = useState(false);
+  const [adDismissed, setAdDismissed] = useState(false);
+  const [scrollCount, setScrollCount] = useState(0);
+  const lastScrollY = React.useRef(0);
+  const [categoryRotation, setCategoryRotation] = useState(0);
+  const [searchPlaceholder, setSearchPlaceholder] = useState('Search events...');
+
+  // Ad Configuration (This would come from admin panel in production)
+  const adConfig = {
+    enabled: true,
+    title: "Limited Time Offer! 🎉",
+    description: "Get 30% off on all premium events this month. Use code PREMIUM30 at checkout.",
+    buttonText: "Claim Offer",
+    buttonLink: "/calendar",
+    imageUrl: "https://images.pexels.com/photos/1190298/pexels-photo-1190298.jpeg?auto=compress&cs=tinysrgb&w=600",
+    showFrequency: 2, // Show ad every 2 scroll events
+  };
 
   React.useEffect(() => {
     // Get user's location on component mount
@@ -59,6 +76,75 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
       setSelectedLocation('Nairobi, Kenya');
       setLocationPlaceholder('Nairobi, Kenya');
     }
+  }, []);
+
+  // Typing animation for search placeholder
+  React.useEffect(() => {
+    const categoryNames = [
+      'Search events...',
+      'Travel events...',
+      'Sports & Fitness...',
+      'Social Activities...',
+      'Music & Dance...',
+      'Technology events...',
+      'Art & Photography...',
+      'Gaming events...',
+      'Shopping events...',
+      'Religious events...',
+      'Health & Wellbeing...',
+      'Culture events...',
+      'Business events...',
+      'Live Plays...',
+      'Pets & Animals...',
+      'Coaching & Support...',
+      'Autofest events...',
+      'Hobbies & Interests...'
+    ];
+
+    let charIndex = 0;
+    let isDeleting = false;
+    let categoryIndex = 0;
+
+    const typeWriter = () => {
+      const currentCategory = categoryNames[categoryIndex];
+      
+      if (!isDeleting) {
+        // Typing
+        setSearchPlaceholder(currentCategory.substring(0, charIndex + 1));
+        charIndex++;
+        
+        if (charIndex === currentCategory.length) {
+          // Pause at end before deleting
+          setTimeout(() => {
+            isDeleting = true;
+          }, 2000);
+        }
+      } else {
+        // Deleting
+        setSearchPlaceholder(currentCategory.substring(0, charIndex - 1));
+        charIndex--;
+        
+        if (charIndex === 0) {
+          isDeleting = false;
+          categoryIndex = (categoryIndex + 1) % categoryNames.length;
+        }
+      }
+    };
+
+    const typingInterval = setInterval(() => {
+      typeWriter();
+    }, isDeleting ? 50 : 100); // Faster when deleting
+
+    return () => clearInterval(typingInterval);
+  }, []);
+
+  // Auto-rotate categories every 5 seconds
+  React.useEffect(() => {
+    const intervalId = setInterval(() => {
+      setCategoryRotation((prev) => prev + 1);
+    }, 5000); // Change every 5 seconds
+
+    return () => clearInterval(intervalId);
   }, []);
 
   const featuredEvents = [
@@ -204,24 +290,38 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
     }
   ];
 
-  const categories = [
-    { name: 'All', icon: Users, color: '', count: upcomingEvents.length },
-    { name: 'Travel', icon: Plane, color: 'from-blue-500 to-cyan-500', count: 234 },
-    { name: 'Sports & Fitness', icon: Dumbbell, color: 'from-green-500 to-emerald-500', count: 189 },
-    { name: 'Social Activities', icon: Users, color: 'from-purple-500 to-pink-500', count: 456 },
-    { name: 'Music & Culture', icon: Music, color: 'from-red-500 to-orange-500', count: 312 },
-    { name: 'Health & Wellbeing', icon: Heart, color: 'from-pink-500 to-rose-500', count: 167 },
-    { name: 'Pets & Animals', icon: Dog, color: 'from-amber-500 to-yellow-500', count: 89 },
-    { name: 'Autofest', icon: Car, color: 'from-gray-600 to-gray-800', count: 145 },
-    { name: 'Hobbies & Interests', icon: Sparkles, color: 'from-indigo-500 to-blue-500', count: 278 },
-    { name: 'Coaching & Support', icon: Target, color: 'from-teal-500 to-cyan-500', count: 123 },
-    { name: 'Technology', icon: Brain, color: 'from-violet-500 to-purple-500', count: 298 },
-    { name: 'Gaming', icon: Gamepad2, color: 'from-fuchsia-500 to-pink-500', count: 201 },
-    { name: 'Shopping', icon: ShoppingBag, color: 'from-rose-500 to-red-500', count: 167 },
-    { name: 'Religious', icon: Church, color: 'from-blue-600 to-indigo-600', count: 134 },
-    { name: 'Dance', icon: Music, color: 'from-orange-500 to-red-500', count: 156 },
-    { name: 'Photography', icon: Camera, color: 'from-emerald-500 to-teal-500', count: 112 }
-  ];
+  const categories = React.useMemo(() => [
+    { name: 'All', icon: Users, color: '', count: upcomingEvents.length, iconColor: '#6B7280' },
+    { name: 'Travel', icon: Plane, color: 'from-blue-500 to-cyan-500', count: 234, iconColor: '#0EA5E9' },
+    { name: 'Sports & Fitness', icon: Dumbbell, color: 'from-green-500 to-emerald-500', count: 189, iconColor: '#10B981' },
+    { name: 'Social Activities', icon: Users, color: 'from-purple-500 to-pink-500', count: 456, iconColor: '#A855F7' },
+    { name: 'Hobbies & Interests', icon: Sparkles, color: 'from-indigo-500 to-blue-500', count: 278, iconColor: '#F59E0B' },
+    { name: 'Religious', icon: Church, color: 'from-blue-600 to-indigo-600', count: 134, iconColor: '#6366F1' },
+    { name: 'Autofest', icon: Car, color: 'from-gray-600 to-gray-800', count: 145, iconColor: '#FFA500' },
+    { name: 'Health & Wellbeing', icon: Heart, color: 'from-pink-500 to-rose-500', count: 167, iconColor: '#EC4899' },
+    { name: 'Music & Dance', icon: Music, color: 'from-red-500 to-orange-500', count: 312, iconColor: '#EF4444' },
+    { name: 'Culture', icon: Theater, color: 'from-amber-500 to-yellow-500', count: 203, iconColor: '#F59E0B' },
+    { name: 'Pets & Animals', icon: Dog, color: 'from-orange-500 to-amber-500', count: 89, iconColor: '#F97316' },
+    { name: 'Coaching & Support', icon: Target, color: 'from-teal-500 to-cyan-500', count: 123, iconColor: '#14B8A6' },
+    { name: 'Business & Networking', icon: Briefcase, color: 'from-slate-600 to-gray-700', count: 267, iconColor: '#475569' },
+    { name: 'Technology', icon: Brain, color: 'from-violet-500 to-purple-500', count: 298, iconColor: '#8B5CF6' },
+    { name: 'Live Plays', icon: Theater, color: 'from-rose-500 to-pink-500', count: 145, iconColor: '#E11D48' },
+    { name: 'Art & Photography', icon: Camera, color: 'from-emerald-500 to-teal-500', count: 156, iconColor: '#10B981' },
+    { name: 'Shopping', icon: ShoppingBag, color: 'from-fuchsia-500 to-pink-500', count: 167, iconColor: '#D946EF' },
+    { name: 'Gaming', icon: Gamepad2, color: 'from-indigo-600 to-purple-600', count: 201, iconColor: '#7C3AED' }
+  ], [upcomingEvents.length]);
+
+  // Rotate categories while keeping "All" at the first position
+  const rotatedCategories = React.useMemo(() => {
+    const allCategory = categories[0];
+    const otherCategories = categories.slice(1);
+    const rotationIndex = categoryRotation % otherCategories.length;
+    const rotated = [
+      ...otherCategories.slice(rotationIndex),
+      ...otherCategories.slice(0, rotationIndex)
+    ];
+    return [allCategory, ...rotated];
+  }, [categoryRotation, categories]);
 
   const nextBanner = () => {
     setCurrentBanner((prev) => (prev + 1) % featuredEvents.length);
@@ -288,6 +388,56 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Scroll detection for showing ad
+  React.useEffect(() => {
+    if (!adConfig.enabled || adDismissed) return;
+
+    let scrollTimeout: NodeJS.Timeout;
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Clear previous timeout
+      clearTimeout(scrollTimeout);
+      
+      // Set timeout to detect when scrolling stops
+      scrollTimeout = setTimeout(() => {
+        // Only count significant scrolls (more than 100px)
+        if (Math.abs(currentScrollY - lastScrollY.current) > 100) {
+          lastScrollY.current = currentScrollY;
+          setScrollCount(prev => {
+            const newCount = prev + 1;
+            // Show ad based on frequency
+            if (newCount >= adConfig.showFrequency && currentScrollY > 300) {
+              setShowAd(true);
+              return 0; // Reset counter
+            }
+            return newCount;
+          });
+        }
+      }, 150); // Wait 150ms after scroll stops
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, [adDismissed, adConfig.enabled, adConfig.showFrequency]);
+
+  const handleCloseAd = () => {
+    setShowAd(false);
+    setAdDismissed(true);
+    // Reset dismissed state after 5 minutes
+    setTimeout(() => {
+      setAdDismissed(false);
+    }, 5 * 60 * 1000);
+  };
+
+  const handleAdClick = () => {
+    setShowAd(false);
+    onNavigate(adConfig.buttonLink.replace('/', ''));
+  };
 
   const fetchLocationSuggestions = async (query: string) => {
     if (query.length < 3) {
@@ -378,7 +528,7 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
                       className="md:hidden w-full flex items-center justify-center space-x-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-full border border-gray-200 dark:border-gray-700 px-4 py-2.5 shadow-xl transition-all"
                     >
                       <Search className="w-5 h-5" style={{ color: '#27aae2' }} />
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Search events...</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">{searchPlaceholder}</span>
                     </button>
                   )}
 
@@ -397,7 +547,7 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
                       <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                       <input
                         type="text"
-                        placeholder="Search events..."
+                        placeholder={searchPlaceholder}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="flex-1 bg-transparent outline-none text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
@@ -471,72 +621,133 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
             </div>
 
             {/* Center Section - Hero Content */}
-            <div className="flex-1 flex items-center overflow-y-auto">
+            <div className="flex-1 flex items-center">
               <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 w-full py-4">
-                <div className="max-w-3xl mx-auto md:mx-0 text-center md:text-left" data-aos="fade-up">
-                  <div className="inline-flex items-center space-x-2 backdrop-blur-sm px-3 py-1.5 rounded-full mb-2 mx-auto md:mx-0" style={{ backgroundColor: 'rgba(39, 170, 226, 0.3)' }}>
-                    <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-300" />
-                    <span className="font-semibold text-[10px] sm:text-xs text-white">Niko Free</span>
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-2 sm:mb-3 md:mb-4 leading-tight">
-                    Discover Amazing Events
-                  </h1>
-                  <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-100 leading-relaxed mb-3 sm:mb-4 md:mb-6">
-                    Join millions of people discovering and attending incredible events every day. From concerts to conferences, find your next adventure with Niko Free.
-                  </p>
+                <div className="grid xl:grid-cols-2 gap-6 items-center">
+                  {/* Left Side - Main Content */}
+                  <div className="text-center xl:text-left" data-aos="fade-up">
+                    <div className="inline-flex items-center space-x-2 backdrop-blur-sm px-3 py-1.5 rounded-full mb-2 mx-auto xl:mx-0" style={{ backgroundColor: 'rgba(39, 170, 226, 0.3)' }}>
+                      <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-300" />
+                      <span className="font-semibold text-[10px] sm:text-xs text-white">Niko Free</span>
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-2 sm:mb-3 md:mb-4 leading-tight">
+                      Discover Amazing Events
+                    </h1>
+                    <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-100 leading-relaxed mb-3 sm:mb-4 md:mb-6">
+                      Join millions of people discovering and attending incredible events every day. From concerts to conferences, find your next adventure with Niko Free.
+                    </p>
 
-                  {/* Stats */}
-                  <div className="flex flex-wrap justify-center md:justify-start gap-3 sm:gap-4 md:gap-6 mb-3 sm:mb-4 md:mb-6">
-                    <div className="flex items-center space-x-1.5 sm:space-x-2">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    {/* Stats */}
+                    <div className="flex flex-wrap justify-center xl:justify-start gap-3 sm:gap-4 md:gap-6 mb-3 sm:mb-4 md:mb-6">
+                      <div className="flex items-center space-x-1.5 sm:space-x-2">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-base sm:text-xl md:text-2xl font-bold text-white">2M+</p>
+                          <p className="text-[10px] sm:text-xs text-gray-200">Active Users</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-base sm:text-xl md:text-2xl font-bold text-white">2M+</p>
-                        <p className="text-[10px] sm:text-xs text-gray-200">Active Users</p>
+                      <div className="flex items-center space-x-1.5 sm:space-x-2">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-base sm:text-xl md:text-2xl font-bold text-white">10K+</p>
+                          <p className="text-[10px] sm:text-xs text-gray-200">Events Monthly</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1.5 sm:space-x-2">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-base sm:text-xl md:text-2xl font-bold text-white">98%</p>
+                          <p className="text-[10px] sm:text-xs text-gray-200">Satisfaction</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-1.5 sm:space-x-2">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl md:text-2xl font-bold text-white">10K+</p>
-                        <p className="text-[10px] sm:text-xs text-gray-200">Events Monthly</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-1.5 sm:space-x-2">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                        <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-base sm:text-xl md:text-2xl font-bold text-white">98%</p>
-                        <p className="text-[10px] sm:text-xs text-gray-200">Satisfaction</p>
-                      </div>
+
+                    {/* CTA Buttons */}
+                    <div className="flex flex-wrap justify-center xl:justify-start gap-2 sm:gap-3">
+                      <button 
+                        onClick={() => onNavigate('become-partner')}
+                        className="px-4 sm:px-6 py-2 sm:py-3 bg-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base transform hover:scale-105 transition-all shadow-xl"
+                        style={{ color: '#27aae2' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f9ff'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+                      >
+                        Become a Partner
+                      </button>
+                      <button 
+                        onClick={() => onNavigate('about')}
+                        className="px-4 sm:px-6 py-2 sm:py-3 bg-white/20 backdrop-blur-md text-white border-2 border-white/30 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base transition-all shadow-lg"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.5)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                        }}
+                      >
+                        Learn More
+                      </button>
                     </div>
                   </div>
 
-                  {/* CTA Buttons */}
-                  <div className="flex flex-wrap justify-center md:justify-start gap-2 sm:gap-3">
-                    <button 
-                      onClick={() => onNavigate('become-partner')}
-                      className="px-4 sm:px-6 py-2 sm:py-3 bg-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base transform hover:scale-105 transition-all shadow-xl"
-                      style={{ color: '#27aae2' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f9ff'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+                  {/* Right Side - Dynamic Ad */}
+                  {showAd && adConfig.enabled && (
+                    <div 
+                      className="hidden xl:block"
+                      data-aos="fade-left"
+                      data-aos-duration="500"
                     >
-                      Become a Partner
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('about')}
-                      className="px-4 sm:px-6 py-2 sm:py-3 bg-white/10 backdrop-blur-sm text-white border-2 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base transition-all"
-                      style={{ borderColor: 'rgba(255, 255, 255, 0.5)' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-                    >
-                      Learn More
-                    </button>
-                  </div>
+                      <div className="relative bg-white/95 dark:bg-gray-800/95 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden max-w-md ml-auto">
+                        {/* Close Button */}
+                        <button
+                          onClick={handleCloseAd}
+                          className="absolute top-3 right-3 z-10 w-8 h-8 bg-gray-900/50 hover:bg-gray-900/70 backdrop-blur-sm rounded-full flex items-center justify-center transition-all group"
+                        >
+                          <span className="text-white text-xl group-hover:scale-110 transition-transform">×</span>
+                        </button>
+
+                        {/* Ad Image */}
+                        {adConfig.imageUrl && (
+                          <div className="relative h-40 overflow-hidden">
+                            <img
+                              src={adConfig.imageUrl}
+                              alt="Advertisement"
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                          </div>
+                        )}
+
+                        {/* Ad Content */}
+                        <div className="p-6">
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                            {adConfig.title}
+                          </h3>
+                          <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+                            {adConfig.description}
+                          </p>
+                          <button
+                            onClick={handleAdClick}
+                            className="w-full py-3 text-white rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+                            style={{ backgroundColor: '#27aae2' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a8ec4'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#27aae2'}
+                          >
+                            {adConfig.buttonText}
+                          </button>
+                        </div>
+
+                        {/* Decorative Corner */}
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-yellow-400/20 to-transparent rounded-bl-full"></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -621,15 +832,15 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
         </div>
 
         <div className="relative">
-          <div ref={cantMissRef} className="overflow-x-auto scrollbar-hide">
+          <div ref={cantMissRef} className="overflow-x-auto scrollbar-hide hide-scrollbar">
             <div className="flex gap-6 pb-4">
               {cantMissEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="flex-shrink-0 w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)] min-w-[280px] cursor-pointer group"
+                  className="flex-shrink-0 w-[260px] sm:w-[280px] lg:w-[calc(25%-18px)] cursor-pointer group"
                   onClick={() => onEventClick(event.id)}
                 >
-                  <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                  <div className="rounded-2xl overflow-hidden">
                     <div className="relative h-36">
                       <img
                         src={event.image}
@@ -669,13 +880,13 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
                       </div>
                     </div>
 
-                    <div className="p-4">
+                    <div className="py-4">
                       <div className="space-y-2 mb-4">
-                        <div className="flex items-center text-gray-600 text-sm">
+                        <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm">
                           <Calendar className="w-4 h-4 mr-2" />
                           <span>{event.date} • {event.time}</span>
                         </div>
-                        <div className="flex items-center text-gray-600 text-sm">
+                        <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm">
                           <MapPin className="w-4 h-4 mr-2" />
                           <span>{event.location}</span>
                         </div>
@@ -697,7 +908,7 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
                               className="w-6 h-6 rounded-full border-2 border-white"
                             />
                           </div>
-                          <span className="text-sm text-gray-600">+{event.attendees - 3} attending</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-500">+{event.attendees - 3} attending</span>
                         </div>
                       </div>
                       <button
@@ -708,7 +919,7 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
                         className="w-full px-4 py-2.5 text-white rounded-xl font-semibold transition-colors"
                         style={{ backgroundColor: '#27aae2' }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a8ec4'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#27aae2'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#000000'}
                       >
                         Get Tickets • {event.price}
                       </button>
@@ -747,20 +958,20 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
               ref={categoriesRef}
               className="flex gap-4 snap-x snap-mandatory overflow-x-auto pb-6 hide-scrollbar"
             >
-              {categories.map((category, index) => {
+              {rotatedCategories.map((category, index) => {
                 const Icon = category.icon;
                 const isSelected = selectedCategory === category.name || (!selectedCategory && index === 0);
                 return (
                   <button
-                    key={index}
+                    key={`${category.name}-${categoryRotation}`}
                     onClick={() => setSelectedCategory(index === 0 ? null : category.name)}
-                    className={`flex-none snap-start group flex flex-col items-center rounded-xl px-4 py-5 transition-all duration-200 relative`}
+                    className={`flex-none snap-start group flex flex-col items-center rounded-xl px-3 py-3 transition-all duration-200 relative`}
                   >
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 mb-2 group-hover:scale-110 transition-transform">
-                      <Icon className="w-6 h-6" style={{ color: '#27aae2' }} />
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 mb-1.5 group-hover:scale-110 transition-transform">
+                      <Icon className="w-5 h-5" style={{ color: category.iconColor }} />
                     </div>
-                    <span className={`text-sm mb-1 text-center whitespace-nowrap ${isSelected ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-900 dark:text-gray-300 group-hover:font-bold'}`}>{category.name}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 text-center whitespace-nowrap">{category.count} events</span>
+                    <span className={`text-xs mb-0.5 text-center whitespace-nowrap ${isSelected ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-900 dark:text-gray-300 group-hover:font-bold'}`}>{category.name}</span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 text-center whitespace-nowrap">{category.count} events</span>
                     <span className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full ${isSelected ? '' : 'bg-gray-200 dark:bg-gray-700'}`} style={isSelected ? { backgroundColor: '#27aae2' } : {}} />
                   </button>
                 );

@@ -28,6 +28,9 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
   const [phoneError, setPhoneError] = useState('');
   const [customInterest, setCustomInterest] = useState('');
   const [customInterests, setCustomInterests] = useState<string[]>([]);
+  const [businessNameError, setBusinessNameError] = useState('');
+  const [logoError, setLogoError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categories = [
     { id: 'travel', name: 'Travel' },
@@ -149,6 +152,50 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
     return true;
   };
 
+  const validateBusinessName = (name: string) => {
+    if (!name) {
+      setBusinessNameError('Business name is required');
+      return false;
+    }
+    if (name.length < 2) {
+      setBusinessNameError('Business name must be at least 2 characters');
+      return false;
+    }
+    if (name.length > 100) {
+      setBusinessNameError('Business name must not exceed 100 characters');
+      return false;
+    }
+    // Check for valid characters (letters, numbers, spaces, and common business symbols)
+    const businessNameRegex = /^[a-zA-Z0-9\s&.,'-]+$/;
+    if (!businessNameRegex.test(name)) {
+      setBusinessNameError('Business name contains invalid characters');
+      return false;
+    }
+    setBusinessNameError('');
+    return true;
+  };
+
+  const validateLogo = (file: File | null) => {
+    if (!file) {
+      setLogoError('Logo is required');
+      return false;
+    }
+    // Check file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      setLogoError('Please upload a PNG or JPG file');
+      return false;
+    }
+    // Check file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      setLogoError('File size must not exceed 5MB');
+      return false;
+    }
+    setLogoError('');
+    return true;
+  };
+
   const validatePhone = (phone: string) => {
     // Kenyan phone number format: +254 or 0 followed by 9 digits
     const phoneRegex = /^(\+254|0)[17]\d{8}$/;
@@ -180,6 +227,42 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
     }
   };
 
+  const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, businessName: value });
+    if (value) {
+      validateBusinessName(value);
+    }
+  };
+
+  const handleLogoUpload = (file: File | null) => {
+    if (file) {
+      validateLogo(file);
+      setFormData({ ...formData, logo: file });
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    handleLogoUpload(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0] || null;
+    handleLogoUpload(file);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleAddCustomInterest = () => {
     if (customInterest.trim() && !customInterests.includes(customInterest.trim())) {
       setCustomInterests([...customInterests, customInterest.trim()]);
@@ -198,7 +281,7 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
     }
   };
 
-  const canProceedStep1 = formData.businessName && formData.location;
+  const canProceedStep1 = formData.businessName && formData.location && formData.logo && !businessNameError && !logoError;
   const canProceedStep2 = formData.categories.length > 0;
   const canProceedStep3 = formData.email && formData.phone && !emailError && !phoneError;
   const canProceedStep4 = formData.signature && formData.acceptTerms;
@@ -255,7 +338,7 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
       <div className="relative z-10">
         <Navbar onNavigate={onNavigate} />
 
-      <div className="py-10">
+      <div className="pt-10 ">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 text-center">
             Become a Partner
@@ -264,23 +347,16 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
             Join thousands of event organizers using Niko Free
           </p>
           
-          {/* Progress Steps */}
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center">
-              {[1, 2, 3, 4].map((step) => (
-                <div key={step} className="flex items-center flex-1">
-                  <div
-                    className={`h-2.5 flex-1 transition-all ${
-                      currentStep >= step ? 'bg-gray-300' : 'bg-gray-300'
-                    } ${
-                      step === 1 ? 'rounded-l-full' : 
-                      step === 4 ? 'rounded-r-full' : ''
-                    }`}
-                    style={currentStep >= step ? { backgroundColor: '#27aae2' } : {}}
-                  />
-                  {step < 4 && <div className="w-2" />}
-                </div>
-              ))}
+          {/* Progress Bar */}
+          <div className="max-w-2xl mx-auto">
+            <div className="relative bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '3px' }}>
+              <div
+                className="h-full transition-all duration-500 ease-in-out rounded-full"
+                style={{ 
+                  width: `${(currentStep / 4) * 100}%`,
+                  backgroundColor: '#27aae2'
+                }}
+              />
             </div>
           </div>
         </div>
@@ -306,35 +382,74 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
                   type="text"
                   required
                   value={formData.businessName}
-                  onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white rounded-xl focus:outline-none transition-colors"
-                  style={{ borderColor: formData.businessName ? '#27aae2' : '' }}
-                  onFocus={(e) => e.target.style.borderColor = '#27aae2'}
-                  onBlur={(e) => { if (!formData.businessName) e.target.style.borderColor = ''; }}
+                  onChange={handleBusinessNameChange}
+                  className={`w-full px-4 py-3 border-2 rounded-xl dark:bg-gray-800 dark:text-white focus:outline-none transition-colors ${
+                    businessNameError 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                  style={{ borderColor: formData.businessName && !businessNameError ? '#27aae2' : '' }}
+                  onFocus={(e) => { if (!businessNameError) e.target.style.borderColor = '#27aae2'; }}
+                  onBlur={(e) => { 
+                    if (formData.businessName) validateBusinessName(formData.businessName);
+                    if (!businessNameError && !formData.businessName) e.target.style.borderColor = '';
+                  }}
                   placeholder="Enter your business or brand name"
                 />
+                {businessNameError && (
+                  <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
+                    <span>⚠</span>
+                    <span>{businessNameError}</span>
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   <Upload className="w-4 h-4" />
-                  <span>Logo Upload</span>
+                  <span>Logo Upload *</span>
                 </label>
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl p-8 text-center transition-colors cursor-pointer"
-                  style={{ borderColor: formData.logo ? '#27aae2' : '' }}
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = '#27aae2'}
-                  onMouseLeave={(e) => { if (!formData.logo) e.currentTarget.style.borderColor = ''; }}
+                <div 
+                  className={`border-2 border-dashed dark:bg-gray-800 rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                    logoError ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  style={{ borderColor: formData.logo && !logoError ? '#27aae2' : '' }}
+                  onMouseEnter={(e) => { if (!logoError) e.currentTarget.style.borderColor = '#27aae2'; }}
+                  onMouseLeave={(e) => { if (!formData.logo && !logoError) e.currentTarget.style.borderColor = ''; }}
+                  onClick={handleUploadClick}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
                 >
-                  <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-                  <p className="text-gray-600 dark:text-gray-400 mb-2">Click to upload or drag and drop</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">PNG, JPG up to 5MB</p>
+                  {formData.logo ? (
+                    <div className="space-y-2">
+                      <CheckCircle className="w-12 h-12 mx-auto" style={{ color: '#27aae2' }} />
+                      <p className="text-gray-900 dark:text-gray-100 font-medium">{formData.logo.name}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {(formData.logo.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <p className="text-sm" style={{ color: '#27aae2' }}>Click to change</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                      <p className="text-gray-600 dark:text-gray-400 mb-2">Click to upload or drag and drop</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500">PNG, JPG up to 5MB</p>
+                    </>
+                  )}
                   <input
+                    ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/jpg"
                     className="hidden"
-                    onChange={(e) => setFormData({ ...formData, logo: e.target.files?.[0] || null })}
+                    onChange={handleFileInputChange}
                   />
                 </div>
+                {logoError && (
+                  <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
+                    <span>⚠</span>
+                    <span>{logoError}</span>
+                  </p>
+                )}
               </div>
 
               <div className="relative">
