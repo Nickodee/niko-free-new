@@ -29,6 +29,7 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
   const [scrollCount, setScrollCount] = useState(0);
   const lastScrollY = React.useRef(0);
   const [categoryRotation, setCategoryRotation] = useState(0);
+  const [rotationDirection, setRotationDirection] = useState<'left' | 'right'>('right');
   const [searchPlaceholder, setSearchPlaceholder] = useState('Search events...');
   const [heroText, setHeroText] = useState('');
 
@@ -175,10 +176,20 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
     return () => clearInterval(typingInterval);
   }, []);
 
-  // Auto-rotate categories every 5 seconds
+  // Auto-rotate categories every 5 seconds with random direction
   React.useEffect(() => {
     const intervalId = setInterval(() => {
-      setCategoryRotation((prev) => prev + 1);
+      // Randomly choose direction
+      const randomDirection = Math.random() > 0.5 ? 'right' : 'left';
+      setRotationDirection(randomDirection);
+      
+      setCategoryRotation((prev) => {
+        if (randomDirection === 'right') {
+          return prev + 1;
+        } else {
+          return prev - 1;
+        }
+      });
     }, 5000); // Change every 5 seconds
 
     return () => clearInterval(intervalId);
@@ -348,25 +359,32 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
     { name: 'Gaming', icon: Gamepad2, color: 'from-indigo-600 to-purple-600', count: 201, iconColor: '#7C3AED' }
   ], [upcomingEvents.length]);
 
-  // Rotate categories while keeping "All" at the first position
+  // Rotate categories while keeping "All" at the first position with random direction
   const rotatedCategories = React.useMemo(() => {
     const allCategory = categories[0];
     const otherCategories = categories.slice(1);
-    const rotationIndex = categoryRotation % otherCategories.length;
-    const rotated = [
-      ...otherCategories.slice(rotationIndex),
-      ...otherCategories.slice(0, rotationIndex)
-    ];
+    
+    // Use absolute value for rotation and modulo to keep it in range
+    const absRotation = Math.abs(categoryRotation) % otherCategories.length;
+    
+    // Determine if we should rotate forward or backward based on rotation value
+    let rotated;
+    if (categoryRotation >= 0) {
+      rotated = [
+        ...otherCategories.slice(absRotation),
+        ...otherCategories.slice(0, absRotation)
+      ];
+    } else {
+      // Rotate in reverse direction
+      const reverseIndex = otherCategories.length - absRotation;
+      rotated = [
+        ...otherCategories.slice(reverseIndex),
+        ...otherCategories.slice(0, reverseIndex)
+      ];
+    }
+    
     return [allCategory, ...rotated];
   }, [categoryRotation, categories]);
-
-  const nextBanner = () => {
-    setCurrentBanner((prev) => (prev + 1) % featuredEvents.length);
-  };
-
-  const prevBanner = () => {
-    setCurrentBanner((prev) => (prev - 1 + featuredEvents.length) % featuredEvents.length);
-  };
 
   const scrollCategories = (direction: 'left' | 'right') => {
     if (!categoriesRef.current) return;
@@ -989,62 +1007,150 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
           <p className="text-xl text-gray-600 dark:text-gray-400 transition-colors duration-200">Find events that match your interests</p>
         </div>
 
-        <div className="relative">
-          <div className="overflow-hidden">
-            <div 
-              ref={categoriesRef}
-              className="flex gap-4 snap-x snap-mandatory overflow-x-auto pb-6 hide-scrollbar"
-            >
-              {rotatedCategories.map((category, index) => {
+        {/* Mobile Layout: Side-by-side */}
+        <div className="md:hidden flex gap-2 h-[500px]">
+          {/* Categories Sidebar - Left */}
+          <div className="w-20 flex-shrink-0 flex flex-col">
+            {/* All Category - Fixed at top */}
+            {(() => {
+              const allCategory = rotatedCategories[0];
+              const Icon = allCategory.icon;
+              const isSelected = selectedCategory === null;
+              return (
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`w-full flex flex-col items-center rounded-lg px-1 py-2 mb-1.5 transition-all duration-200 ${
+                    isSelected ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50'
+                  }`}
+                >
+                  <div className={`flex items-center justify-center w-7 h-7 rounded-full mb-1 transition-transform ${
+                    isSelected ? 'scale-110' : ''
+                  }`} style={{ backgroundColor: isSelected ? '#27aae2' : 'transparent' }}>
+                    <Icon className="w-4 h-4" style={{ color: isSelected ? '#ffffff' : allCategory.iconColor }} />
+                  </div>
+                  <span className={`text-[8px] text-center leading-tight ${
+                    isSelected ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {allCategory.name}
+                  </span>
+                  <span className="text-[7px] text-gray-500 dark:text-gray-500 mt-0.5">
+                    {allCategory.count}
+                  </span>
+                </button>
+              );
+            })()}
+
+            {/* Other Categories - Scrollable */}
+            <div className="flex-1 overflow-y-auto hide-scrollbar space-y-1.5 pr-0.5">
+              {rotatedCategories.slice(1).map((category) => {
                 const Icon = category.icon;
-                const isSelected = selectedCategory === category.name || (!selectedCategory && index === 0);
+                const isSelected = selectedCategory === category.name;
                 return (
                   <button
                     key={`${category.name}-${categoryRotation}`}
-                    onClick={() => setSelectedCategory(index === 0 ? null : category.name)}
-                    className={`flex-none snap-start group flex flex-col items-center rounded-xl px-3 py-3 transition-all duration-200 relative`}
+                    onClick={() => setSelectedCategory(category.name)}
+                    className={`w-full flex flex-col items-center rounded-lg px-1 py-2 transition-all duration-200 ${
+                      isSelected ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-800/50'
+                    }`}
                   >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 mb-1.5 group-hover:scale-110 transition-transform">
-                      <Icon className="w-5 h-5" style={{ color: category.iconColor }} />
+                    <div className={`flex items-center justify-center w-7 h-7 rounded-full mb-1 transition-transform ${
+                      isSelected ? 'scale-110' : ''
+                    }`} style={{ backgroundColor: isSelected ? '#27aae2' : 'transparent' }}>
+                      <Icon className="w-4 h-4" style={{ color: isSelected ? '#ffffff' : category.iconColor }} />
                     </div>
-                    <span className={`text-xs mb-0.5 text-center whitespace-nowrap ${isSelected ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-900 dark:text-gray-300 group-hover:font-bold'}`}>{category.name}</span>
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400 text-center whitespace-nowrap">{category.count} events</span>
-                    <span className={`absolute left-2 right-2 bottom-0 h-0.5 rounded-full ${isSelected ? '' : 'bg-gray-200 dark:bg-gray-700'}`} style={isSelected ? { backgroundColor: '#27aae2' } : {}} />
+                    <span className={`text-[8px] text-center leading-tight ${
+                      isSelected ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {category.name}
+                    </span>
+                    <span className="text-[7px] text-gray-500 dark:text-gray-500 mt-0.5">
+                      {category.count}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </div>
-          <button
-            onClick={() => scrollCategories('left')}
-            className={`absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all ${showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-          >
-            <ChevronLeft className="w-6 h-6 text-gray-600" />
-          </button>
-          <button
-            onClick={() => scrollCategories('right')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-colors"
-          >
-            <ChevronRight className="w-6 h-6 text-gray-600" />
-          </button>
+
+          {/* Events Grid - Right */}
+          <div className="flex-1 overflow-y-auto hide-scrollbar">
+            <div className="grid grid-cols-2 gap-2">
+              {(selectedCategory ? upcomingEvents.filter(event => event.category === selectedCategory) : upcomingEvents)
+                .map(event => (
+                  <EventCard
+                    key={event.id}
+                    {...event}
+                    onClick={onEventClick}
+                  />
+                ))}
+            </div>
+            {(selectedCategory && upcomingEvents.filter(event => event.category === selectedCategory).length === 0) && (
+              <div className="text-center py-12">
+                <p className="text-gray-600 dark:text-gray-400 text-sm transition-colors duration-200">No events found in this category</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
-          {(selectedCategory ? upcomingEvents.filter(event => event.category === selectedCategory) : upcomingEvents)
-            .map(event => (
-              <div key={event.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-700">
-                <EventCard
-                  {...event}
-                  onClick={onEventClick}
-                />
+        {/* Desktop Layout: Original horizontal scroll */}
+        <div className="hidden md:block">
+          <div className="relative">
+            <div className="overflow-hidden">
+              <div 
+                ref={categoriesRef}
+                className="flex gap-6 snap-x snap-mandatory overflow-x-auto pb-6 hide-scrollbar"
+              >
+                {rotatedCategories.map((category, index) => {
+                  const Icon = category.icon;
+                  const isSelected = selectedCategory === category.name || (!selectedCategory && index === 0);
+                  return (
+                    <button
+                      key={`${category.name}-${categoryRotation}`}
+                      onClick={() => setSelectedCategory(index === 0 ? null : category.name)}
+                      className={`flex-none snap-start group flex flex-col items-center rounded-xl px-4 py-4 transition-all duration-200 relative`}
+                    >
+                      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 mb-2 group-hover:scale-110 transition-transform">
+                        <Icon className="w-7 h-7" style={{ color: category.iconColor }} />
+                      </div>
+                      <span className={`text-sm mb-1 text-center whitespace-nowrap ${isSelected ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-900 dark:text-gray-300 group-hover:font-bold'}`}>{category.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 text-center whitespace-nowrap">{category.count} events</span>
+                      <span className={`absolute left-3 right-3 bottom-0 h-1 rounded-full ${isSelected ? '' : 'bg-gray-200 dark:bg-gray-700'}`} style={isSelected ? { backgroundColor: '#27aae2' } : {}} />
+                    </button>
+                  );
+                })}
               </div>
-            ))}
-        </div>
-        {(selectedCategory && upcomingEvents.filter(event => event.category === selectedCategory).length === 0) && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400 transition-colors duration-200">No events found in this category</p>
+            </div>
+            <button
+              onClick={() => scrollCategories('left')}
+              className={`absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-all ${showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            >
+              <ChevronLeft className="w-6 h-6 text-gray-600" />
+            </button>
+            <button
+              onClick={() => scrollCategories('right')}
+              className="absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white shadow-lg hover:bg-gray-50 transition-colors"
+            >
+              <ChevronRight className="w-6 h-6 text-gray-600" />
+            </button>
           </div>
-        )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
+            {(selectedCategory ? upcomingEvents.filter(event => event.category === selectedCategory) : upcomingEvents)
+              .map(event => (
+                <div key={event.id} className="bg-white dark:bg-gray-800 rounded-xl p-6 transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <EventCard
+                    {...event}
+                    onClick={onEventClick}
+                  />
+                </div>
+              ))}
+          </div>
+          {(selectedCategory && upcomingEvents.filter(event => event.category === selectedCategory).length === 0) && (
+            <div className="text-center py-12">
+              <p className="text-gray-600 dark:text-gray-400 transition-colors duration-200">No events found in this category</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="py-20 bg-[#27aae2]" data-aos="fade-up">

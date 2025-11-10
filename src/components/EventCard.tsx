@@ -72,18 +72,18 @@ export default function EventCard({
       </div>
 
       <div className="p-2 sm:p-2.5 md:p-3 lg:p-5">
-        <h3 className="font-bold text-xs sm:text-sm md:text-base lg:text-lg text-gray-900 dark:text-white mb-1 sm:mb-1.5 md:mb-2 lg:mb-3 truncate transition-colors" style={{ color: '' }} onMouseEnter={(e) => e.currentTarget.style.color = '#27aae2'} onMouseLeave={(e) => e.currentTarget.style.color = ''}>
+        <h3 className="font-bold text-[7px] sm:text-sm md:text-base lg:text-lg text-gray-900 dark:text-white mb-1 sm:mb-1.5 md:mb-2 lg:mb-3 truncate transition-colors" style={{ color: '' }} onMouseEnter={(e) => e.currentTarget.style.color = '#27aae2'} onMouseLeave={(e) => e.currentTarget.style.color = ''}>
           {title}
         </h3>
 
         <div className="space-y-0.5 sm:space-y-1 md:space-y-1.5 lg:space-y-2 text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">
           <div className="flex items-center space-x-1 sm:space-x-1.5 md:space-x-2">
             <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 flex-shrink-0" style={{ color: '#27aae2' }} />
-            <span className="font-medium truncate text-[10px] sm:text-xs md:text-sm">{date} • {time}</span>
+            <span className="font-medium truncate text-[8px] sm:text-xs md:text-sm">{date} • {time}</span>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-1.5 md:space-x-2">
             <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 flex-shrink-0" style={{ color: '#27aae2' }} />
-            <span className="line-clamp-1 text-[10px] sm:text-xs md:text-sm">{location}</span>
+            <span className="line-clamp-1 text-[8px] sm:text-xs md:text-sm">{location}</span>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-1.5 md:space-x-2">
             <div className="flex -space-x-1 sm:-space-x-1.5 md:-space-x-2">
@@ -103,7 +103,7 @@ export default function EventCard({
                 className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-full border border-white dark:border-gray-800"
               />
             </div>
-            <span className="text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">+{attendees - 3} attending</span>
+            <span className="text-[8px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400">+{attendees - 3} attending</span>
           </div>
         </div>
       </div>
