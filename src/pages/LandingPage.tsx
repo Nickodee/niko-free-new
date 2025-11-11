@@ -434,6 +434,64 @@ export default function LandingPage({ onNavigate, onEventClick }: LandingPagePro
     }
   }, []);
 
+  // Auto-scroll Can't Miss events
+  React.useEffect(() => {
+    const element = cantMissRef.current;
+    if (!element) return;
+
+    let isPaused = false;
+    let pauseTimeout: NodeJS.Timeout;
+
+    const autoScroll = () => {
+      if (isPaused) return;
+
+      const maxScroll = element.scrollWidth - element.clientWidth;
+      const currentScroll = element.scrollLeft;
+
+      if (currentScroll >= maxScroll) {
+        // Reset to start when reaching the end
+        element.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        // Scroll to the next event card (approximately 300px)
+        element.scrollBy({ left: 300, behavior: 'smooth' });
+      }
+    };
+
+    // Start auto-scrolling every 3 seconds
+    const scrollInterval = setInterval(autoScroll, 3000);
+
+    // Pause auto-scroll when user hovers over the section
+    const handleMouseEnter = () => {
+      isPaused = true;
+    };
+
+    const handleMouseLeave = () => {
+      isPaused = false;
+    };
+
+    // Pause auto-scroll when user manually scrolls
+    const handleUserScroll = () => {
+      isPaused = true;
+      clearTimeout(pauseTimeout);
+      // Resume auto-scroll after 5 seconds of inactivity
+      pauseTimeout = setTimeout(() => {
+        isPaused = false;
+      }, 5000);
+    };
+
+    element.addEventListener('mouseenter', handleMouseEnter);
+    element.addEventListener('mouseleave', handleMouseLeave);
+    element.addEventListener('scroll', handleUserScroll);
+
+    return () => {
+      clearInterval(scrollInterval);
+      clearTimeout(pauseTimeout);
+      element.removeEventListener('mouseenter', handleMouseEnter);
+      element.removeEventListener('mouseleave', handleMouseLeave);
+      element.removeEventListener('scroll', handleUserScroll);
+    };
+  }, []);
+
   React.useEffect(() => {
     // Close search on click outside
     const handleClickOutside = (event: MouseEvent) => {

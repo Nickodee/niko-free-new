@@ -305,91 +305,91 @@ Don't miss this opportunity to be part of Africa's tech revolution!`,
 
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-8 mt-8">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Reviews</h3>
-                  <div className="space-y-6">
-                    <div className="flex items-start space-x-4">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-start space-x-2 sm:space-x-3">
                       <img
                         src="https://i.pravatar.cc/150?img=12"
                         alt="Reviewer"
-                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0"
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-white">Sarah Johnson</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">2 weeks ago</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-1 gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">Sarah Johnson</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">2 weeks ago</p>
                           </div>
-                          <div className="flex items-center space-x-1">
+                          <div className="flex items-center space-x-0.5 flex-shrink-0">
                             {[1, 2, 3, 4, 5].map((star) => (
-                              <svg key={star} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                              <svg key={star} className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
                                 <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                               </svg>
                             ))}
                           </div>
                         </div>
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          Amazing event! The speakers were incredibly insightful and the networking opportunities were fantastic. Learned so much about AI and blockchain applications in Africa.
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm line-clamp-2 sm:line-clamp-none">
+                          Amazing event! The speakers were incredibly insightful and the networking opportunities were fantastic.
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-start space-x-4">
+                    <div className="flex items-start space-x-2 sm:space-x-3">
                       <img
                         src="https://i.pravatar.cc/150?img=33"
                         alt="Reviewer"
-                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0"
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-white">Michael Omondi</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">1 month ago</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-1 gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">Michael Omondi</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">1 month ago</p>
                           </div>
-                          <div className="flex items-center space-x-1">
+                          <div className="flex items-center space-x-0.5 flex-shrink-0">
                             {[1, 2, 3, 4].map((star) => (
-                              <svg key={star} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                              <svg key={star} className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
                                 <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                               </svg>
                             ))}
-                            <svg className="w-5 h-5 text-gray-300 fill-current" viewBox="0 0 20 20">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300 fill-current" viewBox="0 0 20 20">
                               <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                             </svg>
                           </div>
                         </div>
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          Great summit with lots of valuable content. The venue was perfect and well-organized. Would have loved more hands-on workshop time though.
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm line-clamp-2 sm:line-clamp-none">
+                          Great summit with lots of valuable content. The venue was perfect and well-organized.
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-start space-x-4">
+                    <div className="flex items-start space-x-2 sm:space-x-3">
                       <img
                         src="https://i.pravatar.cc/150?img=27"
                         alt="Reviewer"
-                        className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0"
                       />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-white">Amina Hassan</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">3 weeks ago</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-1 gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">Amina Hassan</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">3 weeks ago</p>
                           </div>
-                          <div className="flex items-center space-x-1">
+                          <div className="flex items-center space-x-0.5 flex-shrink-0">
                             {[1, 2, 3, 4, 5].map((star) => (
-                              <svg key={star} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                              <svg key={star} className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
                                 <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                               </svg>
                             ))}
                           </div>
                         </div>
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                          Exceeded my expectations! Made valuable connections with investors and fellow entrepreneurs. The pitch competition was particularly inspiring. Definitely attending next year!
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm line-clamp-2 sm:line-clamp-none">
+                          Exceeded my expectations! Made valuable connections with investors and fellow entrepreneurs.
                         </p>
                       </div>
                     </div>
 
                     <button 
                       onClick={() => setShowLoginModal(true)}
-                      className="w-full py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:border-[#27aae2] hover:text-[#27aae2] transition-all"
+                      className="w-full py-2 sm:py-2.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:border-[#27aae2] hover:text-[#27aae2] transition-all text-sm"
                     >
                       Load More Reviews
                     </button>
