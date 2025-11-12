@@ -1,5 +1,5 @@
 import { Search, Send, MoreVertical, Phone, Video, Paperclip, Smile, Image as ImageIcon, MessageCircle } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 interface Message {
   id: string;
@@ -100,6 +100,13 @@ export default function Messages() {
   ]);
 
   const activeConversation = conversations.find(c => c.id === selectedConversation);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [activeConversation?.messages.length]);
 
   const handleSendMessage = () => {
     if (!messageText.trim() || !selectedConversation) return;
@@ -197,7 +204,7 @@ export default function Messages() {
           </div>
 
           {/* Chat Area */}
-          <div className={`lg:col-span-8 flex flex-col ${selectedConversation ? 'flex' : 'hidden lg:flex'}`}>
+          <div className={`lg:col-span-8 flex flex-col relative h-full min-h-[400px]`}>
             {activeConversation ? (
               <>
                 {/* Chat Header */}
@@ -242,32 +249,31 @@ export default function Messages() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 mb-[62px] space-y-3 sm:space-y-4 bg-gray-50 dark:bg-gray-900/50">
                   {activeConversation.messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.sent ? 'justify-end' : 'justify-start'}`}
+                        className={`flex ${message.sent ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-[75%] sm:max-w-[70%] ${message.sent ? 'order-2' : 'order-1'}`}>
+                        <div className={`max-w-[75%] sm:max-w-[70%] break-words ${message.sent ? 'order-2' : 'order-1'}`}>
                         <div
-                          className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl ${
-                            message.sent
-                              ? 'bg-[#27aae2] text-white'
-                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
-                          }`}
+                            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl whitespace-pre-line break-words ${
+                              message.sent
+                                ? 'bg-[#27aae2] text-white'
+                                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            }`}
                         >
-                          <p className="text-xs sm:text-sm">{message.text}</p>
+                            <p className="text-xs sm:text-sm break-words whitespace-pre-line">{message.text}</p>
                         </div>
-                        <p className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${message.sent ? 'text-right' : 'text-left'}`}>
-                          {message.time}
-                        </p>
+                        <p className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${message.sent ? 'text-right' : 'text-left'}`}>{message.time}</p>
                       </div>
                     </div>
                   ))}
+                  <div ref={messagesEndRef} />
                 </div>
 
-                {/* Message Input */}
-                <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                {/* Message Input - fixed at bottom */}
+                <div className="absolute left-0 right-0 bottom-0 p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                   <div className="flex items-end gap-2">
                     <div className="hidden sm:flex items-center gap-1">
                       <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">

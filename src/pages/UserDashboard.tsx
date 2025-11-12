@@ -1,5 +1,5 @@
-import { Calendar, Heart, Download, QrCode, Bell, MessageCircle, Users, Check, Bookmark, Moon, Sun } from 'lucide-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Calendar, Heart, Download, QrCode, Bell, MessageCircle, Users, Check, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import MyTickets from '../components/userDashboard/MyTickets';
 import Notifications from '../components/userDashboard/Notifications';
@@ -31,6 +31,8 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
     isOutdated?: boolean;
   } | null>(null);
   const { isDarkMode, toggleTheme } = useTheme();
+  const accountMenuRef = React.useRef<HTMLDivElement>(null);
+  const accountButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const handleEventClick = (event: typeof upcomingEvents[0] | typeof bucketlistEvents[0] | typeof eventHistory[0]) => {
     setSelectedEvent(event);
@@ -137,6 +139,24 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
     }
   ];
 
+  React.useEffect(() => {
+    if (!accountMenuOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      const menu = accountMenuRef.current;
+      const button = accountButtonRef.current;
+      if (
+        menu &&
+        !menu.contains(event.target as Node) &&
+        button &&
+        !button.contains(event.target as Node)
+      ) {
+        setAccountMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [accountMenuOpen]);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 relative">
       {/* Light mode dot pattern overlay */}
@@ -184,6 +204,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
               {/* Account Menu */}
               <div className="relative">
                 <button
+                  ref={accountButtonRef}
                   onClick={() => setAccountMenuOpen(!accountMenuOpen)}
                   className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                 >
@@ -200,7 +221,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
 
                 {/* Account Dropdown */}
                 {accountMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+                  <div ref={accountMenuRef} className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
                     <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">{userProfile.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">Joined {userProfile.joinDate}</p>
@@ -304,8 +325,8 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                           : 'bg-white/50 text-[#27aae2] hover:bg-white/80'
                       }`}
                     >
-                      <Bookmark className="w-3.5 h-3.5" />
-                      <span>Saved ({bucketlistEvents.filter(e => !e.isOutdated).length})</span>
+                      <Heart className="w-3.5 h-3.5" />
+                      <span>Liked ({bucketlistEvents.filter(e => !e.isOutdated).length})</span>
                     </button>
                   </div>
 
