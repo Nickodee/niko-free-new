@@ -1,22 +1,22 @@
-import { Users, Calendar, DollarSign, CheckCircle, XCircle, Clock, Ban, Settings, Menu, X, Search, User, LogOut, Shield, FileText, BarChart3 } from 'lucide-react';
+import { Settings, Menu, X, Search, User, LogOut, Shield, FileText, DollarSign, BarChart3, Users, Calendar } from 'lucide-react';
 import { useState } from 'react';
+import OverviewStats from '../components/adminDashboard/OverviewStats';
+import PartnersSection from '../components/adminDashboard/PartnersSection';
+import EventsSection from '../components/adminDashboard/EventsSection';
+import RecentActivity from '../components/adminDashboard/RecentActivity';
+import PendingApprovals from '../components/adminDashboard/PendingApprovals';
+import Reports from '../components/adminDashboard/Reports';
+import Revenue from '../components/adminDashboard/Revenue';
 
 interface AdminDashboardProps {
   onNavigate: (page: string) => void;
 }
 
 export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'partners' | 'events' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'partners' | 'events' | 'settings' | 'reports' | 'revenue'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const stats = [
-    { label: 'Total Users', value: '15,234', icon: Users, color: 'from-[#27aae2] to-[#1e8bb8]', change: '+12% this month' },
-    { label: 'Active Partners', value: '342', icon: Users, color: 'from-green-500 to-green-600', change: '+8% this month' },
-    { label: 'Total Events', value: '1,847', icon: Calendar, color: 'from-gray-700 to-gray-900', change: '+156 this month' },
-    { label: 'Platform Revenue', value: 'KES 1.2M', icon: DollarSign, color: 'from-orange-500 to-orange-600', change: '7% commission' }
-  ];
 
   const pendingPartners = [
     {
@@ -176,14 +176,24 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
               </button>
 
               <button
-                className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+                onClick={() => setActiveTab('reports')}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                  activeTab === 'reports'
+                    ? 'bg-[#27aae2] text-white shadow-lg'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
               >
                 <FileText className="w-5 h-5" />
                 <span>Reports</span>
               </button>
 
               <button
-                className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+                onClick={() => setActiveTab('revenue')}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                  activeTab === 'revenue'
+                    ? 'bg-[#27aae2] text-white shadow-lg'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
               >
                 <DollarSign className="w-5 h-5" />
                 <span>Revenue</span>
@@ -283,235 +293,65 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         {/* Main Content Area */}
         <main className="flex-1 overflow-x-hidden p-6 lg:p-8">
           {activeTab === 'overview' && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {stats.map((stat, index) => {
-                const Icon = stat.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center`}>
-                        <Icon className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">{stat.label}</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.value}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{stat.change}</p>
-                  </div>
-                );
-              })}
+            <div className="space-y-8">
+              <OverviewStats />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <PendingApprovals
+                  pendingPartners={pendingPartners}
+                  pendingEvents={pendingEvents}
+                  onReviewPartners={() => setActiveTab('partners')}
+                  onReviewEvents={() => setActiveTab('events')}
+                />
+                <RecentActivity />
+              </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {activeTab === 'partners' && (
+            <PartnersSection pendingPartners={pendingPartners} approvedPartners={approvedPartners} />
+          )}
+
+          {activeTab === 'events' && (
+            <EventsSection pendingEvents={pendingEvents} />
+          )}
+
+          {activeTab === 'reports' && (
+            <Reports />
+          )}
+
+          {activeTab === 'revenue' && (
+            <Revenue />
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Platform Settings</h2>
+
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Pending Approvals</h3>
-                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
-                    {pendingPartners.length + pendingEvents.length}
-                  </span>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-semibold text-gray-900 dark:text-white">Partner Applications</p>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{pendingPartners.length} pending</span>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab('partners')}
-                      className="text-sm text-[#27aae2] hover:text-[#1e8bb8] font-medium"
-                    >
-                      Review now →
-                    </button>
-                  </div>
-                  <div className="p-4 bg-[#27aae2]/10 dark:bg-[#27aae2]/20 border border-[#27aae2]/30 dark:border-[#27aae2]/40 rounded-xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-semibold text-gray-900 dark:text-white">Event Submissions</p>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">{pendingEvents.length} pending</span>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab('events')}
-                      className="text-sm text-[#27aae2] hover:text-[#1e8bb8] font-medium"
-                    >
-                      Review now →
-                    </button>
-                  </div>
-                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Categories Management</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Manage event categories and classifications</p>
+                <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors">
+                  Manage Categories
+                </button>
               </div>
 
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Recent Activity</h3>
-                <div className="space-y-4">
-                  {[
-                    { action: 'Partner approved', name: 'Creative Arts Kenya', time: '1 hour ago' },
-                    { action: 'Event published', name: 'Jazz Night Live', time: '3 hours ago' },
-                    { action: 'New user registered', name: 'John Doe', time: '5 hours ago' }
-                  ].map((activity, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900 dark:text-white">{activity.action}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{activity.name}</p>
-                      </div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{activity.time}</span>
-                    </div>
-                  ))}
-                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Locations Management</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Add or remove supported locations</p>
+                <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors">
+                  Manage Locations
+                </button>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Commission Settings</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Current platform commission: 7%</p>
+                <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors">
+                  Adjust Commission
+                </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {activeTab === 'partners' && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Pending Partner Applications</h2>
-              <div className="space-y-4">
-                {pendingPartners.map((partner) => (
-                  <div
-                    key={partner.id}
-                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border border-gray-100 dark:border-gray-700"
-                  >
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">{partner.name}</h3>
-                          <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
-                            <span>PENDING</span>
-                          </span>
-                        </div>
-                        <p className="text-gray-600 dark:text-gray-400 mb-2">{partner.email}</p>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-                          <span>Category: {partner.category}</span>
-                          <span>Submitted: {partner.submittedDate}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2">
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Approve</span>
-                        </button>
-                        <button className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center space-x-2">
-                          <XCircle className="w-4 h-4" />
-                          <span>Reject</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Active Partners</h2>
-              <div className="space-y-4">
-                {approvedPartners.map((partner) => (
-                  <div
-                    key={partner.id}
-                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border border-gray-100 dark:border-gray-700"
-                  >
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">{partner.name}</h3>
-                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                            ACTIVE
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-gray-400 mt-3">
-                          <span>{partner.totalEvents} events</span>
-                          <span>Revenue: {partner.totalRevenue}</span>
-                          <span>Rating: {partner.rating}/5.0</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="px-6 py-2.5 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:border-[#27aae2] hover:text-[#27aae2] transition-all">
-                          View Details
-                        </button>
-                        <button className="px-6 py-2.5 border-2 border-red-200 dark:border-red-700 text-red-600 rounded-lg font-semibold hover:border-red-500 transition-all flex items-center space-x-2">
-                          <Ban className="w-4 h-4" />
-                          <span>Suspend</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'events' && (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Pending Event Approvals</h2>
-            <div className="space-y-4">
-              {pendingEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border border-gray-100 dark:border-gray-700"
-                >
-                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{event.title}</h3>
-                        <span className="px-3 py-1 bg-[#27aae2]/20 text-[#27aae2] rounded-full text-xs font-semibold">
-                          {event.category}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-                        <span>By: {event.partner}</span>
-                        <span>Date: {event.date}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Approve</span>
-                      </button>
-                      <button className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors flex items-center space-x-2">
-                        <XCircle className="w-4 h-4" />
-                        <span>Reject</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Platform Settings</h2>
-
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Categories Management</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">Manage event categories and classifications</p>
-              <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors">
-                Manage Categories
-              </button>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Locations Management</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">Add or remove supported locations</p>
-              <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors">
-                Manage Locations
-              </button>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Commission Settings</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">Current platform commission: 7%</p>
-              <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors">
-                Adjust Commission
-              </button>
-            </div>
-          </div>
-        )}
+          )}
         </main>
       </div>
       </div>
