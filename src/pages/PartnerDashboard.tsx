@@ -1,4 +1,4 @@
-import { Calendar, Users, Zap, Home, Bell, UserPlus, QrCode, Award, Menu, X, Search, User, Settings as SettingsIcon, LogOut, Moon, Sun } from 'lucide-react';
+import { Calendar, Users, Zap, Home, Bell, UserPlus, QrCode, Award, Menu, X, Search, User, Settings as SettingsIcon, LogOut, Moon, Sun, BarChart3 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import Overview from '../components/partnerDashboard/Overview';
@@ -13,13 +13,14 @@ import Settings from '../components/partnerDashboard/Settings';
 import MyProfile from '../components/partnerDashboard/MyProfile';
 import CreateEvent from '../components/partnerDashboard/CreateEvent';
 import WithdrawFunds from '../components/partnerDashboard/WithdrawFunds';
+import Analytics from '../components/partnerDashboard/Analytics';
 
 interface PartnerDashboardProps {
   onNavigate: (page: string) => void;
 }
 
 export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'attendees' | 'boost' | 'notifications' | 'roles' | 'scanner' | 'verification' | 'settings' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'attendees' | 'boost' | 'notifications' | 'roles' | 'scanner' | 'verification' | 'settings' | 'profile' | 'analytics'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
@@ -33,6 +34,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'attendees', label: 'Attendees', icon: Users },
     { id: 'boost', label: 'Boost Event', icon: Zap },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'roles', label: 'Assign Roles', icon: UserPlus },
     { id: 'scanner', label: 'Scan Tickets', icon: QrCode },
@@ -256,6 +258,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
             {activeTab === 'events' && <MyEvents onCreateEvent={() => setCreateEventOpen(true)} />}
             {activeTab === 'attendees' && <Attendees />}
             {activeTab === 'boost' && <BoostEvent />}
+            {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'notifications' && <NotificationSettings />}
             {activeTab === 'roles' && <AssignRoles />}
             {activeTab === 'scanner' && <TicketScanner />}

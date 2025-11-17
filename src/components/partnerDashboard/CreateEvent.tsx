@@ -117,6 +117,7 @@ const predefinedCategories = [
 ];
 
 export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
+  const [showSuccess, setShowSuccess] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<EventFormData>({
     locationType: 'physical',
@@ -300,11 +301,29 @@ export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
   const handleSubmit = () => {
     // Submit event for approval
     console.log('Event submitted:', formData);
-    alert('Event submitted for approval! You will be notified once it\'s approved.');
-    onClose();
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      onClose();
+    }, 2500);
   };
 
   if (!isOpen) return null;
+  if (showSuccess) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <h2 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-4">Successfully created your event!</h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-6">Wait for admin approval. You will be notified once your event is approved.</p>
+          <div className="flex justify-center">
+            <svg className="w-16 h-16 text-green-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2l4-4m5 2a9 9 0 11-18 0a9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -551,7 +570,7 @@ export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
                   {/* Open Interests */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Add Custom Interests (Max 5)
+                      Add Custom Interests (Max 10)
                     </label>
                     <div className="flex gap-2 mb-3">
                       <input

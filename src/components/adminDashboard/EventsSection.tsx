@@ -72,76 +72,82 @@ export default function EventsSection({ pendingEvents }: EventsSectionProps) {
       </div>
       {/* Event Details Modal (Redesigned for Approval) */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 max-w-2xl w-full relative overflow-y-auto max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-8 max-w-2xl w-full relative overflow-y-auto max-h-[90vh]">
             <button
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white text-2xl font-bold"
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white text-2xl font-bold"
               onClick={() => setSelectedEvent(null)}
             >
               &times;
             </button>
+            {/* Event Image - full width */}
+            <div className="w-full mb-6">
+              <img
+                src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80"
+                alt="Event"
+                className="w-full h-56 sm:h-72 object-cover rounded-xl border border-gray-200 dark:border-gray-800"
+              />
+            </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Event Details for Approval</h2>
             <div className="space-y-6">
               {/* Event Name & Status */}
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
-                  <span className="text-gray-400 dark:text-gray-500 text-4xl font-bold">{selectedEvent.title.charAt(0)}</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-lg text-gray-900 dark:text-white">{selectedEvent.title}</p>
-                  <span className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-700 font-semibold">{selectedEvent.status?.toUpperCase() || 'PENDING'}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
+                <div className="flex-1">
+                  <p className="font-semibold text-xl text-gray-900 dark:text-white mb-1">{selectedEvent.title}</p>
+                  <span className="text-xs px-2 py-1 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-semibold mr-2">{selectedEvent.status?.toUpperCase() || 'PENDING'}</span>
+                  <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium mr-2">{selectedEvent.category}</span>
                 </div>
               </div>
 
               {/* Category & Partner */}
               <div>
-                <p className="font-semibold mb-1">Category:</p>
-                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium mr-2">{selectedEvent.category}</span>
-                <p className="font-semibold mb-1 mt-2">Partner:</p>
-                <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium mr-2">{selectedEvent.partner}</span>
+                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Category:</p>
+                <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium mr-2">{selectedEvent.category}</span>
+                <p className="font-semibold mb-1 mt-2 text-gray-900 dark:text-white">Partner:</p>
+                <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium mr-2">{selectedEvent.partner}</span>
               </div>
 
               {/* Date & Time */}
               <div>
-                <p className="font-semibold mb-1">Date & Time:</p>
-                <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium mr-2">{selectedEvent.date}</span>
+                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Date & Time:</p>
+                <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium mr-2">{selectedEvent.date}</span>
               </div>
 
               {/* Description (mocked for demo) */}
               <div>
-                <p className="font-semibold mb-1">Description:</p>
+                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Description:</p>
                 <span className="text-sm text-gray-700 dark:text-gray-300">This is a sample event description. The real description will be shown here.</span>
               </div>
 
               {/* Attendee Limit (mocked for demo) */}
               <div>
-                <p className="font-semibold mb-1">Attendee Limit:</p>
+                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Attendee Limit:</p>
                 <span className="text-sm text-gray-700 dark:text-gray-300">Unlimited</span>
               </div>
 
               {/* Ticket Types (mocked for demo) */}
               <div>
-                <p className="font-semibold mb-1">Ticket Types:</p>
+                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Ticket Types:</p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Regular - $10</span>
-                  <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">VIP - $25</span>
+                  <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">Regular - $10</span>
+                  <span className="inline-block px-3 py-1 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 rounded-full text-xs font-medium">VIP - $25</span>
                 </div>
               </div>
 
               {/* Hosts (mocked for demo) */}
               <div>
-                <p className="font-semibold mb-1">Hosts:</p>
+                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Hosts:</p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-block px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-medium">@annalane (Verified)</span>
-                  <span className="inline-block px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-medium">@victormuli (Verified)</span>
+                  <span className="inline-block px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">@annalane (Verified)</span>
+                  <span className="inline-block px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">@victormuli (Verified)</span>
                 </div>
               </div>
 
               {/* Promo Codes (mocked for demo) */}
               <div>
-                <p className="font-semibold mb-1">Promo Codes:</p>
+                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Promo Codes:</p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">EARLYBIRD - 20% off</span>
+                  <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">EARLYBIRD - 20% off</span>
                 </div>
               </div>
 
