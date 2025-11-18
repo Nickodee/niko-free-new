@@ -16,11 +16,36 @@ interface EventsSectionProps {
 
 export default function EventsSection({ pendingEvents }: EventsSectionProps) {
   const [selectedEvent, setSelectedEvent] = React.useState<PendingEvent | null>(null);
+  const [categoryFilter, setCategoryFilter] = React.useState<string>('All');
+
+  // Get unique categories
+  const categories = Array.from(new Set(pendingEvents.map(e => e.category)));
+
+  // Filter events by category
+  const filteredEvents = categoryFilter === 'All'
+    ? pendingEvents
+    : pendingEvents.filter(e => e.category === categoryFilter);
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Pending Event Approvals</h2>
+      {/* Category Filter Dropdown */}
+      <div className="mb-6 flex items-center gap-2">
+        <label htmlFor="category-filter" className="font-semibold text-gray-700 dark:text-gray-300">Filter by Category:</label>
+        <select
+          id="category-filter"
+          value={categoryFilter}
+          onChange={e => setCategoryFilter(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+        >
+          <option value="All">All</option>
+          {categories.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
       <div className="space-y-4">
-        {pendingEvents.map((event) => (
+        {filteredEvents.map((event) => (
           <div
             key={event.id}
             className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border border-gray-100 dark:border-gray-700 cursor-pointer"

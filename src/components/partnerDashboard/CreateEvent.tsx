@@ -77,7 +77,6 @@ interface TicketType {
   timeslot?: string; // e.g., "9:00 AM - 10:00 AM"
   price: number;
   quantity: number;
-  vatIncluded: boolean;
 }
 
 interface Host {
@@ -213,7 +212,7 @@ export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
       ticketStructure: 'basic',
       price: 0,
       quantity: 0,
-      vatIncluded: true
+  // vatIncluded removed per request
     };
     setFormData(prev => ({
       ...prev,
@@ -942,9 +941,14 @@ export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
                                 <div>
                                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Price (KES)</label>
                                   <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={ticket.price || ''}
-                                    onChange={(e) => updateTicketType(ticket.id, 'price', parseFloat(e.target.value) || 0)}
+                                    onChange={(e) => {
+                                      const v = e.target.value.replace(/[^0-9.]/g, '');
+                                      updateTicketType(ticket.id, 'price', parseFloat(v) || 0);
+                                    }}
                                     placeholder="0"
                                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
                                   />
@@ -954,27 +958,22 @@ export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
                                 <div>
                                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Quantity Available</label>
                                   <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={ticket.quantity || ''}
-                                    onChange={(e) => updateTicketType(ticket.id, 'quantity', parseInt(e.target.value) || 0)}
+                                    onChange={(e) => {
+                                      const v = e.target.value.replace(/[^0-9]/g, '');
+                                      updateTicketType(ticket.id, 'quantity', parseInt(v) || 0);
+                                    }}
                                     placeholder="0"
                                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
                                   />
                                 </div>
                               </div>
 
-                              {/* VAT and Delete */}
-                              <div className="flex items-center justify-between pt-2">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={ticket.vatIncluded}
-                                    onChange={(e) => updateTicketType(ticket.id, 'vatIncluded', e.target.checked)}
-                                    className="w-4 h-4 text-[#27aae2] rounded focus:ring-[#27aae2]"
-                                  />
-                                  <span className="text-xs text-gray-700 dark:text-gray-300">VAT Included</span>
-                                </label>
-
+                              {/* Delete button */}
+                              <div className="flex items-center justify-end pt-2">
                                 <button
                                   onClick={() => removeTicketType(ticket.id)}
                                   className="flex items-center gap-1 px-3 py-1.5 text-red-500 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-xs"
@@ -995,7 +994,7 @@ export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
                                   {ticket.ticketStructure === 'timeslot' && ` (${ticket.timeslot || 'TIME SLOT'})`}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  KES {ticket.price.toLocaleString()} {ticket.vatIncluded && '(incl. VAT)'} • {ticket.quantity} available
+                                  KES {ticket.price.toLocaleString()} • {ticket.quantity} available
                                 </p>
                               </div>
                             </div>
@@ -1026,13 +1025,13 @@ export default function CreateEvent({ isOpen, onClose }: CreateEventProps) {
                   {/* Hosts Section */}
                   <div className="mb-8">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Add Event Hosts (Max 2)
+                      Add Event Hosts (Max 3)
                     </label>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                       Hosts must be Niko Free members and will receive all RSVPs, bookings, and bucket lists.
                     </p>
 
-                    {formData.hosts.length < 2 && (
+                    {formData.hosts.length < 3 && (
                       <div className="mb-4">
                         <input
                           type="text"

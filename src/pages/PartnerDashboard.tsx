@@ -1,6 +1,7 @@
-import { Calendar, Users, Zap, Home, Bell, UserPlus, QrCode, Award, Menu, X, Search, User, Settings as SettingsIcon, LogOut, Moon, Sun, BarChart3 } from 'lucide-react';
+import { Calendar, Users, Zap, Home, Bell, UserPlus, QrCode, Award, Menu, X, Search, User, Settings as SettingsIcon, LogOut, Moon, Sun, BarChart3, HelpCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import AskSupport from '../components/partnerDashboard/AskSupport';
 import Overview from '../components/partnerDashboard/Overview';
 import MyEvents from '../components/partnerDashboard/MyEvents';
 import Attendees from '../components/partnerDashboard/Attendees';
@@ -20,7 +21,7 @@ interface PartnerDashboardProps {
 }
 
 export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'attendees' | 'boost' | 'notifications' | 'roles' | 'scanner' | 'verification' | 'settings' | 'profile' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'attendees' | 'boost' | 'notifications' | 'roles' | 'scanner' | 'verification' | 'settings' | 'profile' | 'analytics' | 'support'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [createEventOpen, setCreateEventOpen] = useState(false);
@@ -124,8 +125,20 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                     </li>
                   );
                 })}
+                {/* Ask for Support Button */}
+                <li>
+                  <button
+                    onClick={() => setActiveTab('support')}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all mt-4
+                      ${activeTab === 'support' ? 'bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white shadow-lg' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                    <span>Ask for Support</span>
+                  </button>
+                </li>
               </ul>
             </nav>
+  {/* ...existing code... */}
           </div>
         </aside>
 
@@ -265,6 +278,9 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
             {activeTab === 'verification' && <PartnerVerification />}
             {activeTab === 'settings' && <Settings />}
             {activeTab === 'profile' && <MyProfile />}
+            {activeTab === 'support' && (
+              <AskSupport onSent={() => setActiveTab('overview')} />
+            )}
           </div>
         </main>
 

@@ -178,7 +178,13 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           <div className="flex items-center justify-between">
             {/* Left - Logo */}
             <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Niko Free</h1>
+              <button
+                className="text-xl font-bold text-gray-900 dark:text-white focus:outline-none hover:text-[#27aae2] transition-colors"
+                onClick={() => onNavigate('landing')}
+                aria-label="Go to Landing Page"
+              >
+                Niko Free
+              </button>
             </div>
 
             {/* Right - Notifications, Messages, Account */}
