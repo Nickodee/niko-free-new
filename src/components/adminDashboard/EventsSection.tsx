@@ -166,19 +166,14 @@ export default function EventsSection({}: EventsSectionProps) {
     }
   };
 
-  // Get unique categories
-  const categories = Array.from(new Set(pendingEvents.map(e => e.category)));
-
-  // Filter events by category
-  const filteredEvents = categoryFilter === 'All'
-    ? pendingEvents
-    : pendingEvents.filter(e => e.category === categoryFilter);
-
   // Filter events based on status and category
   const displayEvents = statusFilter === 'all' ? allEvents : allEvents.filter(e => e.status === statusFilter);
   const filteredEvents = categoryFilter === 'All'
     ? displayEvents
     : displayEvents.filter(e => e.category === categoryFilter);
+
+  // Get unique categories from all events
+  const categories = Array.from(new Set(allEvents.map(e => e.category)));
 
   return (
     <div>
