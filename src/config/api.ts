@@ -54,6 +54,7 @@ export const API_ENDPOINTS = {
     events: '/api/partners/events',
     event: (id: number) => `/api/partners/events/${id}`,
     uploadLogo: '/api/partners/logo',
+    analytics: '/api/partners/analytics',
     changePassword: '/api/partners/change-password',
   },
   
