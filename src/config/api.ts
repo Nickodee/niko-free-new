@@ -4,8 +4,12 @@
  */
 
 // Base URL for the API - defaults to localhost:5001 for development
+<<<<<<< HEAD
 export const API_BASE_URL = 'http://localhost:8000';
 
+=======
+export const API_BASE_URL = 'http://127.0.0.1:8000';
+>>>>>>> 6fa7fb555f715581969d3376cb5573f548bba6c0
 
 // API Endpoints
 export const API_ENDPOINTS = {
