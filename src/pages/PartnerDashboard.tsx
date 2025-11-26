@@ -353,7 +353,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
             )}
             {activeTab === 'attendees' && <Attendees />}
             {activeTab === 'boost' && <BoostEvent />}
-            {activeTab === 'notifications' && <NotificationSettings />}
+            {activeTab === 'notifications' && <Notifications />}
             {activeTab === 'roles' && <AssignRoles />}
             {activeTab === 'scanner' && <TicketScanner />}
             {activeTab === 'verification' && <PartnerVerification />}

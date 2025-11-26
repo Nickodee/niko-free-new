@@ -45,10 +45,14 @@ export default function BucketList({ onEventClick }: BucketListProps) {
         return {
           id: event.id,
           title: event.title || 'Event',
-          image: event.poster_image ? `${API_BASE_URL}/uploads/${event.poster_image}` : '',
+          image: event.poster_image 
+            ? (event.poster_image.startsWith('http') 
+                ? event.poster_image 
+                : `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`)
+            : 'https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=400',
           date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           location: event.venue_name || event.venue_address || 'Online',
-          price: event.is_free ? 'Free' : (event.ticket_types?.[0]?.price ? `KES ${event.ticket_types[0].price.toLocaleString()}` : 'TBA'),
+          price: event.is_free ? 'Free' : (event.ticket_types?.[0]?.price ? `KES ${parseFloat(event.ticket_types[0].price).toLocaleString()}` : 'TBA'),
           isOutdated: isOutdated,
           category: event.category?.name || 'General'
         };

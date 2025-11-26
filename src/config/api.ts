@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
     rejectEvent: (id: number) => `${API_BASE_URL}/api/admin/events/${id}/reject`,
     featureEvent: (id: number) => `${API_BASE_URL}/api/admin/events/${id}/feature`,
     users: `${API_BASE_URL}/api/admin/users`,
+    user: (id: number) => `${API_BASE_URL}/api/admin/users/${id}`,
     categories: `${API_BASE_URL}/api/admin/categories`,
     locations: `${API_BASE_URL}/api/admin/locations`,
     analytics: `${API_BASE_URL}/api/admin/analytics`,
@@ -83,9 +84,13 @@ export const API_ENDPOINTS = {
   
   // Notifications
   notifications: {
+    user: '/api/notifications/user',
     partner: '/api/notifications/partner',
+    admin: '/api/notifications/admin',
     markRead: (id: number) => `/api/notifications/${id}/read`,
-    markAllRead: '/api/notifications/partner/read-all',
+    markAllRead: '/api/notifications/read-all',
+    markAllPartnerRead: '/api/notifications/partner/read-all',
+    markAllAdminRead: '/api/notifications/admin/read-all',
     delete: (id: number) => `/api/notifications/${id}`,
   },
   

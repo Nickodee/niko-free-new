@@ -141,9 +141,11 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
 
   const getEventImage = (event: any): string => {
     if (event.poster_image) {
-      return event.poster_image.startsWith('http') 
-        ? event.poster_image 
-        : `${API_BASE_URL}/${event.poster_image.replace(/^\/+/, '')}`;
+      if (event.poster_image.startsWith('http')) {
+        return event.poster_image;
+      }
+      // Handle paths like /uploads/events/filename.jpg
+      return `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`;
     }
     return 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=400&h=250&fit=crop';
   };

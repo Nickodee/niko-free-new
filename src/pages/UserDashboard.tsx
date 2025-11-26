@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Heart, Download, QrCode, Bell, MessageCircle, Users, Check, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import MyTickets from '../components/userDashboard/MyTickets';
 import Notifications from '../components/userDashboard/Notifications';
 import Messages from '../components/userDashboard/Messages';
@@ -9,12 +10,15 @@ import MyProfile from '../components/userDashboard/MyProfile';
 import Settings from '../components/userDashboard/Settings';
 import EventsBooked from '../components/userDashboard/EventsBooked';
 import BucketList from '../components/userDashboard/BucketList';
+import { getUserProfile, getUserBookings, getBucketlist, getUserNotifications } from '../services/userService';
+import { API_BASE_URL } from '../config/api';
 
 interface UserDashboardProps {
   onNavigate: (page: string) => void;
 }
 
 export default function UserDashboard({ onNavigate }: UserDashboardProps) {
+  const { user, isAuthenticated } = useAuth();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [activeEventsTab, setActiveEventsTab] = useState<'going' | 'saved'>('going');
   const [activeView, setActiveView] = useState<'dashboard' | 'tickets' | 'notifications' | 'messages' | 'eventDetail' | 'profile' | 'settings' | 'eventsBooked' | 'bucketList'>('dashboard');
@@ -33,8 +37,134 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
   const { isDarkMode, toggleTheme } = useTheme();
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
   const accountButtonRef = React.useRef<HTMLButtonElement>(null);
+  
+  // User profile data from API
+  const [userProfile, setUserProfile] = useState({
+    name: 'User',
+    avatar: '',
+    joinDate: '',
+    eventsAttended: 0
+  });
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [bucketlistEvents, setBucketlistEvents] = useState<any[]>([]);
+  const [eventHistory, setEventHistory] = useState<any[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const handleEventClick = (event: typeof upcomingEvents[0] | typeof bucketlistEvents[0] | typeof eventHistory[0]) => {
+  // Fetch user data and events
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUserData();
+    }
+  }, [isAuthenticated]);
+
+  const fetchUserData = async () => {
+    try {
+      setIsLoadingData(true);
+      
+      // Fetch user profile
+      const profileData = await getUserProfile();
+      const userData = profileData.user || profileData;
+      const fullName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'User';
+      const avatar = userData.profile_picture 
+        ? `${API_BASE_URL}${userData.profile_picture.startsWith('/') ? '' : '/'}${userData.profile_picture}`
+        : '';
+      const joinDate = userData.created_at 
+        ? new Date(userData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        : '';
+
+      setUserProfile({
+        name: fullName,
+        avatar: avatar,
+        joinDate: joinDate,
+        eventsAttended: 0
+      });
+
+      // Fetch upcoming bookings
+      const upcomingBookings = await getUserBookings('upcoming');
+      const upcoming = (upcomingBookings.bookings || []).map((booking: any) => {
+        const event = booking.event || {};
+        const startDate = event.start_date ? new Date(event.start_date) : new Date();
+        return {
+          id: booking.id?.toString() || event.id?.toString() || '',
+          title: event.title || 'Event',
+          image: event.poster_image 
+            ? `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`
+            : 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=400',
+          date: startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          time: startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          location: event.venue_name || event.venue_address || 'Location TBA',
+          ticketId: booking.booking_number || `TKT-${booking.id}`,
+          eventId: event.id
+        };
+      });
+      setUpcomingEvents(upcoming);
+
+      // Fetch bucketlist
+      const bucketlistData = await getBucketlist();
+      const bucketlist = (bucketlistData.events || []).map((event: any) => {
+        const startDate = event.start_date ? new Date(event.start_date) : new Date();
+        const now = new Date();
+        return {
+          id: event.id?.toString() || '',
+          title: event.title || 'Event',
+          image: event.poster_image 
+            ? (event.poster_image.startsWith('http') 
+                ? event.poster_image 
+                : `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`)
+            : 'https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=400',
+          date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          location: event.venue_name || event.venue_address || 'Location TBA',
+          price: event.is_free ? 'Free' : `KES ${event.ticket_types?.[0]?.price ? parseFloat(event.ticket_types[0].price).toLocaleString() : 0}`,
+          isOutdated: startDate < now,
+          eventId: event.id,
+          status: event.status, // Include status so we can show it if needed
+          is_published: event.is_published
+        };
+      });
+      setBucketlistEvents(bucketlist);
+
+      // Fetch past bookings (event history)
+      const pastBookings = await getUserBookings('past');
+      const history = (pastBookings.bookings || []).map((booking: any) => {
+        const event = booking.event || {};
+        const startDate = event.start_date ? new Date(event.start_date) : new Date();
+        return {
+          id: booking.id?.toString() || event.id?.toString() || '',
+          title: event.title || 'Event',
+          image: event.poster_image 
+            ? `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`
+            : 'https://images.pexels.com/photos/1481308/pexels-photo-1481308.jpeg?auto=compress&cs=tinysrgb&w=400',
+          date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          location: event.venue_name || event.venue_address || 'Location TBA',
+          rating: 5, // TODO: Get actual rating from reviews
+          eventId: event.id
+        };
+      });
+      setEventHistory(history);
+
+      // Update events attended count
+      setUserProfile(prev => ({
+        ...prev,
+        eventsAttended: history.length
+      }));
+
+      // Fetch unread notification count
+      try {
+        const notificationsData = await getUserNotifications(true); // unread only
+        setUnreadNotificationCount(notificationsData.unread_count || 0);
+      } catch (err) {
+        console.error('Error fetching notification count:', err);
+      }
+
+    } catch (err: any) {
+      console.error('Error fetching user data:', err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const handleEventClick = (event: any) => {
     setSelectedEvent(event);
     setActiveView('eventDetail');
   };
@@ -43,101 +173,6 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
     setSelectedEvent(null);
     setActiveView('dashboard');
   };
-
-  const userProfile = {
-    name: 'Alex Johnson',
-    avatar: 'https://i.pravatar.cc/150?img=33',
-    joinDate: 'January 2024',
-    eventsAttended: 12,
-    groupsJoined: 5
-  };
-
-  const upcomingEvents = [
-    {
-      id: '1',
-      title: 'Nairobi Tech Summit 2025',
-      image: 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Sat, Nov 2',
-      time: '9:00 AM',
-      location: 'KICC, Nairobi',
-      ticketId: 'TKT-2025-001'
-    },
-    {
-      id: '2',
-      title: 'Morning Yoga in the Park',
-      image: 'https://images.pexels.com/photos/3822647/pexels-photo-3822647.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Tomorrow',
-      time: '6:00 AM',
-      location: 'Karura Forest',
-      ticketId: 'TKT-2025-002'
-    },
-    {
-      id: '3',
-      title: 'Startup Networking Mixer',
-      image: 'https://images.pexels.com/photos/1190298/pexels-photo-1190298.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Nov 10',
-      time: '6:00 PM',
-      location: 'iHub Nairobi',
-      ticketId: 'TKT-2025-003'
-    }
-  ];
-
-  const bucketlistEvents = [
-    {
-      id: '4',
-      title: 'Sunset Music Festival',
-      image: 'https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Nov 15, 2025',
-      location: 'Uhuru Gardens',
-      price: 'KES 800',
-      isOutdated: false
-    },
-    {
-      id: '5',
-      title: 'Mt. Kenya Hiking Adventure',
-      image: 'https://images.pexels.com/photos/618848/pexels-photo-618848.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Oct 20, 2025',
-      location: 'Mt. Kenya',
-      price: 'Free',
-      isOutdated: true
-    },
-    {
-      id: '6',
-      title: 'Art Gallery Opening',
-      image: 'https://images.pexels.com/photos/1839919/pexels-photo-1839919.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Nov 20, 2025',
-      location: 'Nairobi Gallery',
-      price: 'KES 500',
-      isOutdated: false
-    }
-  ];
-
-  const eventHistory = [
-    {
-      id: '7',
-      title: 'Jazz Night Live',
-      image: 'https://images.pexels.com/photos/1481308/pexels-photo-1481308.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Oct 25, 2025',
-      location: 'Alliance Française',
-      rating: 5
-    },
-    {
-      id: '8',
-      title: 'Food & Wine Tasting',
-      image: 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Oct 15, 2025',
-      location: 'Villa Rosa Kempinski',
-      rating: 4
-    },
-    {
-      id: '9',
-      title: 'Photography Workshop',
-      image: 'https://images.pexels.com/photos/2833392/pexels-photo-2833392.jpeg?auto=compress&cs=tinysrgb&w=400',
-      date: 'Oct 5, 2025',
-      location: 'Nairobi National Park',
-      rating: 5
-    }
-  ];
 
   React.useEffect(() => {
     if (!accountMenuOpen) return;
@@ -195,7 +230,14 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                 className="relative p-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
               >
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                )}
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                  </span>
+                )}
               </button>
 
               {/* Messages */}
@@ -215,7 +257,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                   className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                 >
                   <img
-                    src={userProfile.avatar}
+                    src={userProfile.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.name)}&background=27aae2&color=fff`}
                     alt={userProfile.name}
                     className="w-9 h-9 rounded-full object-cover"
                   />
@@ -291,12 +333,14 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
               {/* Profile Section */}
               <div className="text-center mb-6">
                 <img
-                  src={userProfile.avatar}
+                  src={userProfile.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.name)}&background=27aae2&color=fff&size=128`}
                   alt={userProfile.name}
                   className="w-24 h-24 rounded-full object-cover mx-auto mb-3 border-4 border-[#27aae2]/20"
                 />
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{userProfile.name}</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Joined {userProfile.joinDate}</p>
+                {userProfile.joinDate && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Joined {userProfile.joinDate}</p>
+                )}
               </div>
 
               {/* User Stats */}
@@ -338,67 +382,62 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
 
                   {/* Event List */}
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {activeEventsTab === 'going' ? (
-                      upcomingEvents.slice(0, 3).map((event) => (
-                        <div 
-                          key={event.id} 
-                          onClick={() => handleEventClick(event)}
-                          className="bg-white/70 rounded-lg p-2 hover:bg-white transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={event.image}
-                              alt={event.title}
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{event.title}</p>
-                              <p className="text-xs text-gray-700 dark:text-gray-300">{event.date}</p>
+                    {isLoadingData ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#27aae2] mx-auto"></div>
+                      </div>
+                    ) : activeEventsTab === 'going' ? (
+                      upcomingEvents.length > 0 ? (
+                        upcomingEvents.slice(0, 3).map((event) => (
+                          <div 
+                            key={event.id} 
+                            onClick={() => handleEventClick(event)}
+                            className="bg-white/70 rounded-lg p-2 hover:bg-white transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={event.image}
+                                alt={event.title}
+                                className="w-10 h-10 rounded object-cover"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{event.title}</p>
+                                <p className="text-xs text-gray-700 dark:text-gray-300">{event.date}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">No upcoming events</p>
+                      )
                     ) : (
-                      bucketlistEvents.filter(e => !e.isOutdated).slice(0, 3).map((event) => (
-                        <div 
-                          key={event.id} 
-                          onClick={() => handleEventClick(event)}
-                          className="bg-white/70 rounded-lg p-2 hover:bg-white transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={event.image}
-                              alt={event.title}
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{event.title}</p>
-                              <p className="text-xs text-gray-700 dark:text-gray-300">{event.price}</p>
+                      bucketlistEvents.filter(e => !e.isOutdated).length > 0 ? (
+                        bucketlistEvents.filter(e => !e.isOutdated).slice(0, 3).map((event) => (
+                          <div 
+                            key={event.id} 
+                            onClick={() => handleEventClick(event)}
+                            className="bg-white/70 rounded-lg p-2 hover:bg-white transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={event.image}
+                                alt={event.title}
+                                className="w-10 h-10 rounded object-cover"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{event.title}</p>
+                                <p className="text-xs text-gray-700 dark:text-gray-300">{event.price}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">No saved events</p>
+                      )
                     )}
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-gray-800/10 to-gray-900/10 dark:from-gray-700/20 dark:to-gray-600/20 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="w-10 h-10 bg-gray-900 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-2xl font-bold text-gray-900 dark:text-white">{userProfile.groupsJoined}</span>
-                  </div>
-                  <p className="text-xs font-semibold text-gray-900 dark:text-white mb-3">Groups Joined</p>
-                  
-                  {/* See All Groups Button */}
-                  <button className="w-full py-2 bg-white/50 hover:bg-white dark:bg-gray-700/50 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1">
-                    <span>See All Groups</span>
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
               </div>
 
               {/* Quick Actions */}
@@ -443,7 +482,13 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {upcomingEvents.map((event) => (
+              {isLoadingData ? (
+                <div className="col-span-full text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#27aae2] mx-auto"></div>
+                  <p className="text-gray-500 dark:text-gray-400 mt-2">Loading events...</p>
+                </div>
+              ) : upcomingEvents.length > 0 ? (
+                upcomingEvents.map((event) => (
                 <div
                   key={event.id}
                   onClick={() => handleEventClick(event)}
@@ -476,7 +521,12 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                     </button>
                   </div>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">No booked events yet</p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -492,7 +542,13 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {bucketlistEvents.map((event) => (
+              {isLoadingData ? (
+                <div className="col-span-full text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#27aae2] mx-auto"></div>
+                  <p className="text-gray-500 dark:text-gray-400 mt-2">Loading events...</p>
+                </div>
+              ) : bucketlistEvents.length > 0 ? (
+                bucketlistEvents.map((event) => (
                 <div
                   key={event.id}
                   onClick={() => handleEventClick(event)}
@@ -533,7 +589,12 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">No saved events yet</p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -544,7 +605,13 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
               <button className="text-[#27aae2] hover:text-[#1e8bb8] font-semibold text-sm">View All</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {eventHistory.map((event) => (
+              {isLoadingData ? (
+                <div className="col-span-full text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#27aae2] mx-auto"></div>
+                  <p className="text-gray-500 dark:text-gray-400 mt-2">Loading events...</p>
+                </div>
+              ) : eventHistory.length > 0 ? (
+                eventHistory.map((event) => (
                 <div
                   key={event.id}
                   onClick={() => handleEventClick(event)}
@@ -580,7 +647,12 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                     </button>
                   </div>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">No past events yet</p>
+                </div>
+              )}
             </div>
           </section>
           </>

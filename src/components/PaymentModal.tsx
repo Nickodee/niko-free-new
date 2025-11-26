@@ -110,17 +110,28 @@ export default function PaymentModal({
     setIsLoading(true);
 
     try {
+      console.log('Initiating payment for booking:', bookingId, 'with phone:', formattedPhone);
+      
       const result = await initiatePayment({
         booking_id: bookingId,
         phone_number: formattedPhone,
       });
 
+      console.log('Payment initiation result:', result);
+
       if (result.payment_id && result.checkout_request_id) {
         setPaymentId(result.payment_id);
         setCheckoutRequestId(result.checkout_request_id);
         setPaymentInitiated(true);
+        setIsLoading(false);
+      } else if (result.checkout_request_id) {
+        // Some APIs might return checkout_request_id directly
+        setPaymentId(result.payment_id || bookingId);
+        setCheckoutRequestId(result.checkout_request_id);
+        setPaymentInitiated(true);
+        setIsLoading(false);
       } else {
-        throw new Error('Failed to initiate payment');
+        throw new Error(result.message || 'Failed to initiate payment');
       }
     } catch (err: any) {
       console.error('Payment initiation error:', err);

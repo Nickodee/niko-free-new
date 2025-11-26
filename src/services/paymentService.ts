@@ -27,7 +27,7 @@ const getAuthHeaders = () => {
  */
 export const bookTicket = async (data: {
   event_id: number;
-  ticket_type_id: number;
+  ticket_type_id?: number; // Optional for free events
   quantity: number;
   promo_code?: string;
 }): Promise<any> => {

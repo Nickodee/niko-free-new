@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { API_BASE_URL } from '../../config/api';
 
 interface PendingEvent {
   id: string;
@@ -8,6 +9,9 @@ interface PendingEvent {
   category: string;
   date: string;
   status: string;
+  poster_image?: string;
+  description?: string;
+  [key: string]: any; // Allow additional properties
 }
 
 interface EventsSectionProps {}
@@ -17,7 +21,7 @@ export default function EventsSection({}: EventsSectionProps) {
   const [allEvents, setAllEvents] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
-  const [selectedEvent, setSelectedEvent] = React.useState<PendingEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = React.useState<any | null>(null);
   const [categoryFilter, setCategoryFilter] = React.useState<string>('All');
   const [statusFilter, setStatusFilter] = React.useState<string>('all'); // all, pending, approved, rejected
 
@@ -43,6 +47,9 @@ export default function EventsSection({}: EventsSectionProps) {
             category: e.category?.name || 'N/A',
             date: e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD',
             status: e.status,
+            poster_image: e.poster_image,
+            description: e.description,
+            fullEvent: e, // Store full event data
           }));
           setAllEvents(events);
           setPendingEvents(events.filter((e: any) => e.status === 'pending'));
@@ -91,6 +98,9 @@ export default function EventsSection({}: EventsSectionProps) {
               category: e.category?.name || 'N/A',
               date: e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD',
               status: e.status,
+              poster_image: e.poster_image,
+              description: e.description,
+              fullEvent: e,
             }));
             setAllEvents(events);
             setPendingEvents(events.filter((e: any) => e.status === 'pending'));
@@ -145,6 +155,9 @@ export default function EventsSection({}: EventsSectionProps) {
               category: e.category?.name || 'N/A',
               date: e.start_date ? new Date(e.start_date).toLocaleDateString() : 'TBD',
               status: e.status,
+              poster_image: e.poster_image,
+              description: e.description,
+              fullEvent: e,
             }));
             setAllEvents(events);
             setPendingEvents(events.filter((e: any) => e.status === 'pending'));
@@ -289,11 +302,25 @@ export default function EventsSection({}: EventsSectionProps) {
             </button>
             {/* Event Image - full width */}
             <div className="w-full mb-6">
-              <img
-                src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80"
-                alt="Event"
-                className="w-full h-56 sm:h-72 object-cover rounded-xl border border-gray-200 dark:border-gray-800"
-              />
+              {selectedEvent?.poster_image || selectedEvent?.fullEvent?.poster_image ? (
+                <img
+                  src={
+                    selectedEvent.poster_image || selectedEvent.fullEvent?.poster_image
+                      ? (() => {
+                          const imgPath = selectedEvent.poster_image || selectedEvent.fullEvent?.poster_image;
+                          if (imgPath.startsWith('http')) return imgPath;
+                          return `${API_BASE_URL}${imgPath.startsWith('/') ? '' : '/'}${imgPath}`;
+                        })()
+                      : 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=800'
+                  }
+                  alt={selectedEvent.title}
+                  className="w-full h-56 sm:h-72 object-cover rounded-xl border border-gray-200 dark:border-gray-800"
+                />
+              ) : (
+                <div className="w-full h-56 sm:h-72 bg-gray-200 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-800 flex items-center justify-center">
+                  <span className="text-gray-400 dark:text-gray-500">No image available</span>
+                </div>
+              )}
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Event Details for Approval</h2>
             <div className="space-y-6">
@@ -320,10 +347,12 @@ export default function EventsSection({}: EventsSectionProps) {
                 <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium mr-2">{selectedEvent.date}</span>
               </div>
 
-              {/* Description (mocked for demo) */}
+              {/* Description */}
               <div>
                 <p className="font-semibold mb-1 text-gray-900 dark:text-white">Description:</p>
-                <span className="text-sm text-gray-700 dark:text-gray-300">This is a sample event description. The real description will be shown here.</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {selectedEvent?.description || selectedEvent?.fullEvent?.description || 'No description provided'}
+                </span>
               </div>
 
               {/* Attendee Limit (mocked for demo) */}

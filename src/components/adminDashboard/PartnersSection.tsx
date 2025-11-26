@@ -29,9 +29,21 @@ interface PartnerNote {
   author?: string;
 }
 
+interface SuspendedPartner {
+  id: string;
+  name: string;
+  email: string;
+  category: string;
+  suspendedDate: string;
+  status: string;
+  totalEvents?: number;
+  totalRevenue?: string;
+}
+
 export default function PartnersSection({}: PartnersProps) {
   const [pendingPartners, setPendingPartners] = React.useState<PendingPartner[]>([]);
   const [approvedPartners, setApprovedPartners] = React.useState<ApprovedPartner[]>([]);
+  const [suspendedPartners, setSuspendedPartners] = React.useState<SuspendedPartner[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -77,6 +89,27 @@ export default function PartnersSection({}: PartnersProps) {
             rating: p.rating || 0,
             status: p.status,
             category: p.category?.name,
+          })));
+        }
+
+        // Fetch suspended partners
+        const suspendedResponse = await fetch(`${API_ENDPOINTS.admin.partners}?status=suspended`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+          },
+        });
+        const suspendedData = await suspendedResponse.json();
+        if (suspendedResponse.ok) {
+          setSuspendedPartners((suspendedData.partners || []).map((p: any) => ({
+            id: String(p.id),
+            name: p.business_name || p.name,
+            email: p.email,
+            category: p.category?.name || 'N/A',
+            suspendedDate: p.updated_at ? new Date(p.updated_at).toLocaleDateString() : new Date(p.created_at).toLocaleDateString(),
+            status: p.status,
+            totalEvents: p.total_events || 0,
+            totalRevenue: p.total_earnings ? `KES ${parseFloat(p.total_earnings).toLocaleString()}` : 'KES 0',
           })));
         }
       } catch (error) {
@@ -268,6 +301,82 @@ export default function PartnersSection({}: PartnersProps) {
     saveNotes(next);
   };
 
+  // Handle unsuspend (activate) partner
+  const handleUnsuspendPartner = async (partnerId: string) => {
+    setActionLoading(partnerId);
+    try {
+      const { API_ENDPOINTS } = await import('../../config/api');
+      const { getToken } = await import('../../services/authService');
+
+      const response = await fetch(API_ENDPOINTS.admin.activatePartner(Number(partnerId)), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+        },
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setSuccessMessage('Partner unsuspended successfully. Account is now active.');
+        // Refresh partners lists
+        const fetchPartners = async () => {
+          const { API_ENDPOINTS } = await import('../../config/api');
+          const { getToken } = await import('../../services/authService');
+
+          // Refresh suspended partners
+          const suspendedResponse = await fetch(`${API_ENDPOINTS.admin.partners}?status=suspended`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+            },
+          });
+          const suspendedData = await suspendedResponse.json();
+          if (suspendedResponse.ok) {
+            setSuspendedPartners((suspendedData.partners || []).map((p: any) => ({
+              id: String(p.id),
+              name: p.business_name || p.name,
+              email: p.email,
+              category: p.category?.name || 'N/A',
+              suspendedDate: p.updated_at ? new Date(p.updated_at).toLocaleDateString() : new Date(p.created_at).toLocaleDateString(),
+              status: p.status,
+              totalEvents: p.total_events || 0,
+              totalRevenue: p.total_earnings ? `KES ${parseFloat(p.total_earnings).toLocaleString()}` : 'KES 0',
+            })));
+          }
+
+          // Refresh approved partners
+          const approvedResponse = await fetch(`${API_ENDPOINTS.admin.partners}?status=approved`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+            },
+          });
+          const approvedData = await approvedResponse.json();
+          if (approvedResponse.ok) {
+            setApprovedPartners((approvedData.partners || []).map((p: any) => ({
+              id: String(p.id),
+              name: p.business_name || p.name,
+              totalEvents: p.total_events || 0,
+              totalRevenue: `KES ${(p.total_revenue || 0).toLocaleString()}`,
+              rating: p.rating || 0,
+              status: p.status,
+              category: p.category?.name,
+            })));
+          }
+        };
+        fetchPartners();
+      } else {
+        setSuccessMessage(data.error || 'Failed to unsuspend partner');
+      }
+    } catch (error) {
+      console.error('Error unsuspending partner:', error);
+      setSuccessMessage('Error unsuspending partner');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Handler for confirming action
   const handleConfirmAction = async () => {
     if (!confirmAction || !confirmAction.partner) return;
@@ -313,8 +422,12 @@ export default function PartnersSection({}: PartnersProps) {
         if (confirmAction.type === 'suspend') {
           setSuccessMessage('Successfully suspended the partner.');
         }
-        // Refresh partners list
+        // Refresh partners lists
         const fetchPartners = async () => {
+          const { API_ENDPOINTS } = await import('../../config/api');
+          const { getToken } = await import('../../services/authService');
+
+          // Refresh approved partners
           const approvedResponse = await fetch(`${API_ENDPOINTS.admin.partners}?status=approved`, {
             headers: {
               'Content-Type': 'application/json',
@@ -331,6 +444,27 @@ export default function PartnersSection({}: PartnersProps) {
               rating: p.rating || 0,
               status: p.status,
               category: p.category?.name,
+            })));
+          }
+
+          // Refresh suspended partners
+          const suspendedResponse = await fetch(`${API_ENDPOINTS.admin.partners}?status=suspended`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+            },
+          });
+          const suspendedData = await suspendedResponse.json();
+          if (suspendedResponse.ok) {
+            setSuspendedPartners((suspendedData.partners || []).map((p: any) => ({
+              id: String(p.id),
+              name: p.business_name || p.name,
+              email: p.email,
+              category: p.category?.name || 'N/A',
+              suspendedDate: p.updated_at ? new Date(p.updated_at).toLocaleDateString() : new Date(p.created_at).toLocaleDateString(),
+              status: p.status,
+              totalEvents: p.total_events || 0,
+              totalRevenue: p.total_earnings ? `KES ${parseFloat(p.total_earnings).toLocaleString()}` : 'KES 0',
             })));
           }
         };
@@ -553,6 +687,61 @@ export default function PartnersSection({}: PartnersProps) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Suspended Partners */}
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Suspended Partners</h2>
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading...</div>
+        ) : suspendedPartners.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No suspended partners</div>
+        ) : (
+          <div className="flex flex-col gap-y-4">
+            {suspendedPartners.map((partner) => (
+              <div
+                key={partner.id}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border border-gray-100 dark:border-gray-700 w-full"
+              >
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 w-full">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">{partner.name}</h3>
+                      <span className="px-3 py-1 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 rounded-full text-xs font-semibold">
+                        SUSPENDED
+                      </span>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 mb-2">{partner.email}</p>
+                    <div className="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-gray-400 mt-3">
+                      <span>Category: {partner.category}</span>
+                      <span>Suspended: {partner.suspendedDate}</span>
+                      {partner.totalEvents !== undefined && <span>{partner.totalEvents} events</span>}
+                      {partner.totalRevenue && <span>Revenue: {partner.totalRevenue}</span>}
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <button
+                      className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2 w-full sm:w-auto disabled:opacity-50"
+                      onClick={async () => {
+                        await handleUnsuspendPartner(partner.id);
+                      }}
+                      disabled={loading || actionLoading === partner.id}
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>{actionLoading === partner.id ? 'Processing...' : 'Unsuspend'}</span>
+                    </button>
+                    <button
+                      className="px-6 py-2.5 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:border-[#27aae2] hover:text-[#27aae2] transition-all w-full sm:w-auto"
+                      onClick={() => setSelectedPartner(partner)}
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

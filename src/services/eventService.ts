@@ -111,17 +111,26 @@ export const getCategories = async (): Promise<any> => {
  * Get single event details
  */
 export const getEventDetails = async (eventId: number): Promise<any> => {
-  const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.events.detail(eventId)}`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-  
-  const data = await response.json();
-  
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to fetch event details');
+  try {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.events.detail(eventId)}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to fetch event details' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    // Handle network errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Please make sure the API server is running.');
+    }
+    // Re-throw other errors
+    throw error;
   }
-  
-  return data;
 };
 

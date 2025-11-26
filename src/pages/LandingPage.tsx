@@ -262,8 +262,12 @@ export default function LandingPage({
     if (selectedCategory && selectedCategory !== "All") {
       const fetchCategoryEvents = async () => {
         try {
+          // Find the category slug from the categories list
+          const categoryObj = categories.find(cat => cat.name === selectedCategory || cat.displayName === selectedCategory);
+          const categorySlug = categoryObj?.slug || categoryObj?.name || selectedCategory;
+          
           const response = await getEvents({
-            category: selectedCategory,
+            category: categorySlug, // Use slug for API call
             per_page: 20,
           });
           const events = (response.events || []).map((event: any) => {
@@ -323,6 +327,7 @@ export default function LandingPage({
                     event.ticket_types[0].price
                   ).toLocaleString()}`
                 : "TBA",
+              inBucketlist: event.in_bucketlist || false,
             };
           });
           setUpcomingEvents(events);
@@ -394,6 +399,7 @@ export default function LandingPage({
                     event.ticket_types[0].price
                   ).toLocaleString()}`
                 : "TBA",
+              inBucketlist: event.in_bucketlist || false,
             };
           });
           setUpcomingEvents(events);
@@ -446,6 +452,7 @@ export default function LandingPage({
               : event.ticket_types?.[0]?.price
               ? `KES ${parseInt(event.ticket_types[0].price).toLocaleString()}`
               : "TBA",
+            inBucketlist: event.in_bucketlist || false,
           };
         });
         setCantMissEvents(events);
@@ -521,6 +528,7 @@ export default function LandingPage({
               : event.ticket_types?.[0]?.price
               ? `KES ${parseInt(event.ticket_types[0].price).toLocaleString()}`
               : "TBA",
+            inBucketlist: event.in_bucketlist || false,
           };
         });
         setUpcomingEvents(events);
@@ -565,8 +573,9 @@ export default function LandingPage({
           };
 
           return {
-            name: cat.slug || cat.name.toLowerCase().replace(/\s+/g, "-"),
-            displayName: cat.name === "Travel" ? "Explore- 🇰🇪" : cat.name,
+            name: cat.slug || cat.name.toLowerCase().replace(/\s+/g, "-"), // Use slug for filtering
+            displayName: cat.name === "Travel" ? "Explore- 🇰🇪" : cat.name, // Display name for UI
+            slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, "-"), // Store slug separately
             icon: iconMap[cat.name] || Users,
             count: cat.event_count || 0,
             iconColor: "#27aae2", // Default color

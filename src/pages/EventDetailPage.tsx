@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Clock, Tag, ExternalLink, ChevronLeft } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -8,6 +8,7 @@ import EventActions from '../components/EventActions';
 import PaymentModal from '../components/PaymentModal';
 import { getEventDetails } from '../services/eventService';
 import { bookTicket } from '../services/paymentService';
+import { addToBucketlist, removeFromBucketlist } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config/api';
 
@@ -30,11 +31,13 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const [bookingData, setBookingData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [inBucketlist, setInBucketlist] = useState(false);
+  const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
 
   // Fetch event details from API
   useEffect(() => {
     const fetchEvent = async () => {
-      if (!eventId || eventId === '1') {
+      if (!eventId || eventId === '1' || isNaN(parseInt(eventId))) {
         setError('Invalid event ID');
         setIsLoading(false);
         return;
@@ -44,10 +47,27 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
         setIsLoading(true);
         setError(null);
         const data = await getEventDetails(parseInt(eventId));
-        setEventData(data);
+        if (data && data.id) {
+          setEventData(data);
+          // Check if event is in bucketlist
+          setInBucketlist(data.in_bucketlist || false);
+        } else {
+          setError('Event not found or invalid response from server');
+        }
       } catch (err: any) {
         console.error('Error fetching event:', err);
-        setError(err.message || 'Failed to load event details');
+        // Provide more helpful error messages
+        let errorMessage = 'Failed to load event details';
+        if (err.message) {
+          if (err.message.includes('404') || err.message.includes('not found')) {
+            errorMessage = 'Event not found. It may have been removed or is not available.';
+          } else if (err.message.includes('Unable to connect')) {
+            errorMessage = 'Unable to connect to server. Please check your internet connection.';
+          } else {
+            errorMessage = err.message;
+          }
+        }
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -149,8 +169,13 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
         // Use first available ticket type
         ticketTypeId = ticketTypes[0].id;
       }
+    } else if (ticketId) {
+      // If ticketId was passed from TicketSelector, try to use it
+      ticketTypeId = parseInt(ticketId) || null;
     }
 
+    // For free events, we can proceed without ticket type (backend will create default)
+    // For paid events, ticket type is required
     if (!ticketTypeId && !eventData.is_free) {
       setError('Please select a ticket type');
       return;
@@ -162,29 +187,56 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     setSelectedQuantity(quantity);
 
     try {
-      // Book the ticket
-      const bookingResult = await bookTicket({
+      console.log('Booking ticket with:', { event_id: parseInt(eventId), ticket_type_id: ticketTypeId, quantity });
+      
+      // Prepare booking data - ticket_type_id is optional for free events
+      const bookingData: any = {
         event_id: parseInt(eventId),
-        ticket_type_id: ticketTypeId || 1, // Default to 1 if free event
         quantity: quantity,
-      });
+      };
+      
+      // Only include ticket_type_id if we have one (required for paid events)
+      if (ticketTypeId) {
+        bookingData.ticket_type_id = ticketTypeId;
+      }
+      
+      // Book the ticket
+      const bookingResult = await bookTicket(bookingData);
 
+      console.log('Booking result:', bookingResult);
       setBookingData(bookingResult);
 
       // If event is free, booking is automatically confirmed
       if (eventData.is_free || !bookingResult.requires_payment) {
-        setSuccessMessage('Booking confirmed! Check your email for tickets.');
-        // Refresh event data to update attendee count
-        const updatedData = await getEventDetails(parseInt(eventId));
-        setEventData(updatedData);
+        setSuccessMessage('You\'re in! Go to your dashboard to download your ticket.');
+        // Refresh event data to update attendee count (don't fail if refresh fails)
+        try {
+          const updatedData = await getEventDetails(parseInt(eventId));
+          if (updatedData && updatedData.id) {
+            setEventData(updatedData);
+          }
+        } catch (refreshErr) {
+          console.warn('Failed to refresh event data after booking:', refreshErr);
+          // Don't show error - booking was successful
+        }
       } else {
         // Show payment modal for paid events
-        setShowPaymentModal(true);
+        const bookingId = bookingResult.booking?.id || bookingResult.booking_id;
+        console.log('Showing payment modal for booking ID:', bookingId);
+        if (bookingId) {
+          setShowPaymentModal(true);
+        } else {
+          setError('Booking created but could not get booking ID. Please try again.');
+        }
       }
     } catch (err: any) {
       console.error('Booking error:', err);
-      setError(err.message || 'Failed to book ticket. Please try again.');
-    } finally {
+      // Handle duplicate booking error
+      if (err.message && (err.message.includes('already booked') || err.message.includes('pending booking'))) {
+        setError(err.message + ' You can view your booking in your dashboard.');
+      } else {
+        setError(err.message || 'Failed to book ticket. Please try again.');
+      }
       setIsBooking(false);
     }
   };
@@ -193,8 +245,17 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const handlePaymentSuccess = () => {
     setSuccessMessage('Payment successful! Your tickets have been confirmed. Check your email.');
     setShowPaymentModal(false);
-    // Refresh event data
-    getEventDetails(parseInt(eventId)).then(setEventData).catch(console.error);
+    // Refresh event data (don't fail if refresh fails)
+    getEventDetails(parseInt(eventId))
+      .then((data) => {
+        if (data && data.id) {
+          setEventData(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to refresh event data after payment:', err);
+        // Don't show error - payment was successful
+      });
   };
 
   // Loading state
@@ -209,21 +270,55 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     );
   }
 
-  // Error state
-  if (error || !eventData) {
+  // Error state - only show if we're not loading and there's an actual error
+  if (!isLoading && (error || (!eventData && error))) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navbar onNavigate={onNavigate} currentPage="event-detail" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Event Not Found</h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">{error || 'The event you are looking for does not exist.'}</p>
-            <button
-              onClick={() => onNavigate('landing')}
-              className="px-6 py-3 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors"
-            >
-              Back to Events
-            </button>
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {error && error.includes('not found') ? 'Event Not Found' : 'Load Failed'}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+              {error || 'The event you are looking for does not exist or could not be loaded.'}
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => onNavigate('landing')}
+                className="px-6 py-3 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors"
+              >
+                Back to Events
+              </button>
+              <button
+                onClick={() => {
+                  setError(null);
+                  setIsLoading(true);
+                  // Retry loading
+                  getEventDetails(parseInt(eventId))
+                    .then((data) => {
+                      if (data && data.id) {
+                        setEventData(data);
+                        setError(null);
+                      } else {
+                        setError('Event not found or invalid response from server');
+                      }
+                    })
+                    .catch((err) => {
+                      setError(err.message || 'Failed to load event details');
+                    })
+                    .finally(() => setIsLoading(false));
+                }}
+                className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -326,10 +421,50 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                     alt={eventData.title}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-4 left-4">
+                  <div className="absolute top-4 left-4 flex items-center gap-2">
                     <span className="px-4 py-2 bg-[#27aae2] text-white text-sm font-semibold rounded-full">
                       {eventData.category?.name || 'Event'}
                     </span>
+                  </div>
+                  {/* Wishlist Button */}
+                  <div className="absolute top-4 right-4">
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!isAuthenticated) {
+                          setShowLoginModal(true);
+                          return;
+                        }
+                        
+                        setIsTogglingWishlist(true);
+                        try {
+                          if (inBucketlist) {
+                            await removeFromBucketlist(parseInt(eventId));
+                            setInBucketlist(false);
+                          } else {
+                            await addToBucketlist(parseInt(eventId));
+                            setInBucketlist(true);
+                          }
+                          // Update event data
+                          const updatedData = await getEventDetails(parseInt(eventId));
+                          if (updatedData && updatedData.id) {
+                            setEventData(updatedData);
+                          }
+                        } catch (err: any) {
+                          console.error('Error toggling wishlist:', err);
+                          if (err.message && !err.message.includes('already in bucketlist')) {
+                            alert(err.message || 'Failed to update wishlist');
+                          }
+                        } finally {
+                          setIsTogglingWishlist(false);
+                        }
+                      }}
+                      disabled={isTogglingWishlist}
+                      className="w-12 h-12 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={inBucketlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                    >
+                      <Heart className={`w-6 h-6 transition-all ${inBucketlist ? 'fill-red-500 text-red-500' : 'text-gray-600 dark:text-gray-400'}`} />
+                    </button>
                   </div>
                 </div>
 
@@ -477,16 +612,16 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Success!</h3>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">You're In! 🎉</h3>
                       <p className="text-gray-600 dark:text-gray-400 mb-4">{successMessage}</p>
                       <button
                         onClick={() => {
                           setSuccessMessage(null);
                           onNavigate('user-dashboard');
                         }}
-                        className="px-6 py-2 bg-[#27aae2] text-white rounded-lg hover:bg-[#1e8bb8] transition-colors"
+                        className="px-6 py-2 bg-[#27aae2] text-white rounded-lg hover:bg-[#1e8bb8] transition-colors font-semibold"
                       >
-                        View My Tickets
+                        Go to Dashboard
                       </button>
                     </div>
                   </div>
@@ -563,13 +698,16 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       />
 
       {/* Payment Modal */}
-      {bookingData && bookingData.booking && (
+      {showPaymentModal && bookingData && (bookingData.booking?.id || bookingData.booking_id) && (
         <PaymentModal
           isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          bookingId={bookingData.booking.id}
-          amount={parseFloat(bookingData.booking.total_amount || bookingData.amount || 0)}
-          eventTitle={eventData.title}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setBookingData(null);
+          }}
+          bookingId={bookingData.booking?.id || bookingData.booking_id}
+          amount={parseFloat(bookingData.booking?.total_amount || bookingData.amount || bookingData.booking?.amount || 0)}
+          eventTitle={eventData?.title || 'Event'}
           onPaymentSuccess={handlePaymentSuccess}
         />
       )}
