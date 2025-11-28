@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart, X, Mail, Phone, Globe, MapPin as MapPinIcon, CheckCircle2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -10,7 +10,7 @@ import { getEventDetails } from '../services/eventService';
 import { bookTicket } from '../services/paymentService';
 import { addToBucketlist, removeFromBucketlist } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getImageUrl } from '../config/api';
 
 interface EventDetailPageProps {
   eventId: string;
@@ -32,6 +32,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [inBucketlist, setInBucketlist] = useState(false);
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
@@ -158,17 +159,27 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
 
   const formatTime = (dateString: string) => {
     if (!dateString) return 'TBA';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    });
+    try {
+      const date = new Date(dateString);
+      // Check if date is valid
+      if (isNaN(date.getTime())) return 'TBA';
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    } catch (err) {
+      console.error('Error formatting time:', err);
+      return 'TBA';
+    }
   };
 
-  const formatTimeRange = (startDate: string, endDate: string) => {
-    if (!startDate || !endDate) return 'TBA';
+  const formatTimeRange = (startDate: string, endDate?: string | null) => {
+    if (!startDate) return 'TBA';
     const start = formatTime(startDate);
+    if (!endDate) {
+      return start; // Just show start time if no end date
+    }
     const end = formatTime(endDate);
     return `${start} - ${end}`;
   };
@@ -567,7 +578,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                       <div>
                         <p className="text-sm text-gray-600 dark:text-gray-400">Time</p>
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          {formatTimeRange(eventData.start_date, eventData.end_date)}
+                          {eventData.start_date ? formatTimeRange(eventData.start_date, eventData.end_date) : 'TBA'}
                         </p>
                       </div>
                     </div>
@@ -589,7 +600,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                       <div>
                         <p className="text-sm text-gray-600 dark:text-gray-400">Attendees</p>
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          {eventData.attendee_count || 0} {eventData.capacity ? `/ ${eventData.capacity}` : ''}
+                          {eventData.bookings_count || eventData.attendee_count || 0} {eventData.capacity ? `/ ${eventData.capacity}` : ''} attending
                         </p>
                       </div>
                     </div>
@@ -619,13 +630,14 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                   {eventData.partner && (
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-8 mt-8">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Hosted By</h3>
-                      <div className="flex items-center space-x-4">
+                      <div 
+                        className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setShowPartnerModal(true)}
+                      >
                         <div className="relative flex-shrink-0">
                           {eventData.partner.logo ? (
                             <img
-                              src={eventData.partner.logo.startsWith('http') 
-                                ? eventData.partner.logo 
-                                : `${API_BASE_URL}${eventData.partner.logo.startsWith('/') ? '' : '/'}${eventData.partner.logo}`}
+                              src={getImageUrl(eventData.partner.logo)}
                               alt={eventData.partner.business_name}
                               className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                               onError={(e) => {
@@ -647,7 +659,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                               {eventData.partner.business_name}
                             </h4>
                             {eventData.partner.is_verified && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-black text-white rounded-full flex-shrink-0">
+                              <span className="px-2 py-0.5 text-xs font-medium bg-black text-white rounded-full flex-shrink-0 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
                                 Verified
                               </span>
                             )}
@@ -812,6 +825,131 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
           eventTitle={eventData?.title || 'Event'}
           onPaymentSuccess={handlePaymentSuccess}
         />
+      )}
+
+      {/* Partner Details Modal */}
+      {showPartnerModal && eventData?.partner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={() => setShowPartnerModal(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Partner Details</h2>
+              <button
+                onClick={() => setShowPartnerModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Partner Header */}
+              <div className="flex items-start gap-4">
+                <div className="relative flex-shrink-0">
+                  {eventData.partner.logo ? (
+                    <img
+                      src={getImageUrl(eventData.partner.logo)}
+                      alt={eventData.partner.business_name}
+                      className="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(eventData.partner.business_name)}&background=27aae2&color=fff&size=256`;
+                      }}
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-[#27aae2] flex items-center justify-center border-4 border-gray-200 dark:border-gray-700">
+                      <span className="text-white text-3xl font-bold">
+                        {eventData.partner.business_name?.charAt(0)?.toUpperCase() || 'P'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {eventData.partner.business_name}
+                    </h3>
+                    {eventData.partner.is_verified && (
+                      <span className="px-3 py-1 text-sm font-medium bg-black text-white rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  {eventData.partner.category && (
+                    <p className="text-gray-600 dark:text-gray-400 text-lg">
+                      {eventData.partner.category.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Partner Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {eventData.partner.email && (
+                  <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <Mail className="w-5 h-5 text-[#27aae2] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{eventData.partner.email}</p>
+                    </div>
+                  </div>
+                )}
+
+                {eventData.partner.phone_number && (
+                  <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <Phone className="w-5 h-5 text-[#27aae2] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{eventData.partner.phone_number}</p>
+                    </div>
+                  </div>
+                )}
+
+                {eventData.partner.website && (
+                  <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <Globe className="w-5 h-5 text-[#27aae2] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Website</p>
+                      <a 
+                        href={eventData.partner.website.startsWith('http') ? eventData.partner.website : `https://${eventData.partner.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#27aae2] hover:underline font-medium"
+                      >
+                        {eventData.partner.website}
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {eventData.partner.location && (
+                  <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <MapPinIcon className="w-5 h-5 text-[#27aae2] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Location</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{eventData.partner.location}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {eventData.partner.description && (
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">About</p>
+                  <p className="text-gray-900 dark:text-white">{eventData.partner.description}</p>
+                </div>
+              )}
+
+              {/* Contact Person */}
+              {eventData.partner.contact_person && (
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Contact Person</p>
+                  <p className="text-gray-900 dark:text-white font-medium">{eventData.partner.contact_person}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

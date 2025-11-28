@@ -18,7 +18,7 @@ interface UserDashboardProps {
 }
 
 export default function UserDashboard({ onNavigate }: UserDashboardProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout: logoutUser } = useAuth();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [activeEventsTab, setActiveEventsTab] = useState<'going' | 'saved'>('going');
   const [activeView, setActiveView] = useState<'dashboard' | 'tickets' | 'notifications' | 'messages' | 'eventDetail' | 'profile' | 'settings' | 'eventsBooked' | 'bucketList'>('dashboard');
@@ -95,7 +95,8 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           time: startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
           location: event.venue_name || event.venue_address || 'Location TBA',
           ticketId: booking.booking_number || `TKT-${booking.id}`,
-          eventId: event.id
+          eventId: event.id,
+          attendees: event.bookings_count || event.attendee_count || 0
         };
       });
       setUpcomingEvents(upcoming);
@@ -119,7 +120,8 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           isOutdated: startDate < now,
           eventId: event.id,
           status: event.status, // Include status so we can show it if needed
-          is_published: event.is_published
+          is_published: event.is_published,
+          attendees: event.bookings_count || event.attendee_count || 0
         };
       });
       setBucketlistEvents(bucketlist);
@@ -138,7 +140,8 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           location: event.venue_name || event.venue_address || 'Location TBA',
           rating: 5, // TODO: Get actual rating from reviews
-          eventId: event.id
+          eventId: event.id,
+          attendees: event.bookings_count || event.attendee_count || 0
         };
       });
       setEventHistory(history);
@@ -310,8 +313,11 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                     
                     <div className="border-t border-gray-100 mt-2 pt-2">
                       <button 
-                        onClick={() => onNavigate('landing')}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                        onClick={() => {
+                          logoutUser();
+                          onNavigate('landing');
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
                         Log Out
                       </button>
@@ -515,6 +521,12 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                         <QrCode className="w-3.5 h-3.5 text-[#27aae2]" />
                         <span className="font-mono text-xs">{event.ticketId}</span>
                       </div>
+                      {event.attendees !== undefined && (
+                        <div className="flex items-center space-x-2">
+                          <Users className="w-3.5 h-3.5 text-[#27aae2]" />
+                          <span>{event.attendees} attending</span>
+                        </div>
+                      )}
                     </div>
                     <button className="w-full py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors">
                       View Ticket
@@ -573,7 +585,13 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 text-sm">{event.title}</h3>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mb-3">{event.date}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">{event.date}</p>
+                    {event.attendees !== undefined && (
+                      <div className="flex items-center space-x-1 mb-2">
+                        <Users className="w-3 h-3 text-[#27aae2]" />
+                        <span className="text-xs text-gray-600 dark:text-gray-400">{event.attendees} attending</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-[#27aae2]">{event.price}</span>
                       <button 
@@ -630,6 +648,12 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                   <div className="p-4">
                     <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 text-sm">{event.title}</h3>
                     <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">{event.date}</p>
+                    {event.attendees !== undefined && (
+                      <div className="flex items-center space-x-1 mb-2">
+                        <Users className="w-3 h-3 text-[#27aae2]" />
+                        <span className="text-xs text-gray-600 dark:text-gray-400">{event.attendees} attending</span>
+                      </div>
+                    )}
                     <div className="flex items-center space-x-0.5 mb-3">
                       {[...Array(5)].map((_, i) => (
                         <svg

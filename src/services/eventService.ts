@@ -151,7 +151,9 @@ export const getEventDetails = async (eventId: number): Promise<any> => {
     }
     
     const data = await response.json();
-    return data;
+    // The API returns the event object directly (not wrapped in { event: {...} })
+    // But handle both cases just in case
+    return data.event || data;
   } catch (error: any) {
     // Handle network errors
     if (error.name === 'TypeError' && error.message.includes('fetch')) {

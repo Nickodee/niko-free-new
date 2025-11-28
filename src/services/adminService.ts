@@ -162,3 +162,64 @@ export const getPartner = async (partnerId: number): Promise<any> => {
   return data;
 };
 
+// Support request types
+export interface SupportRequest {
+  id: number;
+  partner_id: number;
+  subject: string | null;
+  message: string;
+  status: 'open' | 'in_progress' | 'resolved';
+  created_at: string;
+  updated_at: string;
+  partner?: {
+    id: number;
+    business_name: string;
+    email: string;
+    phone_number?: string;
+  };
+}
+
+export interface SupportRequestsResponse {
+  support_requests: SupportRequest[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+// Get support requests
+export const getSupportRequests = async (status?: string, page: number = 1): Promise<SupportRequestsResponse> => {
+  const url = status && status !== 'all' 
+    ? `${API_ENDPOINTS.admin.support}?status=${status}&page=${page}`
+    : `${API_ENDPOINTS.admin.support}?page=${page}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch support requests');
+  }
+
+  return data;
+};
+
+// Update support request status
+export const updateSupportStatus = async (requestId: number, status: 'open' | 'in_progress' | 'resolved'): Promise<SupportRequest> => {
+  const response = await fetch(API_ENDPOINTS.admin.updateSupportStatus(requestId), {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update support request status');
+  }
+
+  return data.support_request;
+};
+

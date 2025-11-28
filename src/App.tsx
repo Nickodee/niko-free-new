@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import EventDetailPage from './pages/EventDetailPage';
 import UserDashboard from './pages/UserDashboard';
@@ -15,9 +15,14 @@ import 'aos/dist/aos.css';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+// Wrapper component to extract eventId from URL params
+function EventDetailPageWrapper({ onNavigate }: { onNavigate: (page: string) => void }) {
+  const { eventId } = useParams<{ eventId: string }>();
+  return <EventDetailPage eventId={eventId || '1'} onNavigate={onNavigate} />;
+}
+
 function AppContent() {
   const navigate = useNavigate();
-  const [selectedEventId, setSelectedEventId] = useState<string>('1');
 
   useEffect(() => {
     AOS.init({
@@ -29,8 +34,7 @@ function AppContent() {
   }, []);
 
   const navigateToEventDetail = (eventId: string) => {
-    setSelectedEventId(eventId);
-    navigate('/event-detail');
+    navigate(`/event-detail/${eventId}`);
   };
 
   const navigateTo = (page: string) => {
@@ -50,13 +54,8 @@ function AppContent() {
           } 
         />
         <Route 
-          path="/event-detail" 
-          element={
-            <EventDetailPage
-              eventId={selectedEventId}
-              onNavigate={navigateTo}
-            />
-          } 
+          path="/event-detail/:eventId" 
+          element={<EventDetailPageWrapper onNavigate={navigateTo} />} 
         />
         <Route 
           path="/user-dashboard" 

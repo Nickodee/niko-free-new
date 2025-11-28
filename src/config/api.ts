@@ -43,6 +43,8 @@ export const API_ENDPOINTS = {
     payouts: `${API_BASE_URL}/api/admin/payouts`,
     approvePayout: (id: number) => `${API_BASE_URL}/api/admin/payouts/${id}/approve`,
     logs: `${API_BASE_URL}/api/admin/logs`,
+    support: `${API_BASE_URL}/api/admin/support`,
+    updateSupportStatus: (id: number) => `${API_BASE_URL}/api/admin/support/${id}/status`,
   },
   
   // Partner

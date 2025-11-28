@@ -64,13 +64,47 @@ export default function EventDetail({ event, onBack }: EventDetailProps) {
       
       if (response.ok && data.event) {
         const evt = data.event;
+        // Format time from start_date
+        let formattedTime = 'TBA';
+        if (evt.start_date) {
+          try {
+            const startDate = new Date(evt.start_date);
+            if (!isNaN(startDate.getTime())) {
+              formattedTime = startDate.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+              });
+              // If there's an end_date, show time range
+              if (evt.end_date) {
+                try {
+                  const endDate = new Date(evt.end_date);
+                  if (!isNaN(endDate.getTime())) {
+                    const endTime = endDate.toLocaleTimeString('en-US', { 
+                      hour: 'numeric', 
+                      minute: '2-digit',
+                      hour12: true 
+                    });
+                    formattedTime = `${formattedTime} - ${endTime}`;
+                  }
+                } catch (err) {
+                  // Just use start time if end date parsing fails
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Error formatting time:', err);
+          }
+        }
+        
         setEventData({
           ...event,
           title: evt.title || event.title,
           description: evt.description || event.description,
           image: evt.poster_image ? `${API_BASE_URL}/uploads/${evt.poster_image}` : event.image,
           category: evt.category?.name || event.category,
-          attendees: evt.attendee_count || event.attendees,
+          attendees: evt.bookings_count || evt.attendee_count || event.attendees || 0,
+          time: formattedTime,
           organizer: evt.partner ? {
             name: evt.partner.business_name || 'Event Organizer',
             avatar: evt.partner.logo ? `${API_BASE_URL}/uploads/${evt.partner.logo}` : ''

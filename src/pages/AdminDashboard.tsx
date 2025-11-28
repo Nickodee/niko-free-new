@@ -1,4 +1,4 @@
-import { Settings, Menu, X, Search, User, LogOut, Shield, FileText, DollarSign, BarChart3, Users, Calendar } from 'lucide-react';
+import { Settings, Menu, X, Search, User, LogOut, Shield, FileText, DollarSign, BarChart3, Users, Calendar, HelpCircle } from 'lucide-react';
 import { MessageSquare } from 'lucide-react';
 import { Users as UsersIcon } from 'lucide-react';
 import { Sun, Moon } from 'lucide-react';
@@ -18,6 +18,7 @@ import Revenue from '../components/adminDashboard/Revenue';
 import MyProfilePage from '../components/adminDashboard/MyProfilePage';
 import SettingsPage from '../components/adminDashboard/SettingsPage';
 import NotificationsPage from '../components/adminDashboard/NotificationsPage';
+import SupportPage from '../components/adminDashboard/SupportPage';
 
 interface AdminDashboardProps {
   onNavigate: (page: string) => void;
@@ -30,7 +31,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   // Example notification count
   const [notificationCount, setNotificationCount] = useState(3);
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'partners' | 'events' | 'settings' | 'reports' | 'revenue' | 'users' | 'profile' | 'notifications' | 'messages'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'partners' | 'events' | 'settings' | 'reports' | 'revenue' | 'users' | 'profile' | 'notifications' | 'messages' | 'support'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   // Ref for account menu
@@ -193,6 +194,18 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                 <DollarSign className="w-5 h-5" />
                 <span>Revenue</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab('support')}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                  activeTab === 'support'
+                    ? 'bg-[#27aae2] text-white shadow-lg'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <HelpCircle className="w-5 h-5" />
+                <span>Support</span>
+              </button>
             </div>
           </nav>
         </div>
@@ -354,6 +367,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
           {activeTab === 'revenue' && <Revenue />}
           {activeTab === 'settings' && <SettingsPage />}
           {activeTab === 'profile' && <MyProfilePage />}
+          {activeTab === 'support' && <SupportPage />}
         </main>
       </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { User } from 'lucide-react';
+import { API_BASE_URL, getImageUrl } from '../../config/api';
 
 import UserDetailPage from './UserDetailPage';
 
@@ -39,6 +40,7 @@ export default function UsersPage() {
             is_verified: u.is_verified,
             created_at: u.created_at,
             phone_number: u.phone_number,
+            profile_picture: u.profile_picture,
           }));
           setUserList(regularUsers);
         }
@@ -83,13 +85,30 @@ export default function UsersPage() {
         <>
       {/* Mobile Card Layout */}
       <div className="block sm:hidden space-y-4">
-        {userList.map(user => (
+        {userList.map(user => {
+          const profileImageUrl = user.profile_picture 
+            ? getImageUrl(user.profile_picture)
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=27aae2&color=fff&size=128`;
+          
+          return (
           <div key={user.id} className="rounded-xl shadow border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex flex-col gap-2 cursor-pointer" onClick={() => setViewUser(user)}>
-            <div className="flex items-center justify-between">
-              <span className="text-base font-semibold text-gray-900 dark:text-white">{user.name}</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>{user.status}</span>
+            <div className="flex items-center gap-3">
+              <img
+                src={profileImageUrl}
+                alt={user.name}
+                className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=27aae2&color=fff&size=128`;
+                }}
+              />
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-base font-semibold text-gray-900 dark:text-white">{user.name}</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>{user.status}</span>
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-300">{user.email}</div>
+              </div>
             </div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">{user.email}</div>
             <div className="text-xs text-gray-600 dark:text-gray-300">Joined: {user.joined}</div>
             <div className="text-xs text-gray-600 dark:text-gray-300">Phone: {user.phone}</div>
             {/* Checkbox for mobile */}
@@ -122,7 +141,8 @@ export default function UsersPage() {
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       {/* Desktop Table Layout */}
       <div className="hidden sm:block overflow-x-auto rounded-xl shadow border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -151,9 +171,20 @@ export default function UsersPage() {
                 </td>
                 {/* Profile pic, name, email */}
                 <td className="py-2 sm:py-3 px-2 sm:px-4 flex items-center gap-3 whitespace-nowrap">
-                  <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-lg font-bold text-gray-500 dark:text-gray-400">
-                    {user.name.charAt(0)}
-                  </div>
+                  {user.profile_picture ? (
+                    <img
+                      src={getImageUrl(user.profile_picture)}
+                      alt={user.name}
+                      className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=27aae2&color=fff&size=128`;
+                      }}
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-lg font-bold text-gray-500 dark:text-gray-400">
+                      {user.name.charAt(0)}
+                    </div>
+                  )}
                   <div>
                     <div className="font-medium text-gray-900 dark:text-white">{user.name}</div>
                     <div className="text-xs text-gray-600 dark:text-gray-300">{user.email}</div>

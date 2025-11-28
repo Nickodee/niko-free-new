@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Eye, Plus, Trash2, Edit, Sparkles } from 'lucide-react';
+import { Calendar, MapPin, Users, Heart, Plus, Trash2, Edit, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getPartnerEvents, deleteEvent } from '../../services/partnerService';
 import { API_BASE_URL } from '../../config/api';
@@ -325,11 +325,11 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
                       <div className="flex items-center space-x-3 text-xs text-gray-600 dark:text-gray-400">
                         <div className="flex items-center space-x-1">
                           <Users className="w-3.5 h-3.5" />
-                          <span>{event.attendee_count || 0}</span>
+                          <span>{event.bookings_count || 0}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>{event.view_count || 0}</span>
+                          <Heart className="w-3.5 h-3.5" />
+                          <span>{event.bucketlist_count || 0}</span>
                         </div>
                       </div>
 
