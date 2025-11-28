@@ -12,6 +12,8 @@ import CalendarPage from './pages/CalendarPage';
 import AdminRoute from './components/AdminRoute';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -103,6 +105,7 @@ function App() {
   return (
     <BrowserRouter>
       <AppContent />
+      <ToastContainer />
     </BrowserRouter>
   );
 }

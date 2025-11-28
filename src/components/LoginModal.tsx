@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { register, login, forgotPassword, partnerLogin } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -48,11 +50,12 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
     setShowEmailModal(true);
   };
 
+  // Fixed lint errors and ensured proper usage of Toastify
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    
+
     try {
       if (isSignUp) {
         // Sign up validation
@@ -66,7 +69,7 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
           setIsLoading(false);
           return;
         }
-        
+
         // Prepare registration data
         const registrationData = {
           email: email.trim().toLowerCase(),
@@ -75,21 +78,21 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
           last_name: lastName.trim(),
           phone_number: phoneNumber.trim() || undefined,
         };
-        
+
         console.log('Sending registration data:', {
           email: registrationData.email,
           first_name: registrationData.first_name,
           last_name: registrationData.last_name,
         });
-        
+
         // Call register API
         const registerResponse = await register(registrationData);
-        
+
         // Update AuthContext
         if (registerResponse.access_token && registerResponse.user) {
           setAuthData(registerResponse.user, registerResponse.access_token);
         }
-        
+
         console.log('Registration successful');
       } else {
         // Call login API
@@ -97,24 +100,25 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
           email: email.trim().toLowerCase(),
           password,
         });
-        
+
         // Update AuthContext
         if (loginResponse.access_token && loginResponse.user) {
           setAuthData(loginResponse.user, loginResponse.access_token);
         }
-        
+
         console.log('Login successful');
       }
-      
-      // Close modal and navigate to user dashboard
+
+      // Close modal and show success message using Toastify
       setShowEmailModal(false);
       onClose();
-      // Trigger a custom event to notify navbar
-      window.dispatchEvent(new Event('storage'));
-      onNavigate('user-dashboard');
-    } catch (err: any) {
+      toast.success('Logged in successfully!', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+    } catch (err) {
       console.error('Auth error:', err);
-      setError(err.message || 'An error occurred. Please try again.');
+      setError((err as Error).message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

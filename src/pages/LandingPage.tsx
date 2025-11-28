@@ -1090,9 +1090,9 @@ export default function LandingPage({
                       {heroText}
                     </h1>
                     <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-100 leading-relaxed mb-3 sm:mb-4 md:mb-6">
-                      Join millions of people discovering and attending
-                      incredible events every day. From concerts to conferences,
-                      find your next adventure with Niko Free.
+                      Skip the algorithm. Skip FOMO.
+                      See what's happening before it happens.
+                      Find your next event, activity or experience with Niko Free.
                     </p>
 
                     {/* Stats */}
