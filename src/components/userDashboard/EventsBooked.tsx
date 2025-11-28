@@ -1,7 +1,8 @@
-import { Calendar, QrCode, MapPin, Clock, Search, SlidersHorizontal, Grid3x3, List } from 'lucide-react';
+import { Calendar, QrCode, MapPin, Clock, Search, SlidersHorizontal, Grid3x3, List, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserBookings } from '../../services/userService';
 import { API_BASE_URL } from '../../config/api';
+import { useNavigate } from 'react-router-dom';
 
 interface Event {
   id: number;
@@ -20,6 +21,7 @@ interface EventsBookedProps {
 }
 
 export default function EventsBooked({ onEventClick }: EventsBookedProps) {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'upcoming' | 'today' | 'this-week'>('all');
@@ -115,6 +117,15 @@ export default function EventsBooked({ onEventClick }: EventsBookedProps) {
 
   return (
     <div className="space-y-6">
+      {/* Back Button */}
+      <button
+        onClick={() => navigate('/user-dashboard')}
+        className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-[#27aae2] transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        <span>Back</span>
+      </button>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
