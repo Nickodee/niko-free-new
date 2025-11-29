@@ -140,5 +140,6 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
       <Footer />
       </div>
     </div>
+    </>
   );
 }

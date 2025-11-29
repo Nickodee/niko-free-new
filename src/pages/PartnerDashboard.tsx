@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { getPartnerToken, getPartner, getPartnerProfile, logoutPartner } from '../services/partnerService';
+import { getImageUrl } from '../config/api';
 import AskSupport from '../components/partnerDashboard/AskSupport';
 import Overview from '../components/partnerDashboard/Overview';
 import MyEvents from '../components/partnerDashboard/MyEvents';
@@ -259,9 +260,13 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                     >
                       {partnerData?.logo ? (
                         <img 
-                          src={partnerData.logo.startsWith('http') ? partnerData.logo : `${import.meta.env.VITE_API_URL || 'http://localhost:5005'}/${partnerData.logo.replace(/^\/+/, '')}`}
+                          src={getImageUrl(partnerData.logo)}
                           alt={partnerData.business_name}
                           className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
+                          onError={(e) => {
+                            // Fallback to UI Avatars if image fails to load
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(partnerData?.business_name || 'Partner')}&background=27aae2&color=fff&size=128`;
+                          }}
                         />
                       ) : (
                         <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 bg-gradient-to-br from-[#27aae2] to-[#1e8bb8] rounded-full flex items-center justify-center">
@@ -281,13 +286,29 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                     {/* Dropdown Menu */}
                     {accountMenuOpen && (
                       <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
-                        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {partnerData?.business_name || 'Partner Account'}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {partnerData?.email || 'Loading...'}
-                          </p>
+                        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
+                          {partnerData?.logo ? (
+                            <img 
+                              src={getImageUrl(partnerData.logo)}
+                              alt={partnerData.business_name}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(partnerData?.business_name || 'Partner')}&background=27aae2&color=fff&size=128`;
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gradient-to-br from-[#27aae2] to-[#1e8bb8] rounded-full flex items-center justify-center">
+                              <User className="w-5 h-5 text-white" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                              {partnerData?.business_name || 'Partner Account'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {partnerData?.email || 'Loading...'}
+                            </p>
+                          </div>
                         </div>
                         <button 
                           onClick={() => {
