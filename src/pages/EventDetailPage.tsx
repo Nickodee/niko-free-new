@@ -6,6 +6,7 @@ import LoginModal from '../components/LoginModal';
 import TicketSelector from '../components/TicketSelector';
 import EventActions from '../components/EventActions';
 import PaymentModal from '../components/PaymentModal';
+import SEO from '../components/SEO';
 import { getEventDetails } from '../services/eventService';
 import { bookTicket } from '../services/paymentService';
 import { addToBucketlist, removeFromBucketlist } from '../services/userService';
@@ -476,7 +477,26 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     : (eventData.venue_name || eventData.venue_address || 'Location TBA');
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 relative">
+    <>
+      {eventData && (
+        <SEO
+          title={`${eventData.title} - Niko Free | Book Tickets Online`}
+          description={eventData.description || `Join us for ${eventData.title}. Book your tickets now on Niko Free.`}
+          keywords={`${eventData.title}, ${eventData.category?.name || 'event'}, events kenya, tickets kenya, ${eventData.venue_name || eventData.venue_address || 'kenya'}, event booking, niko free`}
+          image={eventData.poster_image ? (eventData.poster_image.startsWith('http') ? eventData.poster_image : `${API_BASE_URL}${eventData.poster_image.startsWith('/') ? '' : '/'}${eventData.poster_image}`) : 'https://niko-free.com/src/images/Niko%20Free%20Logo.png'}
+          url={`https://niko-free.com/event-detail/${eventId}`}
+          type="website"
+          event={{
+            name: eventData.title,
+            startDate: eventData.start_date,
+            endDate: eventData.end_date,
+            location: eventData.venue_name || eventData.venue_address || 'Kenya',
+            description: eventData.description,
+            image: eventData.poster_image ? (eventData.poster_image.startsWith('http') ? eventData.poster_image : `${API_BASE_URL}${eventData.poster_image.startsWith('/') ? '' : '/'}${eventData.poster_image}`) : undefined
+          }}
+        />
+      )}
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 relative">
       {/* Light mode dot pattern overlay */}
       <div className="block dark:hidden fixed inset-0 pointer-events-none z-0" style={{
         backgroundImage: 'radial-gradient(circle, rgba(0, 0, 0, 0.08) 1px, transparent 1px)',
@@ -951,6 +971,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

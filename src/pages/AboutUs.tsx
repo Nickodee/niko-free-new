@@ -1,6 +1,7 @@
 import React from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
 
 interface AboutUsProps {
   onNavigate: (page: string) => void;
@@ -8,7 +9,14 @@ interface AboutUsProps {
 
 export default function AboutUs({ onNavigate }: AboutUsProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 transition-colors duration-200 relative">
+    <>
+      <SEO
+        title="About Us - Niko Free | Kenya's Premier Event Platform"
+        description="Learn about Niko Free, Kenya's leading event discovery and ticketing platform. We connect event organizers with attendees, making it easy to discover and book amazing events."
+        keywords="about niko free, event platform kenya, who we are, our mission, event ticketing kenya, event discovery platform"
+        url="https://niko-free.com/about"
+      />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 transition-colors duration-200 relative">
       {/* Light mode dot pattern overlay */}
       <div className="block dark:hidden fixed inset-0 pointer-events-none z-0" style={{
         backgroundImage: 'radial-gradient(circle, rgba(0, 0, 0, 0.08) 1px, transparent 1px)',

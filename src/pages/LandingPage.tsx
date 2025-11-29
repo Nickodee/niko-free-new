@@ -28,6 +28,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import EventCard from "../components/EventCard";
 import PartnerLoginModal from "../components/PartnerLoginModal";
+import SEO from "../components/SEO";
 import {
   getFeaturedEvents,
   getPromotedEvents,
@@ -893,7 +894,14 @@ export default function LandingPage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 transition-colors duration-200 relative">
+    <>
+      <SEO
+        title="Niko Free - Discover Amazing Events in Kenya | Book Tickets Online"
+        description="Find and attend the best events happening in Kenya. From concerts to conferences, workshops to festivals, discover experiences that matter to you. Book tickets online with ease on Niko Free."
+        keywords="events kenya, tickets kenya, event booking, concerts kenya, conferences kenya, workshops kenya, festivals kenya, nairobi events, mombasa events, event management, online tickets, event discovery, kenya events, niko free, book event tickets, event tickets online, kenya event platform, event finder kenya, live events kenya, cultural events kenya, music events kenya, business events kenya, sports events kenya, tech events kenya, art events kenya, food events kenya"
+        url="https://niko-free.com/"
+      />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 transition-colors duration-200 relative">
       {/* Light mode dot pattern overlay */}
       <div
         className="block dark:hidden fixed inset-0 pointer-events-none z-0"

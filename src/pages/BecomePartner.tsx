@@ -2,6 +2,7 @@ import { Upload, CheckCircle, Building2, Mail, Phone, Tag, FileText, ArrowRight,
 import { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import SEO from '../components/SEO';
 import { applyAsPartner } from '../services/partnerService';
 
 interface BecomePartnerProps {
@@ -360,7 +361,14 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 relative">
+    <>
+      <SEO
+        title="Become a Partner - Niko Free | Event Organizer Platform"
+        description="Join Niko Free as an event organizer partner. Create, manage, and promote your events in Kenya. Reach thousands of attendees and grow your event business."
+        keywords="become event organizer, event partner kenya, event management platform, create events kenya, event organizer registration, partner with niko free, event business kenya, sell event tickets online"
+        url="https://niko-free.com/become-partner"
+      />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 relative">
       {/* Light mode dot pattern overlay */}
       <div className="block dark:hidden fixed inset-0 pointer-events-none z-0" style={{
         backgroundImage: 'radial-gradient(circle, rgba(0, 0, 0, 0.08) 1px, transparent 1px)',
@@ -1117,5 +1125,6 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
       </div>
       </div>
     </div>
+    </>
   );
 }
