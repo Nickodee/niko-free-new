@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart, X, Mail, Phone, Globe, MapPin as MapPinIcon, CheckCircle2, Star } from 'lucide-react';
+=======
 import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart, X, Mail, Phone, Globe, MapPin as MapPinIcon, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -9,8 +13,13 @@ import EventActions from '../components/EventActions';
 import PaymentModal from '../components/PaymentModal';
 import SEO from '../components/SEO';
 import { getEventDetails } from '../services/eventService';
+<<<<<<< HEAD
+import { bookTicket } from '../services/paymentService';
+import { addToBucketlist, removeFromBucketlist, getEventReviews } from '../services/userService';
+=======
 import { bookTicket, initiatePayment } from '../services/paymentService';
 import { addToBucketlist, removeFromBucketlist } from '../services/userService';
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL, getImageUrl } from '../config/api';
 import { getToken, getAuthHeaders } from '../services/authService';
@@ -40,7 +49,14 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+<<<<<<< HEAD
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [averageRating, setAverageRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+=======
   const [pendingBookingId, setPendingBookingId] = useState<number | null>(null);
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 
   // Validate promo code
   const handleValidatePromo = async () => {
@@ -125,6 +141,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
           setEventData(data);
           // Check if event is in bucketlist
           setInBucketlist(data.in_bucketlist || false);
+          // Fetch reviews for the event
+          fetchReviews(parsedEventId);
         } else {
           setError('Event not found or invalid response from server');
         }
@@ -150,6 +168,26 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     fetchEvent();
   }, [eventId]);
 
+<<<<<<< HEAD
+  // Fetch event reviews
+  const fetchReviews = async (parsedEventId: number) => {
+    try {
+      setIsLoadingReviews(true);
+      const response = await getEventReviews(parsedEventId);
+      setReviews(response.reviews || []);
+      setAverageRating(response.average_rating || 0);
+      setTotalReviews(response.total_reviews || 0);
+    } catch (err: any) {
+      console.error('Error fetching reviews:', err);
+      // Silently fail - reviews are not critical
+      setReviews([]);
+      setAverageRating(0);
+      setTotalReviews(0);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
+=======
   // Handle query parameters for pending booking payment
   useEffect(() => {
     const bookingParam = searchParams.get('booking');
@@ -171,6 +209,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       }
     }
   }, [searchParams, eventData]);
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 
   // Format date and time
   const formatDate = (dateString: string) => {
@@ -728,6 +767,82 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                       </div>
                     </div>
                   )}
+
+                  {/* Reviews Section */}
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-8 mt-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reviews</h3>
+                      {totalReviews > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                            <span className="font-bold text-gray-900 dark:text-white">{averageRating.toFixed(1)}</span>
+                          </div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {isLoadingReviews ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#27aae2]"></div>
+                      </div>
+                    ) : reviews.length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <p className="text-gray-600 dark:text-gray-400">No reviews yet. Be the first to review this event!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 sm:space-y-4">
+                        {reviews.slice(0, 3).map((review: any) => (
+                          <div key={review.id} className="flex items-start space-x-2 sm:space-x-3">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#27aae2]/10 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[#27aae2] font-bold text-sm">
+                                {review.user?.first_name?.[0]?.toUpperCase() || 'U'}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-1 gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                    {review.user?.first_name} {review.user?.last_name}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </p>
+                                </div>
+                                <div className="flex items-center space-x-0.5 flex-shrink-0">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                                        star <= review.rating
+                                          ? 'fill-yellow-400 text-yellow-400'
+                                          : 'text-gray-300'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              {review.comment && (
+                                <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm line-clamp-2 sm:line-clamp-none">
+                                  {review.comment}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {reviews.length > 3 && (
+                          <button 
+                            onClick={() => setShowLoginModal(true)}
+                            className="w-full py-2 sm:py-2.5 border-2 border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:border-[#27aae2] hover:text-[#27aae2] transition-all text-sm"
+                          >
+                            Load More Reviews ({reviews.length - 3} more)
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

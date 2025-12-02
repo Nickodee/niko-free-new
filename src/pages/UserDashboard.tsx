@@ -363,7 +363,9 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                     <div className="w-10 h-10 bg-[#27aae2] rounded-lg flex items-center justify-center">
                       <Calendar className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-2xl font-bold text-gray-900 dark:text-white">{userProfile.eventsAttended}</span>
+                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {upcomingEvents.length + bucketlistEvents.filter(e => !e.isOutdated).length}
+                    </span>
                   </div>
                   <p className="text-xs font-semibold text-gray-900 dark:text-white mb-3">Your Events</p>
                   

@@ -1,6 +1,6 @@
 import { Calendar, MapPin, Clock, Users, Share2, Heart, Download, ArrowLeft, Ticket as TicketIcon, Star, Plus, MessageSquare, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { addToBucketlist, removeFromBucketlist, getBucketlist, getEventReviews, addEventReview, updateEventReview, deleteEventReview } from '../../services/userService';
+import { addToBucketlist, removeFromBucketlist, getBucketlist, getEventReviews, addEventReview, updateEventReview, deleteEventReview, downloadTicket } from '../../services/userService';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
 import { getAuthHeaders } from '../../services/authService';
 
@@ -268,6 +268,29 @@ export default function EventDetail({ event, onBack }: EventDetailProps) {
     }
   };
 
+  const handleDownloadTicket = async () => {
+    if (!event.ticketId) {
+      alert('No ticket available for this event');
+      return;
+    }
+
+    try {
+      // event.id should be the booking ID (when coming from EventsBooked)
+      const blob = await downloadTicket(Number(event.id));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ticket-${event.ticketId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      console.error('Error downloading ticket:', err);
+      alert('Failed to download ticket: ' + (err.message || 'Unknown error'));
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Back Button */}
@@ -515,7 +538,10 @@ export default function EventDetail({ event, onBack }: EventDetailProps) {
                     <TicketIcon className="w-4 h-4" />
                     <span>View Ticket</span>
                   </button>
-                  <button className="w-full py-2.5 sm:py-3 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center justify-center gap-2">
+                  <button 
+                    onClick={handleDownloadTicket}
+                    className="w-full py-2.5 sm:py-3 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center justify-center gap-2"
+                  >
                     <Download className="w-4 h-4" />
                     <span>Download</span>
                   </button>
