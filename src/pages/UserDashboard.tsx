@@ -10,6 +10,7 @@ import MyProfile from '../components/userDashboard/MyProfile';
 import Settings from '../components/userDashboard/Settings';
 import EventsBooked from '../components/userDashboard/EventsBooked';
 import BucketList from '../components/userDashboard/BucketList';
+import PendingBookings from '../components/userDashboard/PendingBookings';
 import EventHistory from '../components/userDashboard/EventHistory';
 import { getUserProfile, getUserBookings, getBucketlist, getUserNotifications } from '../services/userService';
 import { API_BASE_URL } from '../config/api';
@@ -484,6 +485,14 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           <main className="lg:col-span-9">
           {activeView === 'dashboard' ? (
             <>
+          {/* Pending Bookings Section */}
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Pending Bookings</h2>
+            </div>
+            <PendingBookings />
+          </section>
+
           {/* Events Booked Section */}
           <section className="mb-12">
             <div className="flex items-center justify-between mb-6">

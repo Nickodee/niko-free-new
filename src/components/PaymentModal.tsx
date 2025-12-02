@@ -9,15 +9,17 @@ interface PaymentModalProps {
   amount: number;
   eventTitle: string;
   onPaymentSuccess?: () => void;
+  onNavigate?: (page: string) => void;
 }
 
 export default function PaymentModal({
   isOpen,
   onClose,
   bookingId,
-  amount,
+  amount: initialAmount,
   eventTitle,
-  onPaymentSuccess
+  onPaymentSuccess,
+  onNavigate
 }: PaymentModalProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +27,8 @@ export default function PaymentModal({
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [paymentId, setPaymentId] = useState<number | null>(null);
   const [checkoutRequestId, setCheckoutRequestId] = useState<string | null>(null);
+  const [displayAmount, setDisplayAmount] = useState(initialAmount);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -34,8 +38,13 @@ export default function PaymentModal({
       setPaymentInitiated(false);
       setPaymentId(null);
       setCheckoutRequestId(null);
+      setDisplayAmount(initialAmount);
+      setPaymentCompleted(false);
+    } else {
+      // Update amount when modal opens
+      setDisplayAmount(initialAmount);
     }
-  }, [isOpen]);
+  }, [isOpen, initialAmount]);
 
   // Poll payment status if payment was initiated
   useEffect(() => {
@@ -47,12 +56,20 @@ export default function PaymentModal({
         
         if (result.payment?.status === 'completed') {
           clearInterval(pollInterval);
+          setPaymentCompleted(true);
+          
+          // Call success callback
           if (onPaymentSuccess) {
             onPaymentSuccess();
           }
-          // Close modal after a short delay
+          
+          // Show success message for 2 seconds, then redirect to dashboard
           setTimeout(() => {
             onClose();
+            // Navigate to user dashboard
+            if (onNavigate) {
+              onNavigate('user-dashboard');
+            }
           }, 2000);
         } else if (result.payment?.status === 'failed') {
           clearInterval(pollInterval);
@@ -73,7 +90,7 @@ export default function PaymentModal({
       clearInterval(pollInterval);
       clearTimeout(timeout);
     };
-  }, [paymentInitiated, paymentId, onPaymentSuccess, onClose]);
+  }, [paymentInitiated, paymentId, onPaymentSuccess, onClose, onNavigate]);
 
   const formatPhoneNumber = (phone: string): string => {
     // Remove all non-digits
@@ -118,6 +135,11 @@ export default function PaymentModal({
       });
 
       console.log('Payment initiation result:', result);
+
+      // Update amount from API response if available and prop amount is 0
+      if (result.amount && (displayAmount === 0 || !displayAmount)) {
+        setDisplayAmount(result.amount);
+      }
 
       if (result.payment_id && result.checkout_request_id) {
         setPaymentId(result.payment_id);
@@ -165,7 +187,9 @@ export default function PaymentModal({
               <div className="flex items-start space-x-3">
                 <div className="flex-1">
                   <p className="font-semibold text-gray-900 dark:text-white mb-1">{eventTitle}</p>
-                  <p className="text-2xl font-bold text-[#27aae2]">KES {amount.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-[#27aae2]">
+                    KES {displayAmount > 0 ? displayAmount.toLocaleString() : '0.00'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -222,6 +246,23 @@ export default function PaymentModal({
               </div>
             </form>
           </>
+        ) : paymentCompleted ? (
+          <div className="text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Ticket Bought! 🎉
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Your payment was successful. Your tickets have been confirmed!
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Redirecting to your dashboard...
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="text-center">
             <div className="mb-6">
@@ -236,7 +277,7 @@ export default function PaymentModal({
               </p>
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <strong>Amount:</strong> KES {amount.toLocaleString()}
+                  <strong>Amount:</strong> KES {displayAmount > 0 ? displayAmount.toLocaleString() : '0.00'}
                 </p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
                   <strong>Phone:</strong> {phoneNumber}

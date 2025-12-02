@@ -77,10 +77,24 @@ export const getUserBookings = async (status?: 'upcoming' | 'past' | 'cancelled'
     headers: getAuthHeaders(),
   });
 
-  const data = await response.json();
+  // Handle rate limiting (429) and other errors
+  if (response.status === 429) {
+    throw new Error('Too many requests. Please wait a moment and try again.');
+  }
+
+  // Check if response is JSON before parsing
+  const contentType = response.headers.get('content-type');
+  let data;
+  if (contentType && contentType.includes('application/json')) {
+    data = await response.json();
+  } else {
+    // If not JSON, read as text to see what we got
+    const text = await response.text();
+    throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}`);
+  }
 
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to fetch bookings');
+    throw new Error(data.error || data.msg || 'Failed to fetch bookings');
   }
 
   return data;

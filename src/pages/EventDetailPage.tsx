@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart, X, Mail, Phone, Globe, MapPin as MapPinIcon, CheckCircle2, Star } from 'lucide-react';
+=======
+import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart, X, Mail, Phone, Globe, MapPin as MapPinIcon, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import LoginModal from '../components/LoginModal';
@@ -8,8 +13,13 @@ import EventActions from '../components/EventActions';
 import PaymentModal from '../components/PaymentModal';
 import SEO from '../components/SEO';
 import { getEventDetails } from '../services/eventService';
+<<<<<<< HEAD
 import { bookTicket } from '../services/paymentService';
 import { addToBucketlist, removeFromBucketlist, getEventReviews } from '../services/userService';
+=======
+import { bookTicket, initiatePayment } from '../services/paymentService';
+import { addToBucketlist, removeFromBucketlist } from '../services/userService';
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL, getImageUrl } from '../config/api';
 
@@ -20,6 +30,7 @@ interface EventDetailPageProps {
 
 export default function EventDetailPage({ eventId, onNavigate }: EventDetailPageProps) {
   const { isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedTicketType, setSelectedTicketType] = useState<string>('');
@@ -37,10 +48,14 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+<<<<<<< HEAD
   const [reviews, setReviews] = useState<any[]>([]);
   const [averageRating, setAverageRating] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+=======
+  const [pendingBookingId, setPendingBookingId] = useState<number | null>(null);
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 
   // Validate promo code
   const handleValidatePromo = async () => {
@@ -152,6 +167,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     fetchEvent();
   }, [eventId]);
 
+<<<<<<< HEAD
   // Fetch event reviews
   const fetchReviews = async (parsedEventId: number) => {
     try {
@@ -170,6 +186,29 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       setIsLoadingReviews(false);
     }
   };
+=======
+  // Handle query parameters for pending booking payment
+  useEffect(() => {
+    const bookingParam = searchParams.get('booking');
+    const payParam = searchParams.get('pay');
+    
+    if (bookingParam && payParam === 'true' && eventData && !eventData.is_free) {
+      const bookingId = parseInt(bookingParam);
+      if (!isNaN(bookingId)) {
+        setPendingBookingId(bookingId);
+        // Clear any success message - we want to show payment option, not "You're In!"
+        setSuccessMessage(null);
+        // Scroll to ticket selector/payment section
+        setTimeout(() => {
+          const ticketSection = document.getElementById('ticket-selector-section');
+          if (ticketSection) {
+            ticketSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
+      }
+    }
+  }, [searchParams, eventData]);
+>>>>>>> 217aafce0e2a26bd1431050c7a27ec2b245813c3
 
   // Format date and time
   const formatDate = (dateString: string) => {
@@ -260,6 +299,12 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     }
 
     if (!eventData) return;
+
+    // If there's a pending booking ID, don't create a new booking - show error
+    if (pendingBookingId) {
+      setError('You already have a pending booking for this event. Please complete payment using the "Complete Payment Now" button above.');
+      return;
+    }
 
     // Get selected ticket type
     const ticketTypes = eventData.ticket_types || [];
@@ -839,29 +884,89 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                 )}
 
                 {/* Ticketing Section */}
-                {successMessage ? (
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border-2 border-green-500">
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                <div id="ticket-selector-section">
+                  {/* Show pending booking warning if applicable */}
+                  {pendingBookingId && !successMessage && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-500 rounded-xl p-4 mb-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">
+                            Complete Your Payment
+                          </h4>
+                          <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                            You have a pending booking for this event. Please complete payment to secure your tickets.
+                          </p>
+                        </div>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">You're In! 🎉</h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-4">{successMessage}</p>
                       <button
-                        onClick={() => {
-                          setSuccessMessage(null);
-                          onNavigate('user-dashboard');
+                        onClick={async () => {
+                          if (pendingBookingId) {
+                            try {
+                              // Fetch booking details to get amount
+                              const token = localStorage.getItem('token');
+                              const response = await fetch(`${API_BASE_URL}/api/users/bookings/${pendingBookingId}`, {
+                                headers: {
+                                  'Authorization': `Bearer ${token}`,
+                                  'Content-Type': 'application/json',
+                                },
+                              });
+                              
+                              if (response.ok) {
+                                const data = await response.json();
+                                const booking = data.booking || data;
+                                setBookingData({ 
+                                  booking_id: pendingBookingId,
+                                  booking: booking,
+                                  amount: booking.total_amount || booking.amount || 0
+                                });
+                                setShowPaymentModal(true);
+                              } else {
+                                const errorData = await response.json().catch(() => ({}));
+                                console.error('Failed to load booking:', errorData);
+                                // Still open modal with just booking ID - payment modal can fetch amount
+                                setBookingData({ booking_id: pendingBookingId });
+                                setShowPaymentModal(true);
+                              }
+                            } catch (err: any) {
+                              console.error('Error fetching booking:', err);
+                              // Still open modal with just booking ID - payment modal can fetch amount
+                              setBookingData({ booking_id: pendingBookingId });
+                              setShowPaymentModal(true);
+                            }
+                          }
                         }}
-                        className="px-6 py-2 bg-[#27aae2] text-white rounded-lg hover:bg-[#1e8bb8] transition-colors font-semibold"
+                        className="w-full px-4 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors flex items-center justify-center gap-2"
                       >
-                        Go to Dashboard
+                        <CreditCard className="w-4 h-4" />
+                        Complete Payment Now
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <TicketSelector
+                  )}
+
+                  {successMessage && !pendingBookingId ? (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border-2 border-green-500">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">You're In! 🎉</h3>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">{successMessage}</p>
+                        <button
+                          onClick={() => {
+                            setSuccessMessage(null);
+                            onNavigate('user-dashboard');
+                          }}
+                          className="px-6 py-2 bg-[#27aae2] text-white rounded-lg hover:bg-[#1e8bb8] transition-colors font-semibold"
+                        >
+                          Go to Dashboard
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <TicketSelector
                     ticketType={ticketType}
                     tickets={tickets}
                     selectedTicketType={selectedTicketType}
@@ -876,7 +981,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                     isValidatingPromo={isValidatingPromo}
                     onValidatePromo={handleValidatePromo}
                   />
-                )}
+                  )}
+                </div>
 
                 {/* Error Message */}
                 {error && (
@@ -949,6 +1055,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
           amount={parseFloat(bookingData.booking?.total_amount || bookingData.amount || bookingData.booking?.amount || 0)}
           eventTitle={eventData?.title || 'Event'}
           onPaymentSuccess={handlePaymentSuccess}
+          onNavigate={onNavigate}
         />
       )}
 
