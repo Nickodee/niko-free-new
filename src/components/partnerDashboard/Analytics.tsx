@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Calendar, TrendingUp, Event as EventIcon } from 'lucide-react';
+import { Clock, Calendar, TrendingUp, CalendarDays as EventIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getPartnerAnalytics, getPartnerToken } from '../../services/partnerService';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
