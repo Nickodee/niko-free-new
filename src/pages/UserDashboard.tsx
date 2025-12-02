@@ -10,6 +10,7 @@ import MyProfile from '../components/userDashboard/MyProfile';
 import Settings from '../components/userDashboard/Settings';
 import EventsBooked from '../components/userDashboard/EventsBooked';
 import BucketList from '../components/userDashboard/BucketList';
+import EventHistory from '../components/userDashboard/EventHistory';
 import { getUserProfile, getUserBookings, getBucketlist, getUserNotifications } from '../services/userService';
 import { API_BASE_URL } from '../config/api';
 
@@ -21,7 +22,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
   const { user, isAuthenticated, logout: logoutUser } = useAuth();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [activeEventsTab, setActiveEventsTab] = useState<'going' | 'saved'>('going');
-  const [activeView, setActiveView] = useState<'dashboard' | 'tickets' | 'notifications' | 'messages' | 'eventDetail' | 'profile' | 'settings' | 'eventsBooked' | 'bucketList'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'tickets' | 'notifications' | 'messages' | 'eventDetail' | 'profile' | 'settings' | 'eventsBooked' | 'bucketList' | 'eventHistory'>('dashboard');
   const [selectedEvent, setSelectedEvent] = useState<{
     id: string;
     title: string;
@@ -174,6 +175,10 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
 
   const handleBackToEvents = () => {
     setSelectedEvent(null);
+    setActiveView('dashboard');
+  };
+
+  const handleBackToDashboard = () => {
     setActiveView('dashboard');
   };
 
@@ -386,15 +391,15 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                     </button>
                   </div>
 
-                  {/* Event List */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {/* Event List - with scrolling support */}
+                  <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-500">
                     {isLoadingData ? (
                       <div className="text-center py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#27aae2] mx-auto"></div>
                       </div>
                     ) : activeEventsTab === 'going' ? (
                       upcomingEvents.length > 0 ? (
-                        upcomingEvents.slice(0, 3).map((event) => (
+                        upcomingEvents.map((event) => (
                           <div 
                             key={event.id} 
                             onClick={() => handleEventClick(event)}
@@ -418,7 +423,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                       )
                     ) : (
                       bucketlistEvents.filter(e => !e.isOutdated).length > 0 ? (
-                        bucketlistEvents.filter(e => !e.isOutdated).slice(0, 3).map((event) => (
+                        bucketlistEvents.filter(e => !e.isOutdated).map((event) => (
                           <div 
                             key={event.id} 
                             onClick={() => handleEventClick(event)}
@@ -620,7 +625,12 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           <section>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Event History</h2>
-              <button className="text-[#27aae2] hover:text-[#1e8bb8] font-semibold text-sm">View All</button>
+              <button 
+                onClick={() => setActiveView('eventHistory')}
+                className="text-[#27aae2] hover:text-[#1e8bb8] font-semibold text-sm"
+              >
+                View All
+              </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {isLoadingData ? (
@@ -691,9 +701,11 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           ) : activeView === 'settings' ? (
             <Settings />
           ) : activeView === 'eventsBooked' ? (
-            <EventsBooked onEventClick={handleEventClick} />
+            <EventsBooked onEventClick={handleEventClick} onBack={handleBackToDashboard} />
           ) : activeView === 'bucketList' ? (
-            <BucketList onEventClick={handleEventClick} />
+            <BucketList onEventClick={handleEventClick} onBack={handleBackToDashboard} />
+          ) : activeView === 'eventHistory' ? (
+            <EventHistory onEventClick={handleEventClick} onBack={handleBackToDashboard} />
           ) : (
             <Messages />
           )}

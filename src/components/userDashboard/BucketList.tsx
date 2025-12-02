@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Heart, Search, SlidersHorizontal, Grid3x3, List, DollarSign, AlertCircle } from 'lucide-react';
+import { Calendar, MapPin, Heart, Search, SlidersHorizontal, Grid3x3, List, DollarSign, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getBucketlist, addToBucketlist, removeFromBucketlist } from '../../services/userService';
 import { API_BASE_URL } from '../../config/api';
@@ -16,9 +16,10 @@ interface Event {
 
 interface BucketListProps {
   onEventClick: (event: Event) => void;
+  onBack?: () => void;
 }
 
-export default function BucketList({ onEventClick }: BucketListProps) {
+export default function BucketList({ onEventClick, onBack }: BucketListProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'expired'>('all');
@@ -106,6 +107,17 @@ export default function BucketList({ onEventClick }: BucketListProps) {
 
   return (
     <div className="space-y-6">
+      {/* Back Button */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-[#27aae2] transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Back to Events</span>
+        </button>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

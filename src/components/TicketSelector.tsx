@@ -340,69 +340,76 @@ export default function TicketSelector({
         </div>
       )}
 
-      {/* Uniform Ticket (Single Price) */}
+      {/* Uniform Ticket (Single or Multiple Tickets) */}
       {ticketType === 'uniform' && tickets.uniform && tickets.uniform.length > 0 && (
-        <div className="mb-6">
-          {/* Ticket Type Selector - Show dropdown if multiple ticket types */}
-          {tickets.uniform.length > 1 && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select the type of ticket
-              </label>
-              <select
-                value={selectedTicketType || tickets.uniform[0].id}
-                onChange={(e) => {
-                  onSelectTicketType(e.target.value);
-                  setQuantityFor(e.target.value, 1);
-                }}
-                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27aae2] focus:border-transparent"
-              >
-                {tickets.uniform.map((ticket) => (
-                  <option key={ticket.id} value={ticket.id}>
-                    {ticket.name} - KES {ticket.price.toLocaleString()} {ticket.available !== undefined && ticket.available !== null ? `(${ticket.available} available)` : '(Unlimited)'}
-                  </option>
-                ))}
-              </select>
+        <div className="space-y-3 mb-6">
+          {tickets.uniform.map((ticket) => (
+            <div
+              key={ticket.id}
+              onClick={() => {
+                onSelectTicketType(ticket.id);
+                setQuantityFor(ticket.id, 1);
+              }}
+              className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                selectedTicketType === ticket.id || (tickets.uniform.length === 1)
+                  ? 'border-[#27aae2] bg-[#27aae2]/5'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-[#27aae2]/50'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="font-bold text-gray-900 dark:text-white">{ticket.name}</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {ticket.available !== undefined && ticket.available !== null 
+                      ? `${ticket.available} tickets left` 
+                      : 'Unlimited tickets available'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-[#27aae2]">
+                    {getTotalPrice(ticket, getQuantity(ticket.id)) === 0 
+                      ? 'Free' 
+                      : `KES ${getTotalPrice(ticket, getQuantity(ticket.id)).toLocaleString()}`}
+                  </p>
+                  {ticket.price > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      KES {ticket.price.toLocaleString()} each × {getQuantity(ticket.id)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const cur = getQuantity(ticket.id); 
+                    setQuantityFor(ticket.id, Math.max(1, cur - 1)); 
+                  }}
+                  className="w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-center text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none"
+                  disabled={getQuantity(ticket.id) <= 1}
+                  aria-label="Decrease quantity"
+                >
+                  −
+                </button>
+                <div className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md text-sm bg-gray-50 dark:bg-gray-700 dark:text-white">
+                  {getQuantity(ticket.id)}
+                </div>
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const cur = getQuantity(ticket.id); 
+                    const maxAvailable = ticket.available !== undefined && ticket.available !== null ? ticket.available : 999;
+                    setQuantityFor(ticket.id, Math.min(maxAvailable, cur + 1)); 
+                  }}
+                  className="w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-center text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none"
+                  disabled={ticket.available !== undefined && ticket.available !== null && getQuantity(ticket.id) >= ticket.available}
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
             </div>
-          )}
-          
-          {(() => {
-            // Get the currently selected ticket (or first one if none selected)
-            const currentTicket = tickets.uniform.find((t: any) => t.id === (selectedTicketType || tickets.uniform[0].id)) || tickets.uniform[0];
-            const currentQuantity = getQuantity(currentTicket.id);
-            const currentTotal = getTotalPrice(currentTicket, currentQuantity);
-            
-            return (
-              <>
-                <div className="flex items-baseline justify-between mb-2">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {currentTotal === 0 ? 'Free' : `KES ${currentTotal.toLocaleString()}`}
-                  </span>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">total ({currentQuantity} × KES {currentTicket.price.toLocaleString()})</span>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {currentTicket.available !== undefined && currentTicket.available !== null ? `${currentTicket.available} tickets available` : 'Unlimited tickets available'}
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    onClick={() => { const id = currentTicket.id; const cur = getQuantity(id); setQuantityFor(id, Math.max(1, cur - 1)); }}
-                    className="w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-center text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none"
-                    disabled={currentQuantity <= 1}
-                  >
-                    −
-                  </button>
-                  <div className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md text-sm bg-gray-50 dark:bg-gray-700 dark:text-white">{currentQuantity}</div>
-                  <button
-                    onClick={() => { const id = currentTicket.id; const cur = getQuantity(id); setQuantityFor(id, Math.min(currentTicket.available !== undefined && currentTicket.available !== null ? currentTicket.available : 999, cur + 1)); }}
-                    className="w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-center text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none"
-                    disabled={currentTicket.available !== undefined && currentTicket.available !== null && currentQuantity >= currentTicket.available}
-                  >
-                    +
-                  </button>
-                </div>
-              </>
-            );
-          })()}
+          ))}
         </div>
       )}
 

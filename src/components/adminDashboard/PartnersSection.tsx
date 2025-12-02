@@ -579,240 +579,286 @@ export default function PartnersSection({}: PartnersProps) {
         )}
         {/* Partner Details Modal */}
         {selectedPartner && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-            <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
-              <button
-                className="absolute top-4 right-4 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white text-2xl font-bold"
-                onClick={() => {
-                  setSelectedPartner(null);
-                  setPartnerDetails(null);
-                }}
-              >
-                &times;
-              </button>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Partner Details</h2>
-              
-              {loadingPartnerDetails ? (
-                <div className="text-center py-8 text-gray-500">Loading partner details...</div>
-              ) : partnerDetails ? (
-                <div className="space-y-4">
-                  {/* Logo and Basic Info */}
-                  <div className="flex items-center gap-4">
-                    {partnerDetails.partner?.logo ? (
-                      <img 
-                        src={partnerDetails.partner.logo.startsWith('http') ? partnerDetails.partner.logo : `${API_BASE_URL}${partnerDetails.partner.logo}`}
-                        alt={partnerDetails.partner.business_name}
-                        className="w-16 h-16 rounded-xl object-cover border border-gray-200 dark:border-gray-700"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-700">
-                        <span className="text-gray-400 dark:text-gray-500 text-4xl font-bold">
-                          {partnerDetails.partner?.business_name?.charAt(0) || selectedPartner.name.charAt(0)}
-                        </span>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
+            <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+              {/* Header with gradient background */}
+              <div className="sticky top-0 z-10 bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] px-6 py-4 rounded-t-2xl">
+                <button
+                  className="absolute top-4 right-4 text-white hover:text-gray-200 text-3xl font-bold transition-colors w-10 h-10 flex items-center justify-center"
+                  onClick={() => {
+                    setSelectedPartner(null);
+                    setPartnerDetails(null);
+                  }}
+                >
+                  &times;
+                </button>
+                <h2 className="text-2xl font-bold text-white">Partner Details</h2>
+              </div>
+
+              <div className="p-6">
+                {loadingPartnerDetails ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#27aae2] mx-auto mb-4"></div>
+                    <p className="text-gray-500">Loading partner details...</p>
+                  </div>
+                ) : partnerDetails ? (
+                  <div className="space-y-6">
+                    {/* Logo and Basic Info Card */}
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-blue-100 dark:border-gray-600">
+                      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                        {partnerDetails.partner?.logo ? (
+                          <img 
+                            src={partnerDetails.partner.logo.startsWith('http') ? partnerDetails.partner.logo : `${API_BASE_URL}${partnerDetails.partner.logo}`}
+                            alt={partnerDetails.partner.business_name}
+                            className="w-20 h-20 rounded-xl object-cover border-2 border-white dark:border-gray-600 shadow-lg"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-[#27aae2] to-[#1e8bb8] flex items-center justify-center shadow-lg">
+                            <span className="text-white text-3xl font-bold">
+                              {partnerDetails.partner?.business_name?.charAt(0) || selectedPartner.name.charAt(0)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1 text-center sm:text-left">
+                          <h3 className="font-bold text-2xl text-gray-900 dark:text-white mb-2">
+                            {partnerDetails.partner?.business_name || selectedPartner.name}
+                          </h3>
+                          <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
+                              {partnerDetails.partner?.status?.toUpperCase() || selectedPartner.status?.toUpperCase() || 'ACTIVE'}
+                            </span>
+                            {partnerDetails.partner?.category && (
+                              <span className="px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full text-xs font-semibold">
+                                {partnerDetails.partner.category.name || partnerDetails.partner.category}
+                              </span>
+                            )}
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              partnerDetails.partner?.contract_accepted 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' 
+                                : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                            }`}>
+                              {partnerDetails.partner?.contract_accepted ? '✓ Contract Signed' : 'Contract Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact Information Card */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Contact Information
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Email</p>
+                          <p className="text-sm text-gray-900 dark:text-white break-all">
+                            {partnerDetails.partner?.email || ('email' in selectedPartner ? selectedPartner.email : 'N/A')}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Phone Number</p>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            {partnerDetails.partner?.phone_number || 'Not provided'}
+                          </p>
+                        </div>
+                        {partnerDetails.partner?.location && (
+                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Location</p>
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              {partnerDetails.partner.location}
+                            </p>
+                          </div>
+                        )}
+                        {partnerDetails.partner?.contact_person && (
+                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Contact Person</p>
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              {partnerDetails.partner.contact_person}
+                            </p>
+                          </div>
+                        )}
+                        {partnerDetails.partner?.website && (
+                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 md:col-span-2">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Website</p>
+                            <a 
+                              href={partnerDetails.partner.website} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm text-[#27aae2] hover:underline break-all"
+                            >
+                              {partnerDetails.partner.website}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Business Metrics Card */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Business Metrics
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 text-center border border-blue-200 dark:border-blue-800">
+                          <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                            {partnerDetails.events?.length || 0}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Total Events</p>
+                        </div>
+                        {partnerDetails.total_bookings !== undefined && (
+                          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 text-center border border-green-200 dark:border-green-800">
+                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                              {partnerDetails.total_bookings}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Bookings</p>
+                          </div>
+                        )}
+                        {partnerDetails.partner?.total_earnings !== undefined && (
+                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-4 text-center border border-purple-200 dark:border-purple-800">
+                            <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                              KES {parseFloat(partnerDetails.partner.total_earnings || 0).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Total Earnings</p>
+                          </div>
+                        )}
+                        {partnerDetails.partner?.pending_earnings !== undefined && (
+                          <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-4 text-center border border-orange-200 dark:border-orange-800">
+                            <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                              KES {parseFloat(partnerDetails.partner.pending_earnings || 0).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Pending</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Description Card */}
+                    {partnerDetails.partner?.description && (
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-3">About</h4>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {partnerDetails.partner.description}
+                        </p>
                       </div>
                     )}
-                    <div>
-                      <p className="font-semibold text-lg text-gray-900 dark:text-white">
-                        {partnerDetails.partner?.business_name || selectedPartner.name}
-                      </p>
-                      <span className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 font-semibold">
-                        {partnerDetails.partner?.status?.toUpperCase() || selectedPartner.status?.toUpperCase() || 'ACTIVE'}
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Email */}
-                  <div>
-                    <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Email:</p>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {partnerDetails.partner?.email || ('email' in selectedPartner ? selectedPartner.email : 'N/A')}
-                    </span>
-                  </div>
-
-                  {/* Phone Number */}
-                  <div>
-                    <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Phone Number:</p>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {partnerDetails.partner?.phone_number || 'Not provided'}
-                    </span>
-                  </div>
-
-                  {/* Category */}
-                  {partnerDetails.partner?.category && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Category:</p>
-                      <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 dark:text-blue-200 dark:bg-blue-800 rounded-full text-xs font-medium mr-2">
-                        {partnerDetails.partner.category.name || partnerDetails.partner.category}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Location */}
-                  {partnerDetails.partner?.location && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Location:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {partnerDetails.partner.location}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Contact Person */}
-                  {partnerDetails.partner?.contact_person && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Contact Person:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {partnerDetails.partner.contact_person}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  {partnerDetails.partner?.description && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Description:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {partnerDetails.partner.description}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Interests */}
-                  <div>
-                    <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Interests:</p>
-                    {partnerDetails.partner?.interests ? (
-                      <div className="flex flex-wrap gap-2">
-                        {(() => {
-                          try {
-                            const interests = typeof partnerDetails.partner.interests === 'string' 
-                              ? JSON.parse(partnerDetails.partner.interests) 
-                              : partnerDetails.partner.interests;
-                            if (Array.isArray(interests)) {
-                              return interests.map((interest: string, idx: number) => (
-                                <span key={idx} className="inline-block px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full text-xs font-medium">
+                    {/* Interests Card */}
+                    {partnerDetails.partner?.interests && (
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-3">Interests</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {(() => {
+                            try {
+                              const interests = typeof partnerDetails.partner.interests === 'string' 
+                                ? JSON.parse(partnerDetails.partner.interests) 
+                                : partnerDetails.partner.interests;
+                              if (Array.isArray(interests)) {
+                                return interests.map((interest: string, idx: number) => (
+                                  <span key={idx} className="px-3 py-1.5 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 dark:from-green-900/40 dark:to-emerald-900/40 dark:text-green-300 rounded-full text-sm font-medium border border-green-200 dark:border-green-800">
+                                    {interest}
+                                  </span>
+                                ));
+                              }
+                            } catch (e) {
+                              const interestsList = partnerDetails.partner.interests.split(',').map((i: string) => i.trim());
+                              return interestsList.map((interest: string, idx: number) => (
+                                <span key={idx} className="px-3 py-1.5 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 dark:from-green-900/40 dark:to-emerald-900/40 dark:text-green-300 rounded-full text-sm font-medium border border-green-200 dark:border-green-800">
                                   {interest}
                                 </span>
                               ));
                             }
-                          } catch (e) {
-                            // If parsing fails, treat as comma-separated string
-                            const interestsList = partnerDetails.partner.interests.split(',').map((i: string) => i.trim());
-                            return interestsList.map((interest: string, idx: number) => (
-                              <span key={idx} className="inline-block px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full text-xs font-medium">
-                                {interest}
-                              </span>
-                            ));
-                          }
-                          return null;
-                        })()}
+                            return <span className="text-sm text-gray-500 dark:text-gray-400">Not provided</span>;
+                          })()}
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-sm text-gray-500 dark:text-gray-400">Not provided</span>
                     )}
+
+                    {/* Timeline Card */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Timeline
+                      </h4>
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        {partnerDetails.partner?.created_at && (
+                          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Registered</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {new Date(partnerDetails.partner.created_at).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                        )}
+                        {partnerDetails.partner?.approved_at && (
+                          <div className="flex-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Approved</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {new Date(partnerDetails.partner.approved_at).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Total Events - Dynamic from API */}
-                  <div>
-                    <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Total Events:</p>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {partnerDetails.events?.length || 0} events
-                    </span>
+                ) : (
+                  <div className="text-center py-12">
+                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-gray-500">Failed to load partner details</p>
                   </div>
-
-                  {/* Total Bookings */}
-                  {partnerDetails.total_bookings !== undefined && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Total Bookings:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {partnerDetails.total_bookings} confirmed bookings
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Total Revenue */}
-                  {partnerDetails.partner?.total_earnings !== undefined && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Total Earnings:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        KES {parseFloat(partnerDetails.partner.total_earnings || 0).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Pending Earnings */}
-                  {partnerDetails.partner?.pending_earnings !== undefined && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Pending Earnings:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        KES {parseFloat(partnerDetails.partner.pending_earnings || 0).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Website */}
-                  {partnerDetails.partner?.website && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Website:</p>
-                      <a 
-                        href={partnerDetails.partner.website} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm text-[#27aae2] hover:underline"
-                      >
-                        {partnerDetails.partner.website}
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Created Date */}
-                  {partnerDetails.partner?.created_at && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Registered:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {new Date(partnerDetails.partner.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Approved Date */}
-                  {partnerDetails.partner?.approved_at && (
-                    <div>
-                      <p className="font-semibold mb-1 text-gray-900 dark:text-gray-100">Approved:</p>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {new Date(partnerDetails.partner.approved_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Contract Status */}
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="font-semibold text-gray-900 dark:text-white">Contract Status:</span>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      partnerDetails.partner?.contract_accepted 
-                        ? 'bg-green-200 text-green-700 dark:bg-green-900 dark:text-green-300' 
-                        : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                    }`}>
-                      {partnerDetails.partner?.contract_accepted ? 'Signed Digitally' : 'Not Signed'}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">Failed to load partner details</div>
-              )}
+                )}
 
               {/* Partner notes (always shown) */}
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p className="font-semibold mb-2 text-gray-900 dark:text-gray-100">Admin Notes:</p>
-                <div className="space-y-2 max-h-36 overflow-y-auto mb-2">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Admin Notes
+                </h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
                   {(selectedPartner && partnerNotes[selectedPartner.id]) ? (
                     partnerNotes[selectedPartner.id].map((n, i) => (
-                      <div key={i} className="p-2 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-100 dark:border-gray-700 text-sm">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{new Date(n.date).toLocaleString()} · {n.type.toUpperCase()}</div>
-                        <div className="text-gray-700 dark:text-gray-200">{n.text}</div>
+                      <div key={i} className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            n.type === 'flag' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' :
+                            n.type === 'suspend' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
+                            'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                          }`}>
+                            {n.type.toUpperCase()}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(n.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(n.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 dark:text-gray-200">{n.text}</p>
                       </div>
                     ))
                   ) : (
-                    <div className="text-sm text-gray-600 dark:text-gray-400">No notes yet.</div>
+                    <div className="text-center py-6 text-gray-400 dark:text-gray-500">
+                      <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <p className="text-sm">No notes yet</p>
+                    </div>
                   )}
                 </div>
 
@@ -822,23 +868,27 @@ export default function PartnersSection({}: PartnersProps) {
                     value={detailsNoteText}
                     onChange={e => setDetailsNoteText(e.target.value)}
                     placeholder="Add a note about this partner..."
-                    className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2] focus:border-transparent transition-all"
                   />
                   <button
-                    className="px-3 py-2 bg-[#27aae2] text-white rounded-lg"
+                    className="px-5 py-2.5 bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white rounded-lg font-medium hover:from-[#1e8bb8] hover:to-[#27aae2] transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => {
                       if (!selectedPartner) return;
                       if (!detailsNoteText.trim()) return;
                       addNoteForPartner(selectedPartner.id, { text: detailsNoteText.trim(), type: 'note', date: new Date().toISOString() });
                       setDetailsNoteText('');
                     }}
-                  >Add</button>
+                    disabled={!detailsNoteText.trim()}
+                  >
+                    Add Note
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
 
       {/* Suspended Partners */}
       <div>
