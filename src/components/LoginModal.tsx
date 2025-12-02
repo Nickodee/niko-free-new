@@ -16,7 +16,7 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
   const { setAuthData } = useAuth();
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(true); // Toggle between sign up and log in
+  const [isSignUp, setIsSignUp] = useState(false); // Default to Log In
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
