@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Calendar, TrendingUp } from 'lucide-react';
-import { getPartnerAnalytics } from '../../services/partnerService';
+import { Clock, Calendar, TrendingUp, Event as EventIcon } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getPartnerAnalytics, getPartnerToken } from '../../services/partnerService';
+import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
+
+interface ChartDataPoint {
+	date: string;
+	active_events: number;
+	total_events: number;
+	bookings: number;
+	cumulative_bookings: number;
+	revenue: number;
+	cumulative_revenue: number;
+}
 
 interface AnalyticsData {
 	summary: {
@@ -17,6 +29,15 @@ interface AnalyticsData {
 		bookings: number;
 		revenue: number;
 	};
+	chart_data?: ChartDataPoint[];
+}
+
+interface DashboardStats {
+	total_earnings: number;
+	pending_earnings: number;
+	withdrawn_earnings: number;
+	total_events: number;
+	upcoming_events: number;
 }
 
 export default function Analytics() {
@@ -49,6 +70,32 @@ export default function Analytics() {
 
 	const formatCurrency = (value?: number) =>
 		`KES ${(value || 0).toLocaleString()}`;
+
+	const formatDate = (dateString: string) => {
+		const date = new Date(dateString);
+		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	};
+
+	const CustomTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			return (
+				<div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
+					<p className="font-semibold text-gray-900 dark:text-white mb-2">
+						{formatDate(label)}
+					</p>
+					{payload.map((entry: any, index: number) => (
+						<p key={index} className="text-sm" style={{ color: entry.color }}>
+							{entry.name}:{' '}
+							{entry.dataKey === 'cumulative_revenue' || entry.dataKey === 'revenue'
+								? formatCurrency(entry.value)
+								: entry.value.toLocaleString()}
+						</p>
+					))}
+				</div>
+			);
+		}
+		return null;
+	};
 
 	if (loading) {
 		return (
@@ -173,23 +220,95 @@ export default function Analytics() {
 				</div>
 			</div>
 
-			{/* Chart placeholder */}
+			{/* Line Chart */}
 			<div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
 				<div className="flex items-center justify-between mb-4">
 					<div>
-						<h4 className="text-sm font-semibold text-gray-900 dark:text-white">Earnings chart</h4>
-						<p className="text-xs text-gray-500 dark:text-gray-400">Overview by selected timeframe</p>
-					</div>
-					<div className="flex items-center space-x-2">
-						<button className="text-xs px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">All</button>
-						<button className="text-xs px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">7d</button>
-						<button className="text-xs px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">24h</button>
+						<h4 className="text-sm font-semibold text-gray-900 dark:text-white">Analytics Overview</h4>
+						<p className="text-xs text-gray-500 dark:text-gray-400">Track your performance over time</p>
 					</div>
 				</div>
 
-				<div className="h-56 rounded border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center">
-					<span className="text-sm text-gray-400">Chart coming soon</span>
-				</div>
+				{data?.chart_data && data.chart_data.length > 0 ? (
+					<ResponsiveContainer width="100%" height={400}>
+						<LineChart
+							data={data.chart_data}
+							margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+						>
+							<CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
+							<XAxis
+								dataKey="date"
+								tick={{ fill: '#6b7280', fontSize: 12 }}
+								stroke="#9ca3af"
+								angle={-45}
+								textAnchor="end"
+								height={80}
+								tickFormatter={formatDate}
+							/>
+							<YAxis
+								yAxisId="left"
+								tick={{ fill: '#6b7280', fontSize: 12 }}
+								stroke="#9ca3af"
+							/>
+							<YAxis
+								yAxisId="right"
+								orientation="right"
+								tick={{ fill: '#6b7280', fontSize: 12 }}
+								stroke="#9ca3af"
+								tickFormatter={(value) => `KES ${(value / 1000).toFixed(0)}k`}
+							/>
+							<Tooltip content={<CustomTooltip />} />
+							<Legend
+								wrapperStyle={{ paddingTop: '20px' }}
+								iconType="line"
+							/>
+							<Line
+								yAxisId="left"
+								type="monotone"
+								dataKey="active_events"
+								stroke="#27aae2"
+								strokeWidth={2}
+								name="Active Events"
+								dot={{ r: 4 }}
+								activeDot={{ r: 6 }}
+							/>
+							<Line
+								yAxisId="left"
+								type="monotone"
+								dataKey="cumulative_bookings"
+								stroke="#10b981"
+								strokeWidth={2}
+								name="Total Bookings"
+								dot={{ r: 4 }}
+								activeDot={{ r: 6 }}
+							/>
+							<Line
+								yAxisId="right"
+								type="monotone"
+								dataKey="cumulative_revenue"
+								stroke="#f59e0b"
+								strokeWidth={2}
+								name="Revenue (KES)"
+								dot={{ r: 4 }}
+								activeDot={{ r: 6 }}
+							/>
+							<Line
+								yAxisId="left"
+								type="monotone"
+								dataKey="total_events"
+								stroke="#8b5cf6"
+								strokeWidth={2}
+								name="All Events"
+								dot={{ r: 4 }}
+								activeDot={{ r: 6 }}
+							/>
+						</LineChart>
+					</ResponsiveContainer>
+				) : (
+					<div className="h-96 rounded border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center">
+						<span className="text-sm text-gray-400">No chart data available</span>
+					</div>
+				)}
 			</div>
 		</div>
 	);
