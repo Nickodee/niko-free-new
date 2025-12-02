@@ -1,9 +1,5 @@
 import React, { useEffect, useState } from 'react';
-<<<<<<< HEAD
-import { Clock, Calendar, TrendingUp, CalendarDays as EventIcon } from 'lucide-react';
-=======
 import { Clock, Calendar, TrendingUp } from 'lucide-react';
->>>>>>> 78f59a67e4b788ab54280afef31c2d7cfd5c0168
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getPartnerAnalytics } from '../../services/partnerService';
 
