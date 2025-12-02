@@ -150,6 +150,60 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
 
   const totalSteps = 7;
 
+  // Helper functions for time conversion
+  const parseTime = (time24: string): { hour: string; minute: string; period: 'AM' | 'PM' } => {
+    if (!time24) return { hour: '12', minute: '00', period: 'AM' };
+    const [hours, minutes] = time24.split(':');
+    const hour24 = parseInt(hours);
+    const period: 'AM' | 'PM' = hour24 >= 12 ? 'PM' : 'AM';
+    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+    return {
+      hour: hour12.toString().padStart(2, '0'),
+      minute: minutes || '00',
+      period
+    };
+  };
+
+  const formatTimeTo24 = (hour: string, minute: string, period: 'AM' | 'PM'): string => {
+    let hour24 = parseInt(hour);
+    if (period === 'PM' && hour24 !== 12) {
+      hour24 += 12;
+    } else if (period === 'AM' && hour24 === 12) {
+      hour24 = 0;
+    }
+    return `${hour24.toString().padStart(2, '0')}:${minute}`;
+  };
+
+  // Time state for dropdowns
+  const [startTimeState, setStartTimeState] = useState(() => parseTime(formData.startTime));
+  const [endTimeState, setEndTimeState] = useState(() => parseTime(formData.endTime));
+
+  // Update formData when time state changes
+  useEffect(() => {
+    const newStartTime = formatTimeTo24(startTimeState.hour, startTimeState.minute, startTimeState.period);
+    if (newStartTime !== formData.startTime) {
+      setFormData(prev => ({ ...prev, startTime: newStartTime }));
+    }
+  }, [startTimeState]);
+
+  useEffect(() => {
+    const newEndTime = formatTimeTo24(endTimeState.hour, endTimeState.minute, endTimeState.period);
+    if (newEndTime !== formData.endTime) {
+      setFormData(prev => ({ ...prev, endTime: newEndTime }));
+    }
+  }, [endTimeState]);
+
+  // Validate end time is after start time for one-day events
+  const isEndTimeValid = (): boolean => {
+    if (!isOneDayEvent) return true;
+    if (!formData.startTime || !formData.endTime) return true;
+    
+    const start = formatTimeTo24(startTimeState.hour, startTimeState.minute, startTimeState.period);
+    const end = formatTimeTo24(endTimeState.hour, endTimeState.minute, endTimeState.period);
+    
+    return end > start;
+  };
+
   // Fetch categories on mount
   useEffect(() => {
     const fetchCategories = async () => {
@@ -314,6 +368,15 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
   }, [isOpen, isEditMode, eventId]);
 
   const handleNext = () => {
+    // Validate step 2 (Date & Time)
+    if (currentStep === 2) {
+      if (isOneDayEvent && !isEndTimeValid()) {
+        setError('End time must be after start time for one-day events');
+        return;
+      }
+      setError(''); // Clear any previous errors
+    }
+    
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     }
@@ -930,7 +993,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                   {/* Date and Time Inputs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Start Date
                       </label>
                       <input
@@ -940,33 +1003,103 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Start Time
                       </label>
-                      <input
-                        type="time"
-                        value={formData.startTime}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, startTime: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
-                      />
+                      <div className="flex gap-2">
+                        {/* Hour */}
+                        <select
+                          value={startTimeState.hour}
+                          onChange={(e) => setStartTimeState(prev => ({ ...prev, hour: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map(hour => (
+                            <option key={hour} value={hour.toString().padStart(2, '0')}>
+                              {hour.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* Minute */}
+                        <select
+                          value={startTimeState.minute}
+                          onChange={(e) => setStartTimeState(prev => ({ ...prev, minute: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                        >
+                          {Array.from({ length: 60 }, (_, i) => i).map(minute => (
+                            <option key={minute} value={minute.toString().padStart(2, '0')}>
+                              {minute.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* AM/PM */}
+                        <select
+                          value={startTimeState.period}
+                          onChange={(e) => setStartTimeState(prev => ({ ...prev, period: e.target.value as 'AM' | 'PM' }))}
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         End Time
                       </label>
-                      <input
-                        type="time"
-                        value={formData.endTime}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, endTime: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
-                      />
+                      <div className="flex gap-2">
+                        {/* Hour */}
+                        <select
+                          value={endTimeState.hour}
+                          onChange={(e) => setEndTimeState(prev => ({ ...prev, hour: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map(hour => (
+                            <option key={hour} value={hour.toString().padStart(2, '0')}>
+                              {hour.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* Minute */}
+                        <select
+                          value={endTimeState.minute}
+                          onChange={(e) => setEndTimeState(prev => ({ ...prev, minute: e.target.value }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                        >
+                          {Array.from({ length: 60 }, (_, i) => i).map(minute => (
+                            <option key={minute} value={minute.toString().padStart(2, '0')}>
+                              {minute.toString().padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* AM/PM */}
+                        <select
+                          value={endTimeState.period}
+                          onChange={(e) => setEndTimeState(prev => ({ ...prev, period: e.target.value as 'AM' | 'PM' }))}
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                      {/* Validation message for one-day events */}
+                      {isOneDayEvent && !isEndTimeValid() && (
+                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                          End time must be after start time
+                        </p>
+                      )}
                     </div>
 
                     {/* End Date for Multiday Events */}
                     {!isOneDayEvent && (
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           End Date
                       </label>
                       <input

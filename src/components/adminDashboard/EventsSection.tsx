@@ -292,99 +292,259 @@ export default function EventsSection({}: EventsSectionProps) {
       )}
       {/* Event Details Modal (Redesigned for Approval) */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-8 max-w-2xl w-full relative overflow-y-auto max-h-[90vh]">
-            <button
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white text-2xl font-bold"
-              onClick={() => setSelectedEvent(null)}
-            >
-              &times;
-            </button>
-            {/* Event Image - full width */}
-            <div className="w-full mb-6">
-              {selectedEvent?.poster_image || selectedEvent?.fullEvent?.poster_image ? (
-                <img
-                  src={
-                    selectedEvent.poster_image || selectedEvent.fullEvent?.poster_image
-                      ? (() => {
-                          const imgPath = selectedEvent.poster_image || selectedEvent.fullEvent?.poster_image;
-                          if (imgPath.startsWith('http')) return imgPath;
-                          return `${API_BASE_URL}${imgPath.startsWith('/') ? '' : '/'}${imgPath}`;
-                        })()
-                      : 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=800'
-                  }
-                  alt={selectedEvent.title}
-                  className="w-full h-56 sm:h-72 object-cover rounded-xl border border-gray-200 dark:border-gray-800"
-                />
-              ) : (
-                <div className="w-full h-56 sm:h-72 bg-gray-200 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-800 flex items-center justify-center">
-                  <span className="text-gray-400 dark:text-gray-500">No image available</span>
-                </div>
-              )}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
+          <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+            {/* Header with gradient background */}
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] px-6 py-4 rounded-t-2xl">
+              <button
+                className="absolute top-4 right-4 text-white hover:text-gray-200 text-5xl font-bold transition-colors w-10 h-10 flex items-center justify-center"
+                onClick={() => setSelectedEvent(null)}
+              >
+                &times;
+              </button>
+              <h2 className="text-2xl font-bold text-white">Event Details</h2>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Event Details for Approval</h2>
-            <div className="space-y-6">
-              {/* Event Name & Status */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
-                <div className="flex-1">
-                  <p className="font-semibold text-xl text-gray-900 dark:text-white mb-1">{selectedEvent.title}</p>
-                  <span className="text-xs px-2 py-1 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-semibold mr-2">{selectedEvent.status?.toUpperCase() || 'PENDING'}</span>
-                  <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium mr-2">{selectedEvent.category}</span>
+
+            <div className="p-6">
+              <div className="space-y-6">
+                {/* Event Image Card */}
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-4 border border-blue-100 dark:border-gray-600">
+                  {selectedEvent?.poster_image || selectedEvent?.fullEvent?.poster_image ? (
+                    <img
+                      src={
+                        selectedEvent.poster_image || selectedEvent.fullEvent?.poster_image
+                          ? (() => {
+                              const imgPath = selectedEvent.poster_image || selectedEvent.fullEvent?.poster_image;
+                              if (imgPath.startsWith('http')) return imgPath;
+                              return `${API_BASE_URL}${imgPath.startsWith('/') ? '' : '/'}${imgPath}`;
+                            })()
+                          : 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=800'
+                      }
+                      alt={selectedEvent.title}
+                      className="w-full h-64 sm:h-80 object-cover rounded-lg shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-64 sm:h-80 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                      <span className="text-gray-400 dark:text-gray-500">No image available</span>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {/* Category & Partner */}
-              <div>
-                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Category:</p>
-                <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium mr-2">{selectedEvent.category}</span>
-                <p className="font-semibold mb-1 mt-2 text-gray-900 dark:text-white">Partner:</p>
-                <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium mr-2">{selectedEvent.partner}</span>
-              </div>
-
-              {/* Date & Time */}
-              <div>
-                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Date & Time:</p>
-                <span className="inline-block px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium mr-2">{selectedEvent.date}</span>
-              </div>
-
-              {/* Description */}
-              <div>
-                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Description:</p>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {selectedEvent?.description || selectedEvent?.fullEvent?.description || 'No description provided'}
-                </span>
-              </div>
-
-              {/* Attendee Limit (mocked for demo) */}
-              <div>
-                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Attendee Limit:</p>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Unlimited</span>
-              </div>
-
-              {/* Ticket Types (mocked for demo) */}
-              <div>
-                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Ticket Types:</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">Regular - $10</span>
-                  <span className="inline-block px-3 py-1 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 rounded-full text-xs font-medium">VIP - $25</span>
+                {/* Event Title & Status Card */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-2xl text-gray-900 dark:text-white mb-3">
+                        {selectedEvent.title}
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          selectedEvent.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+                          selectedEvent.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
+                          'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                        }`}>
+                          {selectedEvent.status?.toUpperCase() || 'PENDING'}
+                        </span>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full text-xs font-semibold">
+                          {selectedEvent.category}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Hosts (mocked for demo) */}
-              <div>
-                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Hosts:</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-block px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">@annalane (Verified)</span>
-                  <span className="inline-block px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">@victormuli (Verified)</span>
+                {/* Event Information Card */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Event Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Partner</p>
+                      <p className="text-sm text-gray-900 dark:text-white font-medium">
+                        {selectedEvent.partner}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Event Date</p>
+                      <p className="text-sm text-gray-900 dark:text-white font-medium">
+                        {selectedEvent.date}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Category</p>
+                      <p className="text-sm text-gray-900 dark:text-white font-medium">
+                        {selectedEvent.category}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Attendee Limit</p>
+                      <p className="text-sm text-gray-900 dark:text-white font-medium">
+                        {selectedEvent?.fullEvent?.attendee_limit || 'Unlimited'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Promo Codes (mocked for demo) */}
-              <div>
-                <p className="font-semibold mb-1 text-gray-900 dark:text-white">Promo Codes:</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">EARLYBIRD - 20% off</span>
-                </div>
+                {/* Description Card */}
+                {(selectedEvent?.description || selectedEvent?.fullEvent?.description) && (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                      </svg>
+                      Description
+                    </h4>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere">
+                      {selectedEvent?.description || selectedEvent?.fullEvent?.description || 'No description provided'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Ticket Types Card */}
+                {selectedEvent?.fullEvent?.ticket_types && selectedEvent.fullEvent.ticket_types.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                      </svg>
+                      Ticket Types
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedEvent.fullEvent.ticket_types.map((ticket: any, idx: number) => (
+                        <div key={idx} className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                          <p className="font-semibold text-gray-900 dark:text-white mb-1">{ticket.name}</p>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Price:</span>
+                            <span className="font-bold text-green-600 dark:text-green-400">
+                              {ticket.price > 0 ? `KES ${ticket.price.toLocaleString()}` : 'Free'}
+                            </span>
+                          </div>
+                          {ticket.quantity_total && (
+                            <div className="flex items-center justify-between text-sm mt-1">
+                              <span className="text-gray-600 dark:text-gray-400">Available:</span>
+                              <span className="font-medium text-gray-900 dark:text-white">{ticket.quantity_total}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hosts Card */}
+                {selectedEvent?.fullEvent?.hosts && selectedEvent.fullEvent.hosts.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      Event Hosts
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedEvent.fullEvent.hosts.map((host: any, idx: number) => (
+                        <span key={idx} className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 dark:from-purple-900/40 dark:to-pink-900/40 dark:text-purple-300 rounded-full text-sm font-medium border border-purple-200 dark:border-purple-800">
+                          @{host.user?.email?.split('@')[0] || 'host'} {host.user?.is_verified && '✓'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Promo Codes Card */}
+                {selectedEvent?.fullEvent?.promo_codes && selectedEvent.fullEvent.promo_codes.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      Promo Codes
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedEvent.fullEvent.promo_codes.map((promo: any, idx: number) => (
+                        <div key={idx} className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+                          <p className="font-bold text-gray-900 dark:text-white mb-1">{promo.code}</p>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Discount:</span>
+                            <span className="font-bold text-orange-600 dark:text-orange-400">
+                              {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `KES ${promo.discount_value}`} off
+                            </span>
+                          </div>
+                          {promo.max_uses && (
+                            <div className="flex items-center justify-between text-sm mt-1">
+                              <span className="text-gray-600 dark:text-gray-400">Max uses:</span>
+                              <span className="font-medium text-gray-900 dark:text-white">{promo.max_uses}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Location Card */}
+                {(selectedEvent?.fullEvent?.venue_name || selectedEvent?.fullEvent?.online_link) && (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Location
+                    </h4>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                      {selectedEvent.fullEvent.venue_name && (
+                        <p className="text-sm text-gray-900 dark:text-white font-medium mb-2">
+                          📍 {selectedEvent.fullEvent.venue_name}
+                        </p>
+                      )}
+                      {selectedEvent.fullEvent.online_link && (
+                        <a 
+                          href={selectedEvent.fullEvent.online_link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-[#27aae2] hover:underline break-all"
+                        >
+                          🔗 {selectedEvent.fullEvent.online_link}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons for Pending Events */}
+                {selectedEvent.status === 'pending' && (
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
+                    <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 text-center">Review Event</h4>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <button
+                        className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg font-semibold hover:from-green-700 hover:to-green-600 transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl disabled:opacity-50"
+                        onClick={async () => {
+                          await handleApproveEvent(selectedEvent.id);
+                          setSelectedEvent(null);
+                        }}
+                        disabled={actionLoading === selectedEvent.id}
+                      >
+                        <CheckCircle className="w-5 h-5" />
+                        <span>{actionLoading === selectedEvent.id ? 'Processing...' : 'Approve Event'}</span>
+                      </button>
+                      <button
+                        className="px-8 py-3 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg font-semibold hover:from-red-700 hover:to-red-600 transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl disabled:opacity-50"
+                        onClick={async () => {
+                          await handleRejectEvent(selectedEvent.id);
+                          setSelectedEvent(null);
+                        }}
+                        disabled={actionLoading === selectedEvent.id}
+                      >
+                        <XCircle className="w-5 h-5" />
+                        <span>{actionLoading === selectedEvent.id ? 'Processing...' : 'Reject Event'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

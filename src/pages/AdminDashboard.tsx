@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUser } from '../services/authService';
+import { getUserNotifications } from '../services/userService';
 import OverviewStats from '../components/adminDashboard/OverviewStats';
 import UsersPage from '../components/adminDashboard/UsersPage';
 import PartnersSection from '../components/adminDashboard/PartnersSection';
@@ -28,8 +29,8 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const { user: authUser, logout } = useAuth();
   const [adminUser, setAdminUser] = useState<any>(null);
   
-  // Example notification count
-  const [notificationCount, setNotificationCount] = useState(3);
+  // Dynamic notification count based on unread notifications
+  const [notificationCount, setNotificationCount] = useState(0);
   const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'partners' | 'events' | 'settings' | 'reports' | 'revenue' | 'users' | 'profile' | 'notifications' | 'messages' | 'support'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -42,6 +43,40 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
     const user = authUser || getUser();
     setAdminUser(user);
   }, [authUser]);
+
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await getUserNotifications(true); // true = unread only
+        const unreadCount = response.notifications?.filter((n: any) => !n.is_read).length || 0;
+        setNotificationCount(unreadCount);
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    // Refresh notification count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh notification count when returning from notifications tab
+  useEffect(() => {
+    if (activeTab !== 'notifications') {
+      const fetchUnreadCount = async () => {
+        try {
+          const response = await getUserNotifications(true);
+          const unreadCount = response.notifications?.filter((n: any) => !n.is_read).length || 0;
+          setNotificationCount(unreadCount);
+        } catch (error) {
+          console.error('Error fetching notification count:', error);
+        }
+      };
+      fetchUnreadCount();
+    }
+  }, [activeTab]);
 
   // Close account dropdown when clicking outside
   useEffect(() => {

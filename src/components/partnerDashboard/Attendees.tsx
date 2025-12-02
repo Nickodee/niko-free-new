@@ -1,4 +1,4 @@
-import { Search, Download, Users, Mail, Phone, Calendar, FileSpreadsheet, FileText, TrendingUp } from 'lucide-react';
+import { Search, Download, Users, Mail, Phone, Calendar, FileSpreadsheet, FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getPartnerAttendees } from '../../services/partnerService';
 
@@ -244,13 +244,13 @@ export default function Attendees() {
       color: 'text-purple-600 dark:text-purple-400',
       bgColor: 'bg-purple-100 dark:bg-purple-900/30'
     },
-    {
-      label: 'Average Age',
-      value: demographics.averageAge.toString(),
-      icon: TrendingUp,
-      color: 'text-orange-600 dark:text-orange-400',
-      bgColor: 'bg-orange-100 dark:bg-orange-900/30'
-    }
+    // {
+    //   label: 'Average Age',
+    //   value: demographics.averageAge.toString(),
+    //   icon: TrendingUp,
+    //   color: 'text-orange-600 dark:text-orange-400',
+    //   bgColor: 'bg-orange-100 dark:bg-orange-900/30'
+    // }
   ];
 
   const handleExport = (format: 'excel' | 'pdf') => {
@@ -314,7 +314,7 @@ export default function Attendees() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat, index) => (
           <div
             key={index}
@@ -418,9 +418,9 @@ export default function Attendees() {
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   First Name
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                {/* <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Age
-                </th>
+                </th> */}
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Phone Number
                 </th>
@@ -437,11 +437,11 @@ export default function Attendees() {
                       {attendee.name.split(' ')[0]}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  {/* <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 dark:text-white">
                       {attendee.age}
                     </div>
-                  </td>
+                  </td> */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                       <Phone className="w-4 h-4" />

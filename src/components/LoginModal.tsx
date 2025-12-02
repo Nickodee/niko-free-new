@@ -29,6 +29,7 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
   const [error, setError] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [keepMeLoggedIn, setKeepMeLoggedIn] = useState(true); // Default to checked
   // Partner login state (moved from PartnerLoginModal)
   const [showPartnerLogin, setShowPartnerLogin] = useState(false);
   const [partnerEmail, setPartnerEmail] = useState('');
@@ -244,6 +245,8 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
                 <input
                   type="checkbox"
                   id="keepMeLoggedIn"
+                  checked={keepMeLoggedIn}
+                  onChange={(e) => setKeepMeLoggedIn(e.target.checked)}
                   className="w-4 h-4 text-[#27aae2] border-gray-300 rounded focus:ring-[#27aae2] focus:ring-2"
                 />
                 <label htmlFor="keepMeLoggedIn" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -327,21 +330,6 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
                     <button
                       type="button"
                       onClick={() => {
-                        setIsSignUp(true);
-                        setError('');
-                      }}
-                      className={`px-6 py-2 rounded-md font-medium transition-all ${
-                        isSignUp
-                          ? 'text-white'
-                          : 'text-gray-700 dark:text-gray-300'
-                      }`}
-                      style={isSignUp ? { background: 'linear-gradient(to right, #27aae2, #1a8ec4)' } : {}}
-                    >
-                      Sign Up
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
                         setIsSignUp(false);
                         setError('');
                       }}
@@ -354,6 +342,22 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
                     >
                       Log In
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSignUp(true);
+                        setError('');
+                      }}
+                      className={`px-6 py-2 rounded-md font-medium transition-all ${
+                        isSignUp
+                          ? 'text-white'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}
+                      style={isSignUp ? { background: 'linear-gradient(to right, #27aae2, #1a8ec4)' } : {}}
+                    >
+                      Sign Up
+                    </button>
+                    
                   </div>
                 </div>
 

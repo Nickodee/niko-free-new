@@ -1,6 +1,6 @@
-import { Calendar, QrCode, MapPin, Clock, Search, SlidersHorizontal, Grid3x3, List, ArrowLeft, Download, Eye } from 'lucide-react';
+import { Calendar, MapPin, Download, Search, SlidersHorizontal, Grid3x3, List, ArrowLeft, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getUserBookings, getTicketDetails, downloadTicket } from '../../services/userService';
+import { getUserBookings } from '../../services/userService';
 import { API_BASE_URL } from '../../config/api';
 
 interface Event {
@@ -8,84 +8,58 @@ interface Event {
   title: string;
   image: string;
   date: string;
-  time: string;
   location: string;
-  ticketId: string;
+  rating: number;
   category?: string;
-  status?: 'upcoming' | 'today' | 'this-week';
+  attendees?: number;
 }
 
-interface EventsBookedProps {
+interface EventHistoryProps {
   onEventClick: (event: Event) => void;
   onBack?: () => void;
 }
 
-export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps) {
+export default function EventHistory({ onEventClick, onBack }: EventHistoryProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'upcoming' | 'today' | 'this-week'>('all');
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchBookedEvents();
-  }, [filterStatus]);
+    fetchEventHistory();
+  }, []);
 
-  const fetchBookedEvents = async () => {
+  const fetchEventHistory = async () => {
     try {
       setIsLoading(true);
       setError('');
       
-      const status = filterStatus === 'all' ? undefined : 
-                    filterStatus === 'upcoming' ? 'upcoming' : 'past';
-      
-      const response = await getUserBookings(status);
+      const response = await getUserBookings('past');
       
       // Transform API data to component format
       const formattedEvents: Event[] = (response.bookings || []).map((booking: any) => {
         const event = booking.event || {};
-        const firstTicket = booking.tickets?.[0] || {};
-        
         const startDate = event.start_date ? new Date(event.start_date) : new Date();
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const eventDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-        const daysDiff = Math.floor((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        let status: 'upcoming' | 'today' | 'this-week' = 'upcoming';
-        if (daysDiff === 0) {
-          status = 'today';
-        } else if (daysDiff > 0 && daysDiff <= 7) {
-          status = 'this-week';
-        }
-        
-        const dateStr = startDate.toLocaleDateString('en-US', { 
-          weekday: 'short', 
-          month: 'short', 
-          day: 'numeric',
-          ...(startDate.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {})
-        });
-        
-        const timeStr = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         
         return {
-          id: booking.id,
+          id: booking.id || event.id,
           title: event.title || 'Event',
-          image: event.poster_image ? `${API_BASE_URL}/uploads/${event.poster_image}` : '',
-          date: dateStr,
-          time: timeStr,
-          location: event.venue_name || event.venue_address || 'Online',
-          ticketId: firstTicket.ticket_number || booking.booking_number || 'N/A',
+          image: event.poster_image 
+            ? `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`
+            : 'https://images.pexels.com/photos/1481308/pexels-photo-1481308.jpeg?auto=compress&cs=tinysrgb&w=400',
+          date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          location: event.venue_name || event.venue_address || 'Location TBA',
+          rating: 5, // TODO: Get actual rating from reviews
           category: event.category?.name || 'General',
-          status: status
+          attendees: event.bookings_count || event.attendee_count || 0
         };
       });
       
       setEvents(formattedEvents);
     } catch (err: any) {
-      console.error('Error fetching booked events:', err);
-      setError(err.message || 'Failed to load booked events');
+      console.error('Error fetching event history:', err);
+      setError(err.message || 'Failed to load event history');
     } finally {
       setIsLoading(false);
     }
@@ -95,53 +69,8 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || event.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    return matchesSearch;
   });
-
-  const statusCounts = {
-    all: events.length,
-    today: events.filter(e => e.status === 'today').length,
-    'this-week': events.filter(e => e.status === 'this-week').length,
-    upcoming: events.filter(e => e.status === 'upcoming').length
-  };
-
-  const handleViewTicket = async (event: Event, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering parent onClick
-    try {
-      // event.id is the booking ID (set in fetchBookedEvents)
-      const ticketData = await getTicketDetails(event.id);
-      // Open ticket details in a new window or modal
-      // For now, we'll show ticket info - you can enhance this to show in a modal
-      console.log('Ticket details:', ticketData);
-      
-      // Show ticket details - you can replace this with a modal component
-      const ticketInfo = `Ticket Details:\n\nBooking: ${ticketData.booking?.booking_number}\nEvent: ${ticketData.booking?.event?.title}\nTickets: ${ticketData.tickets?.length || 0}\n\nDownload URL:\n${ticketData.download_url}`;
-      alert(ticketInfo);
-    } catch (err: any) {
-      console.error('Error viewing ticket:', err);
-      alert('Failed to load ticket details: ' + (err.message || 'Unknown error'));
-    }
-  };
-
-  const handleDownloadTicket = async (event: Event, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering parent onClick
-    try {
-      // event.id is the booking ID (set in fetchBookedEvents)
-      const blob = await downloadTicket(event.id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ticket-${event.ticketId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err: any) {
-      console.error('Error downloading ticket:', err);
-      alert('Failed to download ticket: ' + (err.message || 'Unknown error'));
-    }
-  };
 
   if (isLoading) {
     return (
@@ -167,9 +96,9 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Events Booked</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Event History</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {filteredEvents.length} {filteredEvents.length === 1 ? 'event' : 'events'} found
+            {filteredEvents.length} past {filteredEvents.length === 1 ? 'event' : 'events'}
           </p>
         </div>
         
@@ -219,28 +148,6 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
         </button>
       </div>
 
-      {/* Status Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {[
-          { key: 'all', label: 'All Events' },
-          { key: 'today', label: 'Today' },
-          { key: 'this-week', label: 'This Week' },
-          { key: 'upcoming', label: 'Upcoming' }
-        ].map((filter) => (
-          <button
-            key={filter.key}
-            onClick={() => setFilterStatus(filter.key as typeof filterStatus)}
-            className={`px-4 py-2 rounded-lg whitespace-nowrap font-semibold text-sm transition-all ${
-              filterStatus === filter.key
-                ? 'bg-[#27aae2] text-white shadow-sm'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-[#27aae2] hover:text-[#27aae2]'
-            }`}
-          >
-            {filter.label} ({statusCounts[filter.key as keyof typeof statusCounts]})
-          </button>
-        ))}
-      </div>
-
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-xl p-4">
@@ -252,8 +159,8 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
       {filteredEvents.length === 0 ? (
         <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <Calendar className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No events found</h3>
-          <p className="text-gray-500 dark:text-gray-400">Try adjusting your search or filters</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No past events found</h3>
+          <p className="text-gray-500 dark:text-gray-400">Try adjusting your search</p>
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -269,8 +176,8 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
                   alt={event.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
-                  BOOKED
+                <div className="absolute top-2 right-2 bg-gray-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                  COMPLETED
                 </div>
                 {event.category && (
                   <div className="absolute top-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
@@ -286,34 +193,22 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
                     <span>{event.date}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-[#27aae2] flex-shrink-0" />
-                    <span>{event.time}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5 text-[#27aae2] flex-shrink-0" />
                     <span className="line-clamp-1">{event.location}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <QrCode className="w-3.5 h-3.5 text-[#27aae2] flex-shrink-0" />
-                    <span className="font-mono text-xs">{event.ticketId}</span>
-                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={(e) => handleViewTicket(event, e)}
-                    className="flex-1 py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>View</span>
-                  </button>
-                  <button 
-                    onClick={(e) => handleDownloadTicket(event, e)}
-                    className="flex-1 py-2 bg-white dark:bg-gray-700 text-[#27aae2] border-2 border-[#27aae2] rounded-lg text-sm font-semibold hover:bg-[#27aae2]/10 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download</span>
-                  </button>
+                <div className="flex items-center space-x-0.5 mb-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${i < event.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 fill-gray-300'}`}
+                    />
+                  ))}
                 </div>
+                <button className="w-full py-2 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center justify-center space-x-2">
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Receipt</span>
+                </button>
               </div>
             </div>
           ))}
@@ -335,8 +230,8 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-lg line-clamp-1">{event.title}</h3>
-                    <span className="bg-green-500 text-white px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap">
-                      BOOKED
+                    <span className="bg-gray-500 text-white px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap">
+                      COMPLETED
                     </span>
                   </div>
                   {event.category && (
@@ -347,33 +242,25 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300 mb-3">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-3.5 h-3.5 text-[#27aae2] flex-shrink-0" />
-                      <span>{event.date} • {event.time}</span>
+                      <span>{event.date}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-3.5 h-3.5 text-[#27aae2] flex-shrink-0" />
                       <span className="line-clamp-1">{event.location}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <QrCode className="w-3.5 h-3.5 text-[#27aae2] flex-shrink-0" />
-                      <span className="font-mono">{event.ticketId}</span>
-                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={(e) => handleViewTicket(event, e)}
-                      className="flex-1 px-4 py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>View</span>
-                    </button>
-                    <button 
-                      onClick={(e) => handleDownloadTicket(event, e)}
-                      className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 text-[#27aae2] border-2 border-[#27aae2] rounded-lg text-sm font-semibold hover:bg-[#27aae2]/10 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Download</span>
-                    </button>
+                  <div className="flex items-center space-x-0.5 mb-3">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${i < event.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 fill-gray-300'}`}
+                      />
+                    ))}
                   </div>
+                  <button className="px-4 py-2 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:border-[#27aae2] hover:text-[#27aae2] transition-all flex items-center gap-2">
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Receipt</span>
+                  </button>
                 </div>
               </div>
             </div>
