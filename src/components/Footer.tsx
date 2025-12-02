@@ -5,6 +5,7 @@ export default function Footer() {
     <footer className="bg-gradient-to-br from-gray-900 via-blue-900 to-black text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Logo and Social Section */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center">
@@ -31,28 +32,31 @@ export default function Footer() {
             </div>
           </div>
 
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Discover</h3>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li><button className="hover:text-white transition-colors">Upcoming Events</button></li>
-              <li><button className="hover:text-white transition-colors">This Weekend</button></li>
-              <li><button className="hover:text-white transition-colors">Popular Events</button></li>
-              <li><button className="hover:text-white transition-colors">Event Calendar</button></li>
-              <li><button className="hover:text-white transition-colors">Browse Categories</button></li>
-            </ul>
-          </div>
+          {/* Discover and Company Sections - 2 columns on mobile, separate columns on desktop */}
+          <div className="md:contents grid grid-cols-2 gap-8">
+            <div>
+              <h3 className="font-semibold text-lg mb-4">Discover</h3>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li><button className="hover:text-white transition-colors">Upcoming Events</button></li>
+                <li><button className="hover:text-white transition-colors">This Weekend</button></li>
+                <li><button className="hover:text-white transition-colors">Popular Events</button></li>
+                <li><button className="hover:text-white transition-colors">Event Calendar</button></li>
+                <li><button className="hover:text-white transition-colors">Browse Categories</button></li>
+              </ul>
+            </div>
 
-          
+            
 
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Company</h3>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li><button className="hover:text-white transition-colors">About Us</button></li>
-              {/* <li><button className="hover:text-white transition-colors">Careers</button></li> */}
-              <li><button className="hover:text-white transition-colors">Become a Partner</button></li>
-              <li><button className="hover:text-white transition-colors">Privacy Policy</button></li>
-              <li><button className="hover:text-white transition-colors">Terms of Service</button></li>
-            </ul>
+            <div>
+              <h3 className="font-semibold text-lg mb-4">Company</h3>
+              <ul className="space-y-2 text-sm text-gray-300">
+                <li><button className="hover:text-white transition-colors">About Us</button></li>
+                {/* <li><button className="hover:text-white transition-colors">Careers</button></li> */}
+                <li><button className="hover:text-white transition-colors">Become a Partner</button></li>
+                <li><button className="hover:text-white transition-colors">Privacy Policy</button></li>
+                <li><button className="hover:text-white transition-colors">Terms of Service</button></li>
+              </ul>
+            </div>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Search,
   MapPin,
@@ -752,7 +752,7 @@ export default function LandingPage({
     }
   };
 
-  const handleCantMissScroll = () => {
+  const handleCantMissScroll = useCallback(() => {
     if (cantMissRef.current) {
       setShowCantMissLeftArrow(cantMissRef.current.scrollLeft > 0);
       
@@ -761,17 +761,26 @@ export default function LandingPage({
       const scrollLeft = cantMissRef.current.scrollLeft;
       const maxScroll = cantMissRef.current.scrollWidth - cantMissRef.current.clientWidth;
       
-      // Divide the scroll range into 3 sections
+      // Avoid division by zero
+      if (maxScroll <= 0) {
+        setCurrentCantMissSlide(0);
+        return;
+      }
+      
+      // Calculate percentage scrolled
+      const scrollPercentage = scrollLeft / maxScroll;
+      
+      // Divide the scroll range into 3 sections with better boundaries
       let slideIndex = 0;
-      if (scrollLeft > maxScroll * 0.66) {
+      if (scrollPercentage > 0.66) {
         slideIndex = 2;
-      } else if (scrollLeft > maxScroll * 0.33) {
+      } else if (scrollPercentage > 0.33) {
         slideIndex = 1;
       }
       
       setCurrentCantMissSlide(slideIndex);
     }
-  };
+  }, []);
 
   const scrollCantMiss = (direction: "left" | "right") => {
     if (!cantMissRef.current) return;
@@ -796,7 +805,7 @@ export default function LandingPage({
       element.addEventListener("scroll", handleCantMissScroll);
       return () => element.removeEventListener("scroll", handleCantMissScroll);
     }
-  }, []);
+  }, [handleCantMissScroll]);
 
   // Auto-scroll Can't Miss events
   React.useEffect(() => {
@@ -1175,10 +1184,10 @@ export default function LandingPage({
                         </div>
                         <div>
                           <p className="text-base sm:text-xl md:text-2xl font-bold text-white">
-                            10K+
+                            15+
                           </p>
                           <p className="text-[10px] sm:text-xs text-gray-200">
-                            Events Monthly
+                            Different Categories and Paid Events
                           </p>
                         </div>
                       </div>
@@ -1321,7 +1330,7 @@ export default function LandingPage({
               Can't Miss!
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400 transition-colors duration-200">
-              Promoted events you shouldn't miss
+              Events you shouldn't miss
             </p>
           </div>
 
@@ -1490,7 +1499,7 @@ export default function LandingPage({
             {/* Scroll Arrows for Can't Miss */}
             <button
               onClick={() => scrollCantMiss("left")}
-              className={`hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-12 h-12 bg-white dark:bg-gray-800 rounded-full items-center justify-center shadow-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all z-10 ${
+              className={`hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-12 h-12 bg-white dark:bg-gray-800 rounded-full items-center justify-center shadow-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all z-10 ${
                 showCantMissLeftArrow
                   ? "opacity-100"
                   : "opacity-0 pointer-events-none"
@@ -1500,7 +1509,7 @@ export default function LandingPage({
             </button>
             <button
               onClick={() => scrollCantMiss("right")}
-              className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-12 h-12 bg-white dark:bg-gray-800 rounded-full items-center justify-center shadow-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all z-10"
+              className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-12 h-12 bg-white dark:bg-gray-800 rounded-full items-center justify-center shadow-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all z-10"
             >
               <ChevronRight className="w-6 h-6 text-gray-900 dark:text-white" />
             </button>
