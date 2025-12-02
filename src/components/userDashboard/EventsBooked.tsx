@@ -1,6 +1,6 @@
-import { Calendar, QrCode, MapPin, Clock, Search, SlidersHorizontal, Grid3x3, List, ArrowLeft } from 'lucide-react';
+import { Calendar, QrCode, MapPin, Clock, Search, SlidersHorizontal, Grid3x3, List, ArrowLeft, Download, Eye } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { getUserBookings } from '../../services/userService';
+import { getUserBookings, getTicketDetails, downloadTicket } from '../../services/userService';
 import { API_BASE_URL } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -105,6 +105,43 @@ export default function EventsBooked({ onEventClick }: EventsBookedProps) {
     today: events.filter(e => e.status === 'today').length,
     'this-week': events.filter(e => e.status === 'this-week').length,
     upcoming: events.filter(e => e.status === 'upcoming').length
+  };
+
+  const handleViewTicket = async (event: Event, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering parent onClick
+    try {
+      // event.id is the booking ID (set in fetchBookedEvents)
+      const ticketData = await getTicketDetails(event.id);
+      // Open ticket details in a new window or modal
+      // For now, we'll show ticket info - you can enhance this to show in a modal
+      console.log('Ticket details:', ticketData);
+      
+      // Show ticket details - you can replace this with a modal component
+      const ticketInfo = `Ticket Details:\n\nBooking: ${ticketData.booking?.booking_number}\nEvent: ${ticketData.booking?.event?.title}\nTickets: ${ticketData.tickets?.length || 0}\n\nDownload URL:\n${ticketData.download_url}`;
+      alert(ticketInfo);
+    } catch (err: any) {
+      console.error('Error viewing ticket:', err);
+      alert('Failed to load ticket details: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleDownloadTicket = async (event: Event, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering parent onClick
+    try {
+      // event.id is the booking ID (set in fetchBookedEvents)
+      const blob = await downloadTicket(event.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ticket-${event.ticketId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      console.error('Error downloading ticket:', err);
+      alert('Failed to download ticket: ' + (err.message || 'Unknown error'));
+    }
   };
 
   if (isLoading) {
@@ -260,9 +297,22 @@ export default function EventsBooked({ onEventClick }: EventsBookedProps) {
                     <span className="font-mono text-xs">{event.ticketId}</span>
                   </div>
                 </div>
-                <button className="w-full py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors">
-                  View Ticket
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={(e) => handleViewTicket(event, e)}
+                    className="flex-1 py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>View</span>
+                  </button>
+                  <button 
+                    onClick={(e) => handleDownloadTicket(event, e)}
+                    className="flex-1 py-2 bg-white dark:bg-gray-700 text-[#27aae2] border-2 border-[#27aae2] rounded-lg text-sm font-semibold hover:bg-[#27aae2]/10 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -307,9 +357,22 @@ export default function EventsBooked({ onEventClick }: EventsBookedProps) {
                       <span className="font-mono">{event.ticketId}</span>
                     </div>
                   </div>
-                  <button className="px-4 py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors">
-                    View Ticket
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={(e) => handleViewTicket(event, e)}
+                      className="flex-1 px-4 py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>View</span>
+                    </button>
+                    <button 
+                      onClick={(e) => handleDownloadTicket(event, e)}
+                      className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 text-[#27aae2] border-2 border-[#27aae2] rounded-lg text-sm font-semibold hover:bg-[#27aae2]/10 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

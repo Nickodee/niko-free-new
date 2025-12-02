@@ -252,6 +252,16 @@ export const getEventReviews = async (eventId: number): Promise<any> => {
   const data = await response.json();
 
   if (!response.ok) {
+    // For 404 errors, return empty reviews instead of throwing
+    if (response.status === 404) {
+      return {
+        reviews: [],
+        average_rating: 0,
+        total_reviews: 0,
+        page: 1,
+        pages: 0
+      };
+    }
     throw new Error(data.error || 'Failed to fetch reviews');
   }
 
@@ -349,6 +359,24 @@ export const getTicketQRCode = async (bookingId: number): Promise<any> => {
 
   if (!response.ok) {
     throw new Error(data.error || 'Failed to get QR code');
+  }
+
+  return data;
+};
+
+/**
+ * Get ticket details (view ticket)
+ */
+export const getTicketDetails = async (bookingId: number): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/api/tickets/${bookingId}`, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to get ticket details');
   }
 
   return data;

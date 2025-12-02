@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Heart, Download, QrCode, Bell, MessageCircle, Users, Check, Moon, Sun } from 'lucide-react';
+import { Calendar, Heart, Download, QrCode, Bell, Users, Check, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import MyTickets from '../components/userDashboard/MyTickets';
@@ -87,6 +87,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
         const startDate = event.start_date ? new Date(event.start_date) : new Date();
         return {
           id: booking.id?.toString() || event.id?.toString() || '',
+          bookingId: booking.id, // Keep booking ID for ticket operations
           title: event.title || 'Event',
           image: event.poster_image 
             ? `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`
@@ -528,9 +529,43 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                         </div>
                       )}
                     </div>
-                    <button className="w-full py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors">
-                      View Ticket
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEventClick(event);
+                        }}
+                        className="flex-1 py-2 bg-[#27aae2] text-white rounded-lg text-sm font-semibold hover:bg-[#1e8bb8] transition-colors"
+                      >
+                        View Ticket
+                      </button>
+                      <button 
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const { downloadTicket } = await import('../services/userService');
+                            // Use bookingId if available, otherwise fall back to id
+                            const bookingId = (event as any).bookingId || parseInt(event.id);
+                            const blob = await downloadTicket(bookingId);
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `ticket-${event.ticketId}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                          } catch (err: any) {
+                            console.error('Error downloading ticket:', err);
+                            alert('Failed to download ticket: ' + (err.message || 'Unknown error'));
+                          }
+                        }}
+                        className="px-3 py-2 bg-white dark:bg-gray-700 text-[#27aae2] border-2 border-[#27aae2] rounded-lg text-sm font-semibold hover:bg-[#27aae2]/10 transition-colors"
+                        title="Download Ticket"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 ))

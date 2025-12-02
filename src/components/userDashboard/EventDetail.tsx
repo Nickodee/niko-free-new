@@ -57,12 +57,24 @@ export default function EventDetail({ event, onBack }: EventDetailProps) {
   const fetchEventDetails = async () => {
     try {
       const eventId = Number(event.id);
+      if (!eventId || isNaN(eventId)) {
+        return; // Invalid event ID, don't fetch
+      }
+      
       const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.events.detail(eventId)}`, {
         headers: getAuthHeaders()
       });
       const data = await response.json();
       
-      if (response.ok && data.event) {
+      if (!response.ok) {
+        // If event not found, silently return (don't log to console)
+        if (response.status === 404) {
+          return;
+        }
+        throw new Error(data.error || 'Failed to fetch event details');
+      }
+      
+      if (data.event) {
         const evt = data.event;
         // Format time from start_date
         let formattedTime = 'TBA';
@@ -119,6 +131,12 @@ export default function EventDetail({ event, onBack }: EventDetailProps) {
   const fetchReviews = async () => {
     try {
       const eventId = Number(event.id);
+      if (!eventId || isNaN(eventId)) {
+        setReviews([]);
+        setAverageRating(0);
+        return; // Invalid event ID, don't fetch
+      }
+      
       const response = await getEventReviews(eventId);
       setReviews(response.reviews || []);
       setAverageRating(response.average_rating || 0);
@@ -140,11 +158,16 @@ export default function EventDetail({ event, onBack }: EventDetailProps) {
             }
           }
         } catch (err) {
-          // User not logged in or error
+          // User not logged in or error - silently ignore
         }
       }
-    } catch (err) {
-      console.error('Error fetching reviews:', err);
+    } catch (err: any) {
+      // If event not found, just set empty reviews (don't log error)
+      if (err.message && err.message.includes('Event not found')) {
+        setReviews([]);
+        setAverageRating(0);
+      }
+      // Silently ignore other errors for reviews
     }
   };
 

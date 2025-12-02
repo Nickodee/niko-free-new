@@ -24,6 +24,19 @@ export default function PromoteEventModal({
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [paymentId, setPaymentId] = useState<number | null>(null);
   const [checkoutRequestId, setCheckoutRequestId] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+
+  // Initialize with current date/time when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0].slice(0, 5); // HH:MM format
+      setStartDate(dateStr);
+      setStartTime(timeStr);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -40,11 +53,49 @@ export default function PromoteEventModal({
       setIsProcessing(true);
       setError('');
 
+      // Prepare promotion data
+      let promotionData: any = {
+        days_count: daysCount,
+        is_free: selectedPlan === 'free',
+      };
+
+      // Calculate start and end dates
+      let startDateTime: Date;
+      let endDateTime: Date;
+      
+      if (startDate && startTime) {
+        // Use selected start date/time
+        startDateTime = new Date(`${startDate}T${startTime}`);
+        
+        if (startDateTime < new Date()) {
+          setError('Start date/time cannot be in the past');
+          return;
+        }
+        
+        // Calculate end date based on start date + days_count
+        endDateTime = new Date(startDateTime);
+        endDateTime.setDate(endDateTime.getDate() + daysCount);
+      } else {
+        // Default to start now
+        startDateTime = new Date();
+        endDateTime = new Date();
+        endDateTime.setDate(endDateTime.getDate() + daysCount);
+      }
+      
+      promotionData.start_date = startDateTime.toISOString();
+      promotionData.end_date = endDateTime.toISOString();
+
+      if (selectedPlan === 'paid' && phoneNumber) {
+        promotionData.phone_number = phoneNumber;
+      }
+
       const result = await promoteEvent(
         event.id,
-        daysCount,
-        selectedPlan === 'free',
-        phoneNumber || undefined
+        promotionData.days_count,
+        promotionData.is_free,
+        promotionData.phone_number,
+        promotionData.start_date,
+        promotionData.end_date
       );
 
       if (selectedPlan === 'free') {
@@ -180,7 +231,42 @@ export default function PromoteEventModal({
               </div>
             </div>
 
-            {/* Days Selection */}
+            {/* Start Date & Time Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Promotion Start Date & Time
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#27aae2] dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#27aae2] dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Leave empty or set to current date/time to start immediately. The promotion will end after the duration period.
+              </p>
+            </div>
+
+            {/* Promotion Duration */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Promotion Duration
@@ -206,6 +292,11 @@ export default function PromoteEventModal({
               {selectedPlan === 'paid' && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                   Total Cost: <span className="font-semibold">KES {totalCost.toLocaleString()}</span>
+                </p>
+              )}
+              {startDate && startTime && (
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                  Promotion will run from {new Date(`${startDate}T${startTime}`).toLocaleString()} for {daysCount} day{daysCount !== 1 ? 's' : ''}
                 </p>
               )}
             </div>

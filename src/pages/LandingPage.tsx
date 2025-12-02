@@ -23,6 +23,7 @@ import {
   Theater,
   Bus,
   Mountain,
+  Clock,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -40,6 +41,40 @@ import { API_BASE_URL } from "../config/api";
 interface LandingPageProps {
   onNavigate: (page: string) => void;
   onEventClick: (eventId: string) => void;
+}
+
+// Promotion Countdown Component
+function PromotionCountdown({ timeUntilStart, timeUntilEnd }: { timeUntilStart?: number; timeUntilEnd?: number }) {
+  const [timeRemaining, setTimeRemaining] = React.useState(timeUntilStart || timeUntilEnd || 0);
+
+  React.useEffect(() => {
+    if (timeRemaining <= 0) return;
+
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeRemaining]);
+
+  const formatTime = (seconds: number) => {
+    if (seconds <= 0) return '0s';
+    
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
+  };
+
+  return <span>{formatTime(timeRemaining)}</span>;
 }
 
 export default function LandingPage({
@@ -1324,14 +1359,36 @@ export default function LandingPage({
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent transition-opacity duration-300 group-hover:opacity-0"></div>
 
                           <div className="absolute top-2 sm:top-3 left-2 sm:left-3 transition-opacity duration-300 group-hover:opacity-0">
-                            <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg flex items-center gap-1">
-                              <Sparkles className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-                              <span className="hidden sm:inline">
-                                CAN'T MISS
+                            {event.promotion?.time_until_start && event.promotion.time_until_start > 0 ? (
+                              <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full shadow-lg flex items-center gap-1">
+                                <Clock className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+                                <span className="hidden sm:inline">COMING SOON</span>
+                                <span className="sm:hidden">SOON</span>
                               </span>
-                              <span className="sm:hidden">HOT</span>
-                            </span>
+                            ) : (
+                              <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg flex items-center gap-1">
+                                <Sparkles className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+                                <span className="hidden sm:inline">
+                                  CAN'T MISS
+                                </span>
+                                <span className="sm:hidden">HOT</span>
+                              </span>
+                            )}
                           </div>
+                          
+                          {/* Countdown Timer */}
+                          {event.promotion?.time_until_start && event.promotion.time_until_start > 0 && (
+                            <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 bg-black/70 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-lg">
+                              <PromotionCountdown timeUntilStart={event.promotion.time_until_start} />
+                            </div>
+                          )}
+                          
+                          {/* Time Remaining Badge */}
+                          {event.promotion?.time_until_end && event.promotion.time_until_end > 0 && event.promotion.is_active_now && (
+                            <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 bg-green-500/90 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-lg">
+                              <span>Ends in: <PromotionCountdown timeUntilEnd={event.promotion.time_until_end} /></span>
+                            </div>
+                          )}
 
                           <button
                             onClick={(e) => {

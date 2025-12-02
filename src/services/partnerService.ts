@@ -557,7 +557,9 @@ export const promoteEvent = async (
   eventId: number,
   daysCount: number,
   isFree: boolean,
-  phoneNumber?: string
+  phoneNumber?: string,
+  startDate?: string,
+  endDate?: string
 ): Promise<any> => {
   const token = getPartnerToken();
   if (!token) {
@@ -571,6 +573,12 @@ export const promoteEvent = async (
 
   if (!isFree && phoneNumber) {
     payload.phone_number = phoneNumber;
+  }
+
+  // Add custom dates if provided (for scheduled promotions)
+  if (startDate && endDate) {
+    payload.start_date = startDate;
+    payload.end_date = endDate;
   }
 
   const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.promoteEvent(eventId)}`, {

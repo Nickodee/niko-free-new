@@ -709,8 +709,9 @@ export default function Overview({ onWithdrawClick }: OverviewProps) {
                             <div>
                               <p className="font-semibold text-gray-900 dark:text-white">{ticket.name}</p>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {ticket.quantity_sold || 0} sold
-                                {ticket.quantity_total && ` / ${ticket.quantity_total} total`}
+                                {ticket.quantity_sold || 0} {ticket.quantity_total !== null && ticket.quantity_total !== undefined 
+                                  ? ` / ${ticket.quantity_total} total` 
+                                  : ' / ∞ (unlimited)'}
                               </p>
                             </div>
                           </div>

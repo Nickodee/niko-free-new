@@ -445,7 +445,9 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       id: tt.id?.toString() || tt.name?.toLowerCase().replace(/\s+/g, '-') || 'ticket-1',
       name: tt.name || 'Standard Ticket',
       price: parseFloat(tt.price || 0),
-      available: tt.quantity_available || tt.quantity || tt.available || 0
+      available: tt.quantity_available !== null && tt.quantity_available !== undefined 
+        ? tt.quantity_available 
+        : (tt.quantity_total === null || tt.quantity_total === undefined ? null : (tt.quantity || tt.available || 0))
     }));
     
     tickets = {
