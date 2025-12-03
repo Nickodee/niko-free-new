@@ -324,6 +324,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       // If event is free, booking is automatically confirmed
       if (eventData.is_free || !bookingResult.requires_payment) {
         setSuccessMessage('You\'re in! Go to your dashboard to download your ticket.');
+        setIsBooking(false); // Stop loading spinner
         // Refresh event data to update attendee count (don't fail if refresh fails)
         // Only refresh if eventId is valid
         if (eventId && !isNaN(parseInt(eventId)) && parseInt(eventId) > 0) {
@@ -343,8 +344,10 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
         console.log('Showing payment modal for booking ID:', bookingId);
         if (bookingId) {
           setShowPaymentModal(true);
+          setIsBooking(false); // Stop loading spinner
         } else {
           setError('Booking created but could not get booking ID. Please try again.');
+          setIsBooking(false); // Stop loading spinner
         }
       }
     } catch (err: any) {
@@ -363,6 +366,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const handlePaymentSuccess = () => {
     setSuccessMessage('Payment successful! Your tickets have been confirmed. Check your email.');
     setShowPaymentModal(false);
+    setIsBooking(false); // Stop any loading spinner
+    setPendingBookingId(null); // Clear pending booking
     // Refresh event data (don't fail if refresh fails)
     // Only refresh if eventId is valid
     if (eventId && !isNaN(parseInt(eventId)) && parseInt(eventId) > 0) {
@@ -873,14 +878,14 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                 </div>
 
                 {/* Error Message */}
-                {error && (
+                {error && !successMessage && (
                   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mt-4">
                     <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
                   </div>
                 )}
 
-                {/* Loading State */}
-                {isBooking && (
+                {/* Loading State - Only show if not successful and actively booking */}
+                {isBooking && !successMessage && (
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mt-4">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#27aae2] mx-auto mb-2"></div>
