@@ -39,13 +39,10 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
-<<<<<<< HEAD
   const [reviews, setReviews] = useState<any[]>([]);
   const [averageRating, setAverageRating] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
-=======
->>>>>>> 38eb93e19258f00e6ddc5b12ccad5633d58a4664
   const [pendingBookingId, setPendingBookingId] = useState<number | null>(null);
 
   // Validate promo code
@@ -156,7 +153,6 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     fetchEvent();
   }, [eventId]);
 
-<<<<<<< HEAD
   // Fetch event reviews
   const fetchReviews = async (parsedEventId: number) => {
     try {
@@ -175,8 +171,6 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       setIsLoadingReviews(false);
     }
   };
-=======
->>>>>>> 38eb93e19258f00e6ddc5b12ccad5633d58a4664
   // Handle query parameters for pending booking payment
   useEffect(() => {
     const bookingParam = searchParams.get('booking');
