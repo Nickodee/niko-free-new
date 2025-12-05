@@ -325,7 +325,7 @@ export default function ThisWeekend({ onNavigate, onEventClick }: ThisWeekendPro
         </div>
       </div>
 
-      <Footer />
+      <Footer onNavigate={onNavigate} />
       </div>
     </div>
   );

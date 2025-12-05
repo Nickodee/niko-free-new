@@ -10,6 +10,8 @@ import BecomePartner from './pages/BecomePartner';
 import AboutUs from './pages/AboutUs';
 import ThisWeekend from './pages/ThisWeekend';
 import CalendarPage from './pages/CalendarPage';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import AdminRoute from './components/AdminRoute';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
@@ -111,6 +113,14 @@ function AppContent() {
               onEventClick={navigateToEventDetail} 
             />
           } 
+        />
+        <Route 
+          path="/terms" 
+          element={<TermsOfService onNavigate={navigateTo} />} 
+        />
+        <Route 
+          path="/privacy" 
+          element={<PrivacyPolicy onNavigate={navigateTo} />} 
         />
       </Routes>
     </div>
