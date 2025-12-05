@@ -2,7 +2,7 @@ import { Calendar, Users, Zap, Home, Bell, UserPlus, QrCode, Award, Menu, X, Sea
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { getPartnerToken, getPartner, getPartnerProfile, logoutPartner } from '../services/partnerService';
+import { getPartnerToken, getPartner, getPartnerProfile, logoutPartner, getPartnerDashboard } from '../services/partnerService';
 import { getImageUrl } from '../config/api';
 import AskSupport from '../components/partnerDashboard/AskSupport';
 import Overview from '../components/partnerDashboard/Overview';
@@ -35,6 +35,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
   const { isDarkMode, toggleTheme } = useTheme();
   const [partnerData, setPartnerData] = useState<any>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [pendingEarnings, setPendingEarnings] = useState<number>(0);
   const navigate = useNavigate();
 
   // Check authentication on mount
@@ -54,7 +55,13 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
           setPartnerData(cachedPartner);
         }
 
-        // Then fetch fresh data
+        // Fetch dashboard data to get pending earnings
+        const dashboardData = await getPartnerDashboard();
+        if (dashboardData?.stats?.pending_earnings !== undefined) {
+          setPendingEarnings(dashboardData.stats.pending_earnings);
+        }
+
+        // Then fetch fresh profile data
         const response = await getPartnerProfile();
         if (response) {
           setPartnerData(response.partner || response);
@@ -405,8 +412,22 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
         {/* Withdraw Funds Modal */}
         <WithdrawFunds 
           isOpen={withdrawOpen} 
-          onClose={() => setWithdrawOpen(false)}
-          availableBalance={36000}
+          onClose={() => {
+            setWithdrawOpen(false);
+            // Refresh dashboard data after withdrawal
+            const refreshData = async () => {
+              try {
+                const dashboardData = await getPartnerDashboard();
+                if (dashboardData?.stats?.pending_earnings !== undefined) {
+                  setPendingEarnings(dashboardData.stats.pending_earnings);
+                }
+              } catch (err) {
+                console.error('Error refreshing dashboard:', err);
+              }
+            };
+            refreshData();
+          }}
+          availableBalance={pendingEarnings}
         />
       </div>
       </div>

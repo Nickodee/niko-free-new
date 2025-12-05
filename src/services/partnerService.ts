@@ -309,6 +309,68 @@ export const sendSupportMessage = async (subject: string, message: string): Prom
 };
 
 /**
+ * Get partner dashboard data (includes earnings)
+ */
+export const getPartnerDashboard = async (): Promise<any> => {
+  const token = getPartnerToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.dashboard}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch dashboard data');
+  }
+
+  return data;
+};
+
+/**
+ * Request payout/withdrawal
+ */
+export const requestPayout = async (amount: number, payoutMethod: 'mpesa' | 'bank_transfer', phoneNumber?: string): Promise<any> => {
+  const token = getPartnerToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const payload: any = {
+    amount,
+    payout_method: payoutMethod,
+  };
+
+  if (payoutMethod === 'mpesa' && phoneNumber) {
+    payload.phone_number = phoneNumber;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/partners/payouts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to request payout');
+  }
+
+  return data;
+};
+
+/**
  * Get partner analytics (dashboard-style stats)
  */
 export const getPartnerAnalytics = async (days: number = 30): Promise<any> => {
