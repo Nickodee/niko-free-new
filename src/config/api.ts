@@ -35,6 +35,8 @@ export const API_ENDPOINTS = {
     approveEvent: (id: number) => `${API_BASE_URL}/api/admin/events/${id}/approve`,
     rejectEvent: (id: number) => `${API_BASE_URL}/api/admin/events/${id}/reject`,
     featureEvent: (id: number) => `${API_BASE_URL}/api/admin/events/${id}/feature`,
+    promoteEvent: (id: number) => `${API_BASE_URL}/api/admin/events/${id}/promote`,
+    promotedEvents: `${API_BASE_URL}/api/admin/promoted-events`,
     users: `${API_BASE_URL}/api/admin/users`,
     user: (id: number) => `${API_BASE_URL}/api/admin/users/${id}`,
     categories: `${API_BASE_URL}/api/admin/categories`,
