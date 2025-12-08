@@ -46,20 +46,52 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
 
   // Fetch unread notification count
   useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    const POLL_INTERVAL = 2 * 60 * 1000; // 2 minutes instead of 30 seconds
+
     const fetchUnreadCount = async () => {
       try {
         const response = await getUserNotifications(true); // true = unread only
         const unreadCount = response.notifications?.filter((n: any) => !n.is_read).length || 0;
         setNotificationCount(unreadCount);
-      } catch (error) {
+        retryCount = 0; // Reset retry count on success
+      } catch (error: any) {
         console.error('Error fetching notification count:', error);
+        
+        // Stop polling if rate limited (429) or unauthorized (401)
+        if (error.message?.includes('429') || error.message?.includes('Too many requests') || 
+            error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+          console.warn('Stopping notification polling due to rate limit or auth error');
+          if (interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+          return;
+        }
+        
+        // Exponential backoff on other errors
+        retryCount++;
+        if (retryCount >= MAX_RETRIES) {
+          console.warn('Max retries reached, stopping notification polling');
+          if (interval) {
+            clearInterval(interval);
+            interval = null;
+          }
+        }
       }
     };
 
     fetchUnreadCount();
-    // Refresh notification count every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
+    // Refresh notification count every 2 minutes (reduced from 30 seconds)
+    interval = setInterval(fetchUnreadCount, POLL_INTERVAL);
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, []);
 
   // Refresh notification count when returning from notifications tab
