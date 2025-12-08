@@ -12,6 +12,8 @@ import ThisWeekend from './pages/ThisWeekend';
 import CalendarPage from './pages/CalendarPage';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import ContactUs from './pages/ContactUs';
+import Feedback from './pages/Feedback';
 import AdminRoute from './components/AdminRoute';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
@@ -121,6 +123,14 @@ function AppContent() {
         <Route 
           path="/privacy" 
           element={<PrivacyPolicy onNavigate={navigateTo} />} 
+        />
+        <Route 
+          path="/contact" 
+          element={<ContactUs onNavigate={navigateTo} />} 
+        />
+        <Route 
+          path="/feedback" 
+          element={<Feedback onNavigate={navigateTo} />} 
         />
       </Routes>
     </div>

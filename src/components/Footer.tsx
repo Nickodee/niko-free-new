@@ -41,11 +41,46 @@ export default function Footer({ onNavigate }: FooterProps) {
             <div>
               <h3 className="font-semibold text-lg mb-4">Discover</h3>
               <ul className="space-y-2 text-sm text-gray-300">
-                <li><button className="hover:text-white transition-colors">Upcoming Events</button></li>
-                <li><button className="hover:text-white transition-colors">This Weekend</button></li>
-                <li><button className="hover:text-white transition-colors">Popular Events</button></li>
-                <li><button className="hover:text-white transition-colors">Event Calendar</button></li>
-                <li><button className="hover:text-white transition-colors">Browse Categories</button></li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('landing')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Upcoming Events
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('this-weekend')}
+                    className="hover:text-white transition-colors"
+                  >
+                    This Weekend
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('landing')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Popular Events
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('calendar')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Event Calendar
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('landing')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Browse Categories
+                  </button>
+                </li>
               </ul>
             </div>
 
@@ -54,9 +89,23 @@ export default function Footer({ onNavigate }: FooterProps) {
             <div>
               <h3 className="font-semibold text-lg mb-4">Company</h3>
               <ul className="space-y-2 text-sm text-gray-300">
-                <li><button className="hover:text-white transition-colors">About Us</button></li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('about')}
+                    className="hover:text-white transition-colors"
+                  >
+                    About Us
+                  </button>
+                </li>
                 {/* <li><button className="hover:text-white transition-colors">Careers</button></li> */}
-                <li><button className="hover:text-white transition-colors">Contact Us</button></li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('contact')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Contact Us
+                  </button>
+                </li>
                 <li>
                   <button 
                     onClick={() => onNavigate?.('privacy')}
@@ -73,7 +122,14 @@ export default function Footer({ onNavigate }: FooterProps) {
                     Terms of Service
                   </button>
                 </li>
-                <li><button className="hover:text-white transition-colors">Feedback</button></li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate?.('feedback')}
+                    className="hover:text-white transition-colors"
+                  >
+                    Feedback
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
