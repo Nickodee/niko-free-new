@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import EventDetailPage from './pages/EventDetailPage';
@@ -10,6 +10,7 @@ import BecomePartner from './pages/BecomePartner';
 import AboutUs from './pages/AboutUs';
 import ThisWeekend from './pages/ThisWeekend';
 import CalendarPage from './pages/CalendarPage';
+import DownloadTicket from './pages/DownloadTicket';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ContactUs from './pages/ContactUs';
@@ -115,6 +116,14 @@ function AppContent() {
               onEventClick={navigateToEventDetail} 
             />
           } 
+        />
+        <Route 
+          path="/download-ticket/:bookingNumber" 
+          element={<DownloadTicket />} 
+        />
+        <Route 
+          path="/api/tickets/download/:bookingNumber" 
+          element={<DownloadTicket />} 
         />
         <Route 
           path="/terms" 
