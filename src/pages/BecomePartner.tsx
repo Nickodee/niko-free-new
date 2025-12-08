@@ -1,4 +1,4 @@
-import { Upload, CheckCircle, Building2, Mail, Phone, Tag, FileText, ArrowRight, ArrowLeft, MapPin, PenTool, Plus, Minus, AlertCircle } from 'lucide-react';
+import { Upload, CheckCircle, Building2, Mail, Phone, Tag, FileText, ArrowRight, ArrowLeft, MapPin, PenTool, Plus, Minus, AlertCircle, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -36,6 +36,7 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
   const [businessNameError, setBusinessNameError] = useState('');
   const [logoError, setLogoError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Categories matching backend database IDs
   const categories = [
@@ -824,13 +825,13 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
               <div className="flex flex-col lg:flex-row gap-6">
                 {/* Left side: Terms & Conditions */}
                 <div className="lg:flex-1">
-                  <div className="border-2 rounded-xl p-6 dark:bg-gray-800/50 h-full" style={{ backgroundColor: '#e6f7ff', borderColor: '#27aae2' }}>
+                  <div className="border-2 rounded-xl p-6 h-full bg-blue-50 dark:bg-gray-800 border-blue-400 dark:border-blue-500">
                     <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center space-x-2">
-                      <FileText className="w-5 h-5" />
+                      <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                       <span>Partner Terms & Conditions</span>
                     </h3>
-                    <div className="text-sm text-gray-700 dark:text-gray-300 space-y-2 mb-4 max-h-48 overflow-y-auto bg-white dark:bg-gray-900 p-4 rounded-lg">
-                      <p className="font-semibold">By signing this agreement, you agree to:</p>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 space-y-2 mb-4 max-h-48 overflow-y-auto bg-white dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <p className="font-semibold text-gray-900 dark:text-white">By signing this agreement, you agree to:</p>
                       <p>• Pay a 7% commission on all ticket sales processed through Niko Free</p>
                       <p>• Ensure all events comply with local laws and regulations</p>
                       <p>• Maintain high quality standards and attendee satisfaction</p>
@@ -840,15 +841,13 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
                       <p>• Understand that payment processing takes 2-3 business days</p>
                       <p>• Maintain ownership of your event content and data</p>
                       <p>• Comply with our data protection and privacy policies</p>
-                      <p className="pt-2 font-semibold">Cancellation & Refund Policy:</p>
+                      <p className="pt-2 font-semibold text-gray-900 dark:text-white">Cancellation & Refund Policy:</p>
                       <p>• Refunds must be processed according to your stated event policy</p>
                       <p>• Partners are responsible for communicating cancellations to attendees</p>
                     </div>
                     <button 
-                      className="text-sm font-medium transition-colors"
-                      style={{ color: '#27aae2' }}
-                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
-                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                      onClick={() => setShowTermsModal(true)}
+                      className="text-sm font-medium transition-colors text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                     >
                       Read Full Terms & Conditions →
                     </button>
@@ -1147,6 +1146,147 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
       </div>
       </div>
     </div>
+
+    {/* Terms of Service Modal */}
+    {showTermsModal && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowTermsModal(false)}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          {/* Modal Header */}
+          <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Partner Terms & Conditions</h2>
+            <button
+              onClick={() => setShowTermsModal(false)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+            </button>
+          </div>
+
+          {/* Modal Content */}
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <div className="prose prose-gray dark:prose-invert max-w-none">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Agreement Overview</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                By signing this Partner Agreement with Niko Free, you agree to the following terms and conditions. Please read carefully before proceeding.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">1. Commission Structure</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Partners agree to pay a 7% commission on all ticket sales processed through the Niko Free platform.<br/>
+                • Commission is automatically deducted from ticket proceeds before payout.<br/>
+                • No hidden fees or additional charges beyond the stated 7% commission.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">2. Event Compliance</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • All events must comply with local, regional, and national laws and regulations.<br/>
+                • Partners are responsible for obtaining necessary permits and licenses.<br/>
+                • Events must adhere to safety standards and venue requirements.<br/>
+                • Niko Free reserves the right to remove events that violate these guidelines.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">3. Quality Standards</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Partners must maintain high quality standards for all events.<br/>
+                • Event information must be accurate, complete, and up-to-date.<br/>
+                • Images and descriptions must truthfully represent the event.<br/>
+                • Partners must deliver on all promises made to attendees.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">4. Communication Requirements</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Partners must respond to attendee inquiries within 24 hours.<br/>
+                • Important event updates must be communicated promptly to attendees.<br/>
+                • Contact information provided must be accurate and monitored regularly.<br/>
+                • Professional and courteous communication is expected at all times.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">5. Payment Processing</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Payment processing takes 2-3 business days after event conclusion.<br/>
+                • Payouts are made to the bank account or mobile money number on file.<br/>
+                • Partners are responsible for providing accurate payment information.<br/>
+                • Disputed charges may delay payout until resolution.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">6. Cancellation & Refund Policy</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Partners must establish and clearly communicate their refund policy.<br/>
+                • Refunds must be processed according to the stated event policy.<br/>
+                • Partners are responsible for communicating cancellations to all attendees.<br/>
+                • Niko Free may assist in the refund process but ultimate responsibility lies with the partner.<br/>
+                • Event cancellations require immediate notification to Niko Free support.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">7. Content Ownership</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Partners retain full ownership of their event content and data.<br/>
+                • Partners grant Niko Free license to display event information on the platform.<br/>
+                • Partners are responsible for ensuring they have rights to all content posted.<br/>
+                • Niko Free respects intellectual property rights and expects partners to do the same.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">8. Data Protection & Privacy</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Partners must comply with all applicable data protection regulations.<br/>
+                • Attendee data must be handled securely and used only for event purposes.<br/>
+                • Partners may not sell or share attendee data with third parties.<br/>
+                • Niko Free's Privacy Policy applies to all platform interactions.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">9. Prohibited Activities</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Events promoting illegal activities, violence, or discrimination are strictly prohibited.<br/>
+                • False or misleading event information is not permitted.<br/>
+                • Manipulation of reviews, ratings, or attendance numbers is forbidden.<br/>
+                • Partners may not use the platform to compete directly with Niko Free.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">10. Term & Termination</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • This agreement remains in effect until terminated by either party.<br/>
+                • Either party may terminate with 30 days written notice.<br/>
+                • Niko Free may terminate immediately for violations of these terms.<br/>
+                • Outstanding financial obligations survive termination.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">11. Limitation of Liability</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Niko Free provides the platform "as is" without warranties.<br/>
+                • Partners are solely responsible for their events and attendee satisfaction.<br/>
+                • Niko Free is not liable for partner actions or event outcomes.<br/>
+                • Total liability is limited to fees paid in the previous 12 months.
+              </p>
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-6">12. Modifications</h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                • Niko Free may update these terms with reasonable notice.<br/>
+                • Continued use of the platform constitutes acceptance of modified terms.<br/>
+                • Material changes will be communicated via email.<br/>
+                • Partners may terminate if they disagree with modifications.
+              </p>
+
+              <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 dark:border-blue-500 rounded-xl">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <strong className="text-gray-900 dark:text-white">Questions?</strong> If you have any questions about these terms, please contact us at{' '}
+                  <a href="mailto:support@nikofree.com" className="text-blue-600 dark:text-blue-400 hover:underline">support@nikofree.com</a> before signing.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4 flex justify-end">
+            <button
+              onClick={() => setShowTermsModal(false)}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
+            >
+              I Understand
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
