@@ -123,6 +123,9 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
     quantity: 0,
   });
   const isEditMode = !!eventId;
+  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [locationSearchTimeout, setLocationSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [formData, setFormData] = useState<EventFormData>({
     locationType: 'physical',
     locationName: '',
@@ -258,8 +261,18 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
       fetchCategories();
       // Reset to step 1 whenever the modal opens
       setCurrentStep(1);
+      // Clear location suggestions when modal closes
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
     }
-  }, [isOpen]);
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (locationSearchTimeout) {
+        clearTimeout(locationSearchTimeout);
+      }
+    };
+  }, [isOpen, locationSearchTimeout]);
 
   // Load event data if editing
   useEffect(() => {
@@ -457,6 +470,56 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
       ...prev,
       openInterests: prev.openInterests.filter(i => i !== interest)
     }));
+  };
+
+  // Location search functionality
+  const fetchLocationSuggestions = async (query: string) => {
+    if (query.length < 3) {
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=ke`
+      );
+      const data = await response.json();
+      setLocationSuggestions(data);
+      setShowLocationSuggestions(true);
+    } catch (error) {
+      console.error('Error fetching location suggestions:', error);
+    }
+  };
+
+  const handleLocationChange = (value: string) => {
+    setFormData(prev => ({ ...prev, locationName: value }));
+    
+    // Clear previous timeout
+    if (locationSearchTimeout) {
+      clearTimeout(locationSearchTimeout);
+    }
+    
+    // Debounce the API call
+    const timeoutId = setTimeout(() => {
+      fetchLocationSuggestions(value);
+    }, 300);
+    
+    setLocationSearchTimeout(timeoutId);
+  };
+
+  const selectLocationSuggestion = (location: any) => {
+    const locationName = location.display_name.split(',')[0];
+    setFormData(prev => ({ 
+      ...prev, 
+      locationName: locationName,
+      coordinates: {
+        lat: parseFloat(location.lat),
+        lng: parseFloat(location.lon)
+      }
+    }));
+    setShowLocationSuggestions(false);
+    setLocationSuggestions([]);
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -972,7 +1035,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
 
                   {/* Physical/Hybrid Location */}
                   {(formData.locationType === 'physical' || formData.locationType === 'hybrid') && (
-                    <div className="mb-4">
+                    <div className="mb-4 relative">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         <MapPin className="w-4 h-4 inline mr-1" />
                         Location Name
@@ -980,10 +1043,32 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                       <input
                         type="text"
                         value={formData.locationName}
-                        onChange={(e) => setFormData(prev => ({ ...prev, locationName: e.target.value }))}
+                        onChange={(e) => handleLocationChange(e.target.value)}
+                        onFocus={() => {
+                          if (formData.locationName.length >= 3) {
+                            setShowLocationSuggestions(true);
+                          }
+                        }}
                         placeholder="e.g., Ngong Hills, Nairobi"
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
                       />
+                      
+                      {/* Location Suggestions Dropdown */}
+                      {showLocationSuggestions && locationSuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                          {locationSuggestions.map((location, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => selectLocationSuggestion(location)}
+                              className="w-full px-4 py-3 text-left transition-colors flex items-start space-x-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                              <MapPin className="w-4 h-4 mt-1 flex-shrink-0 text-[#27aae2]" />
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{location.display_name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       {/* <button className="mt-2 text-sm text-[#27aae2] hover:text-[#1e8bb8] font-medium">
                         📍 Pin on Map
                       </button> */}

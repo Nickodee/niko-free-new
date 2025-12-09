@@ -99,7 +99,7 @@ export default function Navbar({ onNavigate, currentPage = 'landing' }: NavbarPr
                   currentPage === 'landing' 
                     ? 'text-white/90 backdrop-blur-md bg-white/5'
                     : currentPage === 'about'
-                    ? 'text-gray-700 dark:text-gray-300 border-b-2'
+                    ? 'text-gray-700 dark:text-gray-300 border-2'
                     : 'text-gray-700 dark:text-gray-300'
                 }`}
                 style={currentPage === 'about' ? { color: '#27aae2', borderColor: '#27aae2' } : {}}
@@ -126,7 +126,7 @@ export default function Navbar({ onNavigate, currentPage = 'landing' }: NavbarPr
                   currentPage === 'landing' 
                     ? 'text-white/90 backdrop-blur-md bg-white/5'
                     : currentPage === 'this-weekend'
-                    ? 'text-gray-700 dark:text-gray-300 border-b-2'
+                    ? 'text-gray-700 dark:text-gray-300 border-2'
                     : 'text-gray-700 dark:text-gray-300'
                 }`}
                 style={currentPage === 'this-weekend' ? { color: '#27aae2', borderColor: '#27aae2' } : {}}
@@ -153,7 +153,7 @@ export default function Navbar({ onNavigate, currentPage = 'landing' }: NavbarPr
                   currentPage === 'landing' 
                     ? 'text-white/90 backdrop-blur-md bg-white/5'
                     : currentPage === 'calendar'
-                    ? 'text-gray-700 dark:text-gray-300 border-b-2'
+                    ? 'text-gray-700 dark:text-gray-300 border-2'
                     : 'text-gray-700 dark:text-gray-300'
                 }`}
                 style={currentPage === 'calendar' ? { color: '#27aae2', borderColor: '#27aae2' } : {}}
