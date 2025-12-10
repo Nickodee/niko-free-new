@@ -770,7 +770,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                       <div>
                         <p className="text-sm text-gray-600 dark:text-gray-400">Attendees</p>
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          {eventData.attendee_count || 0} {eventData.tickets_left !== null && eventData.tickets_left !== undefined ? `/ ${(eventData.attendee_count || 0) + eventData.tickets_left} tickets` : ''} attending
+                          {eventData.attendee_count || 0} attending
                         </p>
                         {eventData.tickets_left !== null && eventData.tickets_left !== undefined && (
                           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">

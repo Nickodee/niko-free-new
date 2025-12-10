@@ -86,6 +86,7 @@ interface TicketType {
   endTime?: string; // End time for timeslot tickets
   price: number;
   quantity: number;
+  isUnlimited?: boolean; // For unlimited ticket availability
   vatIncluded?: boolean;
   existingId?: number; // For editing existing tickets
 }
@@ -114,6 +115,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
   const [error, setError] = useState('');
+  const [timeslotErrors, setTimeslotErrors] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<any[]>([]);
   const [showCustomTicketForm, setShowCustomTicketForm] = useState(false);
   const [customTicket, setCustomTicket] = useState<Partial<TicketType>>({
@@ -650,6 +652,25 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
       return;
     }
     
+    // Validate timeslot tickets
+    if (customTicket.ticketStructure === 'timeslot') {
+      if (!customTicket.startTime || !customTicket.endTime) {
+        alert('Please specify both start and end times for time slot tickets.');
+        return;
+      }
+      // Show error but don't prevent save
+      if (customTicket.endTime <= customTicket.startTime) {
+        setTimeslotErrors(prev => ({ ...prev, custom: 'End time cannot be lower than start time' }));
+      }
+    }
+    
+    // Clear any errors before saving
+    setTimeslotErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.custom;
+      return newErrors;
+    });
+    
     const newTicket: TicketType = {
       id: Date.now().toString(),
       name: customTicket.name,
@@ -659,6 +680,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
       seasonType: customTicket.seasonType,
       seasonDuration: customTicket.seasonDuration,
       timeslot: customTicket.timeslot,
+      startTime: customTicket.startTime,
+      endTime: customTicket.endTime,
       price: customTicket.price || 0,
       quantity: customTicket.quantity || 0,
       vatIncluded: false,
@@ -1557,26 +1580,6 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                   {/* Paid Event - Tickets */}
                   {!formData.isFree && (
                     <div>
-                      {/* Unlimited Checkbox for Paid Events */}
-                      <div className="mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-700/30">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isUnlimited}
-                            onChange={(e) => setFormData(prev => ({ ...prev, isUnlimited: e.target.checked }))}
-                            className="w-4 h-4 text-[#27aae2] focus:ring-[#27aae2] rounded"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Unlimited capacity (capacity determined by ticket quantities)
-                          </span>
-                        </label>
-                        {!formData.isUnlimited && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            Total capacity will be calculated from the sum of all ticket quantities below
-                          </p>
-                        )}
-                      </div>
-
                       {/* Ticket Types Info */}
                       <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                         <h5 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Ticket Types Guide:</h5>
@@ -1651,18 +1654,161 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                             </div>
                             <div>
                               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Quantity</label>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={customTicket.quantity ?? 0}
-                                onChange={(e) => setCustomTicket(prev => ({ ...prev, quantity: Number(e.target.value) }))}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
-                              />
+                              {!customTicket.isUnlimited && (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={customTicket.quantity ?? 0}
+                                  onChange={(e) => setCustomTicket(prev => ({ ...prev, quantity: Number(e.target.value) }))}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                />
+                              )}
+                              <div className="flex items-center gap-2 mt-2">
+                                <input
+                                  type="checkbox"
+                                  checked={customTicket.isUnlimited || false}
+                                  onChange={(e) => setCustomTicket(prev => ({ ...prev, isUnlimited: e.target.checked }))}
+                                  className="w-4 h-4 text-[#27aae2] focus:ring-[#27aae2] rounded"
+                                />
+                                <label className="text-xs text-gray-600 dark:text-gray-400">Unlimited</label>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Extra fields for timeslot / class / loyalty can be added here if needed */}
+                          {/* Extra fields for timeslot tickets */}
+                          {customTicket.ticketStructure === 'timeslot' && (
+                            <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                              <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Time Slot Details</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Start Time</label>
+                                  <div className="flex gap-2">
+                                    <select
+                                      value={customTicket.startTime ? parseTime(customTicket.startTime).hour : '09'}
+                                      onChange={(e) => {
+                                        const currentStart = customTicket.startTime ? parseTime(customTicket.startTime) : { hour: '09', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                        const newTime = formatTimeTo24(e.target.value, currentStart.minute, currentStart.period);
+                                        setCustomTicket(prev => ({ ...prev, startTime: newTime }));
+                                      }}
+                                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                    >
+                                      {Array.from({ length: 12 }, (_, i) => {
+                                        const hour = (i + 1).toString().padStart(2, '0');
+                                        return <option key={hour} value={hour}>{hour}</option>;
+                                      })}
+                                    </select>
+                                    <select
+                                      value={customTicket.startTime ? parseTime(customTicket.startTime).minute : '00'}
+                                      onChange={(e) => {
+                                        const currentStart = customTicket.startTime ? parseTime(customTicket.startTime) : { hour: '09', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                        const newTime = formatTimeTo24(currentStart.hour, e.target.value, currentStart.period);
+                                        setCustomTicket(prev => ({ ...prev, startTime: newTime }));
+                                      }}
+                                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                    >
+                                      {['00', '15', '30', '45'].map(min => (
+                                        <option key={min} value={min}>{min}</option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={customTicket.startTime ? parseTime(customTicket.startTime).period : 'AM'}
+                                      onChange={(e) => {
+                                        const currentStart = customTicket.startTime ? parseTime(customTicket.startTime) : { hour: '09', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                        const newTime = formatTimeTo24(currentStart.hour, currentStart.minute, e.target.value as 'AM' | 'PM');
+                                        setCustomTicket(prev => ({ ...prev, startTime: newTime }));
+                                      }}
+                                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                    >
+                                      <option value="AM">AM</option>
+                                      <option value="PM">PM</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">End Time</label>
+                                  <div className="flex gap-2">
+                                    <select
+                                      value={customTicket.endTime ? parseTime(customTicket.endTime).hour : '10'}
+                                      onChange={(e) => {
+                                        const currentEnd = customTicket.endTime ? parseTime(customTicket.endTime) : { hour: '10', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                        const newTime = formatTimeTo24(e.target.value, currentEnd.minute, currentEnd.period);
+                                        setCustomTicket(prev => ({ ...prev, endTime: newTime }));
+                                        // Validate that end time is after start time
+                                        if (customTicket.startTime && newTime <= customTicket.startTime) {
+                                          setTimeslotErrors(prev => ({ ...prev, custom: 'End time cannot be lower than start time' }));
+                                        } else {
+                                          setTimeslotErrors(prev => {
+                                            const newErrors = { ...prev };
+                                            delete newErrors.custom;
+                                            return newErrors;
+                                          });
+                                        }
+                                      }}
+                                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                    >
+                                      {Array.from({ length: 12 }, (_, i) => {
+                                        const hour = (i + 1).toString().padStart(2, '0');
+                                        return <option key={hour} value={hour}>{hour}</option>;
+                                      })}
+                                    </select>
+                                    <select
+                                      value={customTicket.endTime ? parseTime(customTicket.endTime).minute : '00'}
+                                      onChange={(e) => {
+                                        const currentEnd = customTicket.endTime ? parseTime(customTicket.endTime) : { hour: '10', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                        const newTime = formatTimeTo24(currentEnd.hour, e.target.value, currentEnd.period);
+                                        setCustomTicket(prev => ({ ...prev, endTime: newTime }));
+                                        // Validate that end time is after start time
+                                        if (customTicket.startTime && newTime <= customTicket.startTime) {
+                                          setTimeslotErrors(prev => ({ ...prev, custom: 'End time cannot be lower than start time' }));
+                                        } else {
+                                          setTimeslotErrors(prev => {
+                                            const newErrors = { ...prev };
+                                            delete newErrors.custom;
+                                            return newErrors;
+                                          });
+                                        }
+                                      }}
+                                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                    >
+                                      {['00', '15', '30', '45'].map(min => (
+                                        <option key={min} value={min}>{min}</option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      value={customTicket.endTime ? parseTime(customTicket.endTime).period : 'AM'}
+                                      onChange={(e) => {
+                                        const currentEnd = customTicket.endTime ? parseTime(customTicket.endTime) : { hour: '10', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                        const newTime = formatTimeTo24(currentEnd.hour, currentEnd.minute, e.target.value as 'AM' | 'PM');
+                                        setCustomTicket(prev => ({ ...prev, endTime: newTime }));
+                                        // Validate that end time is after start time
+                                        if (customTicket.startTime && newTime <= customTicket.startTime) {
+                                          setTimeslotErrors(prev => ({ ...prev, custom: 'End time cannot be lower than start time' }));
+                                        } else {
+                                          setTimeslotErrors(prev => {
+                                            const newErrors = { ...prev };
+                                            delete newErrors.custom;
+                                            return newErrors;
+                                          });
+                                        }
+                                      }}
+                                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                    >
+                                      <option value="AM">AM</option>
+                                      <option value="PM">PM</option>
+                                    </select>
+                                  </div>
+                                  {timeslotErrors.custom && (
+                                    <div className="flex items-center gap-2 mt-2 text-red-600 dark:text-red-400">
+                                      <AlertCircle className="h-4 w-4" />
+                                      <p className="text-xs">{timeslotErrors.custom}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-end gap-2 mt-3">
                             <button
@@ -1787,20 +1933,127 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                                 {ticket.ticketStructure === 'timeslot' && (
                                   <div>
                                     <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Start Time</label>
-                                    <input
-                                      type="time"
-                                      value={ticket.startTime || ''}
-                                      onChange={(e) => updateTicketType(ticket.id, 'startTime', e.target.value)}
-                                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
-                                    />
+                                    <div className="flex gap-2">
+                                      <select
+                                        value={ticket.startTime ? parseTime(ticket.startTime).hour : '09'}
+                                        onChange={(e) => {
+                                          const currentStart = ticket.startTime ? parseTime(ticket.startTime) : { hour: '09', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                          const newTime = formatTimeTo24(e.target.value, currentStart.minute, currentStart.period);
+                                          updateTicketType(ticket.id, 'startTime', newTime);
+                                        }}
+                                        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                      >
+                                        {Array.from({ length: 12 }, (_, i) => {
+                                          const hour = (i + 1).toString().padStart(2, '0');
+                                          return <option key={hour} value={hour}>{hour}</option>;
+                                        })}
+                                      </select>
+                                      <select
+                                        value={ticket.startTime ? parseTime(ticket.startTime).minute : '00'}
+                                        onChange={(e) => {
+                                          const currentStart = ticket.startTime ? parseTime(ticket.startTime) : { hour: '09', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                          const newTime = formatTimeTo24(currentStart.hour, e.target.value, currentStart.period);
+                                          updateTicketType(ticket.id, 'startTime', newTime);
+                                        }}
+                                        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                      >
+                                        {['00', '15', '30', '45'].map(min => (
+                                          <option key={min} value={min}>{min}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        value={ticket.startTime ? parseTime(ticket.startTime).period : 'AM'}
+                                        onChange={(e) => {
+                                          const currentStart = ticket.startTime ? parseTime(ticket.startTime) : { hour: '09', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                          const newTime = formatTimeTo24(currentStart.hour, currentStart.minute, e.target.value as 'AM' | 'PM');
+                                          updateTicketType(ticket.id, 'startTime', newTime);
+                                        }}
+                                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                      >
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                      </select>
+                                    </div>
 
                                     <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1 mt-2">End Time</label>
-                                    <input
-                                      type="time"
-                                      value={ticket.endTime || ''}
-                                      onChange={(e) => updateTicketType(ticket.id, 'endTime', e.target.value)}
-                                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
-                                    />
+                                    <div className="flex gap-2">
+                                      <select
+                                        value={ticket.endTime ? parseTime(ticket.endTime).hour : '10'}
+                                        onChange={(e) => {
+                                          const currentEnd = ticket.endTime ? parseTime(ticket.endTime) : { hour: '10', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                          const newTime = formatTimeTo24(e.target.value, currentEnd.minute, currentEnd.period);
+                                          updateTicketType(ticket.id, 'endTime', newTime);
+                                          // Validate that end time is after start time
+                                          if (ticket.startTime && newTime <= ticket.startTime) {
+                                            setTimeslotErrors(prev => ({ ...prev, [ticket.id]: 'End time cannot be lower than start time' }));
+                                          } else {
+                                            setTimeslotErrors(prev => {
+                                              const newErrors = { ...prev };
+                                              delete newErrors[ticket.id];
+                                              return newErrors;
+                                            });
+                                          }
+                                        }}
+                                        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                      >
+                                        {Array.from({ length: 12 }, (_, i) => {
+                                          const hour = (i + 1).toString().padStart(2, '0');
+                                          return <option key={hour} value={hour}>{hour}</option>;
+                                        })}
+                                      </select>
+                                      <select
+                                        value={ticket.endTime ? parseTime(ticket.endTime).minute : '00'}
+                                        onChange={(e) => {
+                                          const currentEnd = ticket.endTime ? parseTime(ticket.endTime) : { hour: '10', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                          const newTime = formatTimeTo24(currentEnd.hour, e.target.value, currentEnd.period);
+                                          updateTicketType(ticket.id, 'endTime', newTime);
+                                          // Validate that end time is after start time
+                                          if (ticket.startTime && newTime <= ticket.startTime) {
+                                            setTimeslotErrors(prev => ({ ...prev, [ticket.id]: 'End time cannot be lower than start time' }));
+                                          } else {
+                                            setTimeslotErrors(prev => {
+                                              const newErrors = { ...prev };
+                                              delete newErrors[ticket.id];
+                                              return newErrors;
+                                            });
+                                          }
+                                        }}
+                                        className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                      >
+                                        {['00', '15', '30', '45'].map(min => (
+                                          <option key={min} value={min}>{min}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        value={ticket.endTime ? parseTime(ticket.endTime).period : 'AM'}
+                                        onChange={(e) => {
+                                          const currentEnd = ticket.endTime ? parseTime(ticket.endTime) : { hour: '10', minute: '00', period: 'AM' as 'AM' | 'PM' };
+                                          const newTime = formatTimeTo24(currentEnd.hour, currentEnd.minute, e.target.value as 'AM' | 'PM');
+                                          updateTicketType(ticket.id, 'endTime', newTime);
+                                          // Validate that end time is after start time
+                                          if (ticket.startTime && newTime <= ticket.startTime) {
+                                            setTimeslotErrors(prev => ({ ...prev, [ticket.id]: 'End time cannot be lower than start time' }));
+                                          } else {
+                                            setTimeslotErrors(prev => {
+                                              const newErrors = { ...prev };
+                                              delete newErrors[ticket.id];
+                                              return newErrors;
+                                            });
+                                          }
+                                        }}
+                                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                      >
+                                        <option value="AM">AM</option>
+                                        <option value="PM">PM</option>
+                                      </select>
+                                    </div>
+                                    
+                                    {timeslotErrors[ticket.id] && (
+                                      <div className="flex items-center gap-2 mt-2 text-red-600 dark:text-red-400">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <p className="text-xs">{timeslotErrors[ticket.id]}</p>
+                                      </div>
+                                    )}
 
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Max 8 time slots per event</p>
                                   </div>
@@ -1826,18 +2079,29 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                                 {/* Quantity */}
                                 <div>
                                   <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Quantity Available</label>
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    value={ticket.quantity || ''}
-                                    onChange={(e) => {
-                                      const v = e.target.value.replace(/[^0-9]/g, '');
-                                      updateTicketType(ticket.id, 'quantity', parseInt(v) || 0);
-                                    }}
-                                    placeholder="0"
-                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
-                                  />
+                                  {!ticket.isUnlimited && (
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      pattern="[0-9]*"
+                                      value={ticket.quantity || ''}
+                                      onChange={(e) => {
+                                        const v = e.target.value.replace(/[^0-9]/g, '');
+                                        updateTicketType(ticket.id, 'quantity', parseInt(v) || 0);
+                                      }}
+                                      placeholder="0"
+                                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                                    />
+                                  )}
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={ticket.isUnlimited || false}
+                                      onChange={(e) => updateTicketType(ticket.id, 'isUnlimited', e.target.checked)}
+                                      className="w-4 h-4 text-[#27aae2] focus:ring-[#27aae2] rounded"
+                                    />
+                                    <label className="text-xs text-gray-600 dark:text-gray-400">Unlimited</label>
+                                  </div>
                                 </div>
                               </div>
 
@@ -1860,7 +2124,18 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                                   {ticket.ticketStructure === 'class' && ` (${ticket.classType?.toUpperCase() || 'CLASS'})`}
                                   {ticket.ticketStructure === 'loyalty' && ` (${ticket.loyaltyType?.replace(/([A-Z])/g, ' $1').trim() || 'LOYALTY TYPE'})`}
                                   {ticket.ticketStructure === 'season' && ticket.seasonType === 'season' && ` (${ticket.seasonDuration || 0}-Day Pass)`}
-                                  {ticket.ticketStructure === 'timeslot' && ` (${ticket.timeslot || 'TIME SLOT'})`}
+                                  {ticket.ticketStructure === 'timeslot' && ticket.startTime && ticket.endTime && (
+                                    <span>
+                                      {' ('}
+                                      {(() => {
+                                        const start = parseTime(ticket.startTime);
+                                        const end = parseTime(ticket.endTime);
+                                        return `${start.hour}:${start.minute} ${start.period} - ${end.hour}:${end.minute} ${end.period}`;
+                                      })()}
+                                      {')'}
+                                    </span>
+                                  )}
+                                  {ticket.ticketStructure === 'timeslot' && (!ticket.startTime || !ticket.endTime) && ` (TIME SLOT)`}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                   KES {ticket.price.toLocaleString()} • {ticket.quantity} available
