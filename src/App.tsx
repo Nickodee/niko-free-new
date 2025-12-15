@@ -78,8 +78,8 @@ function AppContent() {
               position: 'top-right',
               autoClose: 3000,
             });
-            // Navigate to user dashboard
-            navigate('/user-dashboard');
+            // Navigate to home page
+            navigate('/');
           }
 
           // Clean up URL
