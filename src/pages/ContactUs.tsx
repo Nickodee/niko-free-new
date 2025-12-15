@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import { toast } from 'react-toastify';
+import { API_ENDPOINTS } from '../config/api';
 
 interface ContactUsProps {
   onNavigate: (page: string, params?: any) => void;
@@ -22,12 +23,33 @@ export default function ContactUs({ onNavigate }: ContactUsProps) {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      toast.success('Message sent successfully! We\'ll get back to you soon.');
+    try {
+      const response = await fetch(API_ENDPOINTS.messages.contact, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message');
+      }
+
+      toast.success(data.message || 'Message sent successfully! We\'ll get back to you soon.');
       setFormData({ name: '', email: '', subject: '', message: '' });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send message. Please try again.');
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

@@ -369,24 +369,36 @@ export default function PartnersSection({}: PartnersProps) {
     
     try {
       if (confirmAction.type === 'suspend') {
+        const reason = confirmNoteText.trim() || 'Suspended by admin';
         const response = await fetch(API_ENDPOINTS.admin.suspendPartner(Number(partnerId)), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
           },
-          body: JSON.stringify({ reason: confirmNoteText.trim() || 'Suspended by admin' }),
+          body: JSON.stringify({ reason }),
         });
 
         const data = await response.json();
         if (response.ok) {
-          toast.error(`Partner suspended: ${confirmAction.partner.name}`);
-          // Update local state instead of reloading
-          setAllPartners(prevPartners => 
-            prevPartners.map(p => 
-              p.id === partnerId ? { ...p, status: 'suspended' } : p
-            )
-          );
+          toast.warning(`⚠️ Partner suspended: ${confirmAction.partner.name}`, {
+            position: 'top-right',
+            autoClose: 4000,
+          });
+          
+          // Add note to partner
+          addNoteForPartner(partnerId, {
+            text: `Suspended: ${reason}`,
+            type: 'suspend',
+            date: new Date().toISOString(),
+            author: 'Admin',
+          });
+          
+          // Update local state
+          setAllPartners(prev => prev.map(p => 
+            p.id === partnerId ? { ...p, status: 'suspended', suspendedDate: new Date().toLocaleDateString() } : p
+          ));
+          
           // Refresh stats
           const statsResponse = await fetch(API_ENDPOINTS.admin.partnerStats, {
             headers: {
@@ -397,6 +409,13 @@ export default function PartnersSection({}: PartnersProps) {
           if (statsResponse.ok) {
             const statsData = await statsResponse.json();
             setPartnerStats(statsData);
+          } else if (partnerStats) {
+            // Fallback to local update if stats fetch fails
+            setPartnerStats({
+              ...partnerStats,
+              suspended_partners: partnerStats.suspended_partners + 1,
+              active_partners: partnerStats.active_partners - 1,
+            });
           }
         } else {
           toast.error(data.error || 'Failed to suspend partner');
@@ -407,8 +426,12 @@ export default function PartnersSection({}: PartnersProps) {
             text: confirmNoteText.trim(),
             type: confirmAction.type,
             date: new Date().toISOString(),
+            author: 'Admin',
           });
-          toast.warning(`Partner flagged: ${confirmAction.partner.name}`);
+          toast.warning(`🚩 Partner flagged: ${confirmAction.partner.name}`, {
+            position: 'top-right',
+            autoClose: 4000,
+          });
         }
       }
     } catch (error) {
@@ -818,6 +841,28 @@ export default function PartnersSection({}: PartnersProps) {
                     </div>
                   )}
 
+                  {/* Additional Interests Section */}
+                  {partnerDetails.partner?.interests && Array.isArray(partnerDetails.partner.interests) && partnerDetails.partner.interests.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        Additional Interests
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {partnerDetails.partner.interests.map((interest: string, index: number) => (
+                          <span
+                            key={index}
+                            className="px-4 py-2 bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white rounded-full text-sm font-medium shadow-sm"
+                          >
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Business Metrics Card */}
                   <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
                     <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -908,6 +953,98 @@ export default function PartnersSection({}: PartnersProps) {
                     Add Note
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {rejectModalOpen && partnerToReject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full relative animate-fadeIn">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 rounded-t-2xl">
+              <button
+                className="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl font-bold transition-colors w-8 h-8 flex items-center justify-center"
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setPartnerToReject(null);
+                  setRejectionReason('');
+                }}
+              >
+                &times;
+              </button>
+              <h2 className="text-2xl font-bold text-white">Reject Partner Application</h2>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              {/* Partner Info */}
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
+                    <span className="text-white text-xl font-bold">
+                      {partnerToReject.name.charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">{partnerToReject.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{partnerToReject.email}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                  ⚠️ This action will permanently reject this partner application and send them a rejection email.
+                </p>
+              </div>
+
+              {/* Rejection Reason */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Rejection Reason <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a clear reason for rejection. This will be included in the email sent to the partner and saved in admin notes."
+                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
+                  rows={5}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  {rejectionReason.length}/500 characters
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+                  onClick={() => {
+                    setRejectModalOpen(false);
+                    setPartnerToReject(null);
+                    setRejectionReason('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  onClick={confirmRejectPartner}
+                  disabled={!rejectionReason.trim() || actionLoading === partnerToReject.id}
+                >
+                  {actionLoading === partnerToReject.id ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>Rejecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-5 h-5" />
+                      <span>Reject Partner</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

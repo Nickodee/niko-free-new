@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Building2, Globe, Camera, Save, AlertCircle, FileText, Trash2, X } from 'lucide-react';
-import { getPartnerProfile, updatePartnerProfile, uploadPartnerLogo, getPartner } from '../../services/partnerService';
+import { getPartnerProfile, updatePartnerProfile, uploadPartnerLogo, getPartner, deletePartnerAccount, removePartnerToken } from '../../services/partnerService';
 import { getImageUrl } from '../../config/api';
 
 export default function MyProfile() {
@@ -210,18 +210,15 @@ export default function MyProfile() {
       setIsDeleting(true);
       setError('');
 
-      // TODO: Call delete account API
-      // For now, just show a message
-      alert('Account deletion is being processed. You will be logged out shortly.');
+      // Call delete account API
+      await deletePartnerAccount();
       
       // Clear local storage and redirect to login
-      localStorage.removeItem('partner_token');
-      localStorage.removeItem('partner');
+      removePartnerToken();
       window.location.href = '/partner-login';
     } catch (err: any) {
       console.error('Error deleting account:', err);
       setError(err.message || 'Failed to delete account');
-    } finally {
       setIsDeleting(false);
     }
   };
