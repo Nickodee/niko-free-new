@@ -209,27 +209,6 @@ export default function PartnersSection({}: PartnersProps) {
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setPartnerStats(statsData);
-        toast.success('✅ Partner approved successfully! Email sent to partner.', {
-          position: 'top-right',
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-        
-        // Update local state instead of reloading
-        setAllPartners(prev => prev.map(p => 
-          p.id === partnerId ? { ...p, status: 'approved' } : p
-        ));
-        
-        // Update stats
-        if (partnerStats) {
-          setPartnerStats({
-            ...partnerStats,
-            pending_partners: partnerStats.pending_partners - 1,
-            active_partners: partnerStats.active_partners + 1,
-          });
         }
       } else {
         toast.error(data.error || 'Failed to approve partner');
@@ -272,7 +251,7 @@ export default function PartnersSection({}: PartnersProps) {
         // Update local state instead of reloading
         setAllPartners(prevPartners => 
           prevPartners.map(p => 
-            p.id === partnerId ? { ...p, status: 'rejected' } : p
+            p.id === partnerToReject.id ? { ...p, status: 'rejected' } : p
           )
         );
         // Refresh stats
@@ -363,23 +342,6 @@ export default function PartnersSection({}: PartnersProps) {
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setPartnerStats(statsData);
-        toast.success('✅ Partner unsuspended successfully! Account is now active.', {
-          position: 'top-right',
-          autoClose: 4000,
-        });
-        
-        // Update local state
-        setAllPartners(prev => prev.map(p => 
-          p.id === partnerId ? { ...p, status: 'approved', suspendedDate: undefined } : p
-        ));
-        
-        // Update stats
-        if (partnerStats) {
-          setPartnerStats({
-            ...partnerStats,
-            suspended_partners: partnerStats.suspended_partners - 1,
-            active_partners: partnerStats.active_partners + 1,
-          });
         }
       } else {
         toast.error(data.error || 'Failed to unsuspend partner');
