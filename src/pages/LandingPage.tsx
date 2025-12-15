@@ -1173,7 +1173,7 @@ export default function LandingPage({
                       {heroText}
                     </h1>
                     <p className="text-sm sm:text-base md:text-lg lg:text-2xl text-gray-100 leading-relaxed mb-3 sm:mb-4 md:mb-6">
-                      Explore events, activities and experiences designed to evaluate your mind, energy, and lifestyle.
+                      Explore events, activities and experiences designed to elevate your mind, energy, and lifestyle.
                     </p>
                     <p className="text-sm text-[#3290cf] sm:text-base md:text-sm lg:text-lg leading-relaxed mb-3 sm:mb-4 md:mb-6">
                       Niko Free - redefine how you go out.
@@ -1190,8 +1190,9 @@ export default function LandingPage({
                             2M+
                           </p> */}
                           <p className="text-[10px] sm:text-xs text-gray-200">
-                            Free and Paid Events
-                          </p>
+  Free <br /> & Paid Events
+</p>
+
                         </div>
                       </div>
                       <div className="flex items-center space-x-1.5 sm:space-x-2">
