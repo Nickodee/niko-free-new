@@ -1516,6 +1516,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       <ImageIcon className="w-4 h-4 inline mr-1" />
                       Event Photo <span className="text-red-500">*</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Make sure your event stands out with a photo that captures the vibe</p>
                     </label>
                     
                     {formData.photoPreview ? (
@@ -1537,7 +1538,6 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                         <Upload className="w-12 h-12 text-gray-400 mb-2" />
                         <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload event photo</p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG up to 10MB</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Make sure your event stands out with a photo that captures the vibe</p>
                         <input
                           type="file"
                           accept="image/*"
