@@ -157,7 +157,7 @@ export const getImageUrl = (posterImage: string | null | undefined): string => {
   }
   
   // Already a full URL
-  if (posterImage.startsWith('http')) {
+  if (posterImage.startsWith('http://') || posterImage.startsWith('https://')) {
     return posterImage;
   }
   
@@ -167,13 +167,18 @@ export const getImageUrl = (posterImage: string | null | undefined): string => {
     cleanPath = cleanPath.replace('/uploads/uploads/', '/uploads/');
   }
   
-  // Relative path - construct full URL
-  // If path already starts with /uploads/, use it as is
-  if (cleanPath.startsWith('/uploads/')) {
-    return `${API_BASE_URL}${cleanPath}`;
+  // Remove leading slash if present to avoid double slashes
+  if (cleanPath.startsWith('/')) {
+    cleanPath = cleanPath.substring(1);
   }
   
-  // Otherwise, add /uploads/ prefix if needed
-  return `${API_BASE_URL}${cleanPath.startsWith('/') ? '' : '/'}${cleanPath}`;
+  // Ensure path starts with uploads/
+  if (!cleanPath.startsWith('uploads/')) {
+    cleanPath = `uploads/${cleanPath}`;
+  }
+  
+  // Construct full URL - ensure no double slashes
+  const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+  return `${baseUrl}/${cleanPath}`;
 };
 
