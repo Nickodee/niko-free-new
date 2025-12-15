@@ -4,8 +4,9 @@
  */
 
 // Base URL for the API - use environment variable or default to localhost for development
-export const API_BASE_URL = "https://nikofree-arhecnfueegrasf8.canadacentral-01.azurewebsites.net";
+// export const API_BASE_URL = "https://nikofree-arhecnfueegrasf8.canadacentral-01.azurewebsites.net";
 
+export const API_BASE_URL = "http://localhost:8000";
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -49,6 +50,17 @@ export const API_ENDPOINTS = {
     logs: `${API_BASE_URL}/api/admin/logs`,
     support: `${API_BASE_URL}/api/admin/support`,
     updateSupportStatus: (id: number) => `${API_BASE_URL}/api/admin/support/${id}/status`,
+    inbox: `${API_BASE_URL}/api/admin/inbox`,
+    markMessageRead: (id: number, type: string) => `${API_BASE_URL}/api/admin/inbox/${id}/read?type=${type}`,
+    toggleMessageStar: (id: number, type: string) => `${API_BASE_URL}/api/admin/inbox/${id}/star?type=${type}`,
+    archiveMessage: (id: number, type: string) => `${API_BASE_URL}/api/admin/inbox/${id}/archive?type=${type}`,
+    deleteMessage: (id: number, type: string) => `${API_BASE_URL}/api/admin/inbox/${id}?type=${type}`,
+  },
+  
+  // Messages
+  messages: {
+    feedback: `${API_BASE_URL}/api/messages/feedback`,
+    contact: `${API_BASE_URL}/api/messages/contact`,
   },
   
   // Partner
@@ -64,6 +76,7 @@ export const API_ENDPOINTS = {
     uploadLogo: '/api/partners/logo',
     analytics: '/api/partners/analytics',
     changePassword: '/api/partners/change-password',
+    deleteAccount: '/api/partners/account',
   },
   
   // Events

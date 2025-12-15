@@ -223,27 +223,23 @@ export default function PartnersSection({}: PartnersProps) {
 
       const data = await response.json();
       if (response.ok) {
-        toast.success('✅ Partner approved successfully! Email sent to partner.', {
-          position: 'top-right',
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-        
+        toast.success('Partner approved successfully! Email sent to partner.');
         // Update local state instead of reloading
-        setAllPartners(prev => prev.map(p => 
-          p.id === partnerId ? { ...p, status: 'approved' } : p
-        ));
-        
-        // Update stats
-        if (partnerStats) {
-          setPartnerStats({
-            ...partnerStats,
-            pending_partners: partnerStats.pending_partners - 1,
-            active_partners: partnerStats.active_partners + 1,
-          });
+        setAllPartners(prevPartners => 
+          prevPartners.map(p => 
+            p.id === partnerId ? { ...p, status: 'approved' } : p
+          )
+        );
+        // Refresh stats
+        const statsResponse = await fetch(API_ENDPOINTS.admin.partnerStats, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+          },
+        });
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setPartnerStats(statsData);
         }
       } else {
         toast.error(data.error || 'Failed to approve partner');
@@ -289,6 +285,24 @@ export default function PartnersSection({}: PartnersProps) {
 
       const data = await response.json();
       if (response.ok) {
+        toast.success('Partner rejected. Email sent to partner.');
+        // Update local state instead of reloading
+        setAllPartners(prevPartners => 
+          prevPartners.map(p => 
+            p.id === partnerToReject.id ? { ...p, status: 'rejected' } : p
+          )
+        );
+        // Refresh stats
+        const statsResponse = await fetch(API_ENDPOINTS.admin.partnerStats, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+          },
+        });
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setPartnerStats(statsData);
+        }
         toast.error('❌ Partner rejected. Email sent to partner.', {
           position: 'top-right',
           autoClose: 4000,
@@ -360,23 +374,23 @@ export default function PartnersSection({}: PartnersProps) {
 
       const data = await response.json();
       if (response.ok) {
-        toast.success('✅ Partner unsuspended successfully! Account is now active.', {
-          position: 'top-right',
-          autoClose: 4000,
+        toast.success('Partner unsuspended successfully! Account is now active.');
+        // Update local state instead of reloading
+        setAllPartners(prevPartners => 
+          prevPartners.map(p => 
+            p.id === partnerId ? { ...p, status: 'approved' } : p
+          )
+        );
+        // Refresh stats
+        const statsResponse = await fetch(API_ENDPOINTS.admin.partnerStats, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+          },
         });
-        
-        // Update local state
-        setAllPartners(prev => prev.map(p => 
-          p.id === partnerId ? { ...p, status: 'approved', suspendedDate: undefined } : p
-        ));
-        
-        // Update stats
-        if (partnerStats) {
-          setPartnerStats({
-            ...partnerStats,
-            suspended_partners: partnerStats.suspended_partners - 1,
-            active_partners: partnerStats.active_partners + 1,
-          });
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setPartnerStats(statsData);
         }
       } else {
         toast.error(data.error || 'Failed to unsuspend partner');
@@ -434,8 +448,18 @@ export default function PartnersSection({}: PartnersProps) {
             p.id === partnerId ? { ...p, status: 'suspended', suspendedDate: new Date().toLocaleDateString() } : p
           ));
           
-          // Update stats
-          if (partnerStats) {
+          // Refresh stats
+          const statsResponse = await fetch(API_ENDPOINTS.admin.partnerStats, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+            },
+          });
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            setPartnerStats(statsData);
+          } else if (partnerStats) {
+            // Fallback to local update if stats fetch fails
             setPartnerStats({
               ...partnerStats,
               suspended_partners: partnerStats.suspended_partners + 1,
@@ -862,6 +886,28 @@ export default function PartnersSection({}: PartnersProps) {
                         <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">
                           {partnerDetails.partner.description}
                         </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Additional Interests Section */}
+                  {partnerDetails.partner?.interests && Array.isArray(partnerDetails.partner.interests) && partnerDetails.partner.interests.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+                      <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-[#27aae2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        Additional Interests
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {partnerDetails.partner.interests.map((interest: string, index: number) => (
+                          <span
+                            key={index}
+                            className="px-4 py-2 bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white rounded-full text-sm font-medium shadow-sm"
+                          >
+                            {interest}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   )}

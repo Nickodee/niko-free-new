@@ -1,9 +1,11 @@
 import { Mail, MessageSquare, Star, Trash2, Archive, Eye, Clock, User, Filter, Search, ThumbsUp, Lightbulb, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { API_ENDPOINTS } from '../../config/api';
+import { getToken } from '../../services/authService';
 
 interface Message {
-  id: string;
+  id: number;
   type: 'contact' | 'feedback';
   name: string;
   email: string;
@@ -27,82 +29,48 @@ export default function InboxPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Mock data - Replace with actual API calls
+  // Fetch messages from API
   useEffect(() => {
-    const mockMessages: Message[] = [
-      {
-        id: '1',
-        type: 'contact',
-        name: 'John Doe',
-        email: 'john@example.com',
-        subject: 'Question about event hosting',
-        message: 'Hi, I would like to know more about hosting events on your platform. What are the requirements and fees?',
-        date: '2024-12-15T10:30:00',
-        isRead: false,
-        isStarred: false,
-        isArchived: false
-      },
-      {
-        id: '2',
-        type: 'feedback',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        title: 'Great platform!',
-        description: 'I love the simplicity of finding and attending events. The interface is very user-friendly.',
-        feedbackType: 'compliment',
-        rating: 5,
-        date: '2024-12-14T15:45:00',
-        isRead: true,
-        isStarred: true,
-        isArchived: false
-      },
-      {
-        id: '3',
-        type: 'feedback',
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        title: 'Feature request: Calendar sync',
-        description: 'It would be great if we could sync events directly to our Google Calendar or iCal.',
-        feedbackType: 'suggestion',
-        rating: 4,
-        date: '2024-12-13T09:20:00',
-        isRead: false,
-        isStarred: false,
-        isArchived: false
-      },
-      {
-        id: '4',
-        type: 'feedback',
-        name: 'Sarah Wilson',
-        email: 'sarah@example.com',
-        title: 'Bug: Payment not processing',
-        description: 'I tried to purchase a ticket but the payment keeps failing. Using Visa ending in 4242.',
-        feedbackType: 'bug',
-        rating: 2,
-        date: '2024-12-12T14:10:00',
-        isRead: true,
-        isStarred: true,
-        isArchived: false
-      },
-      {
-        id: '5',
-        type: 'contact',
-        name: 'Tom Brown',
-        email: 'tom@example.com',
-        subject: 'Partnership inquiry',
-        message: 'We are a venue interested in partnering with Niko Free. Could we schedule a call to discuss?',
-        date: '2024-12-11T11:00:00',
-        isRead: false,
-        isStarred: false,
-        isArchived: false
+    const fetchMessages = async () => {
+      try {
+        const token = getToken();
+        if (!token) {
+          toast.error('Please log in to view messages');
+          setLoading(false);
+          return;
+        }
+
+        const params = new URLSearchParams();
+        if (filterType !== 'all') params.append('type', filterType);
+        if (filterStatus !== 'all') params.append('status', filterStatus);
+        if (searchQuery) params.append('search', searchQuery);
+
+        const url = `${API_ENDPOINTS.admin.inbox}${params.toString() ? `?${params.toString()}` : ''}`;
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch messages');
+        }
+
+        const data = await response.json();
+        setMessages(data.messages || []);
+      } catch (error: any) {
+        console.error('Error fetching messages:', error);
+        toast.error(error.message || 'Failed to load messages');
+      } finally {
+        setLoading(false);
       }
-    ];
-    
-    setTimeout(() => {
-      setMessages(mockMessages);
-      setLoading(false);
-    }, 500);
-  }, []);
+    };
+
+    fetchMessages();
+  }, [filterType, filterStatus, searchQuery]);
 
   const filteredMessages = messages.filter((msg) => {
     if (msg.isArchived) return false;
@@ -119,26 +87,129 @@ export default function InboxPage() {
 
   const unreadCount = messages.filter(m => !m.isRead && !m.isArchived).length;
 
-  const markAsRead = (id: string) => {
-    setMessages(messages.map(m => m.id === id ? { ...m, isRead: true } : m));
+  const markAsRead = async (id: number, type: string) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error('Please log in');
+        return;
+      }
+
+      const response = await fetch(API_ENDPOINTS.admin.markMessageRead(id, type), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark message as read');
+      }
+
+      const data = await response.json();
+      setMessages(messages.map(m => m.id === id ? { ...m, isRead: true } : m));
+      if (selectedMessage?.id === id) {
+        setSelectedMessage({ ...selectedMessage, isRead: true });
+      }
+    } catch (error: any) {
+      console.error('Error marking message as read:', error);
+      toast.error(error.message || 'Failed to update message');
+    }
   };
 
-  const toggleStar = (id: string) => {
-    setMessages(messages.map(m => m.id === id ? { ...m, isStarred: !m.isStarred } : m));
-    toast.success(messages.find(m => m.id === id)?.isStarred ? 'Removed from starred' : 'Added to starred');
+  const toggleStar = async (id: number, type: string) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error('Please log in');
+        return;
+      }
+
+      const response = await fetch(API_ENDPOINTS.admin.toggleMessageStar(id, type), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle star');
+      }
+
+      const data = await response.json();
+      const newStarred = data.data.isStarred;
+      setMessages(messages.map(m => m.id === id ? { ...m, isStarred: newStarred } : m));
+      if (selectedMessage?.id === id) {
+        setSelectedMessage({ ...selectedMessage, isStarred: newStarred });
+      }
+      toast.success(newStarred ? 'Added to starred' : 'Removed from starred');
+    } catch (error: any) {
+      console.error('Error toggling star:', error);
+      toast.error(error.message || 'Failed to update message');
+    }
   };
 
-  const archiveMessage = (id: string) => {
-    setMessages(messages.map(m => m.id === id ? { ...m, isArchived: true } : m));
-    setSelectedMessage(null);
-    toast.success('Message archived');
+  const archiveMessage = async (id: number, type: string) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error('Please log in');
+        return;
+      }
+
+      const response = await fetch(API_ENDPOINTS.admin.archiveMessage(id, type), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to archive message');
+      }
+
+      setMessages(messages.filter(m => m.id !== id));
+      setSelectedMessage(null);
+      toast.success('Message archived');
+    } catch (error: any) {
+      console.error('Error archiving message:', error);
+      toast.error(error.message || 'Failed to archive message');
+    }
   };
 
-  const deleteMessage = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this message?')) {
+  const deleteMessage = async (id: number, type: string) => {
+    if (!window.confirm('Are you sure you want to delete this message?')) {
+      return;
+    }
+
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error('Please log in');
+        return;
+      }
+
+      const response = await fetch(API_ENDPOINTS.admin.deleteMessage(id, type), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete message');
+      }
+
       setMessages(messages.filter(m => m.id !== id));
       setSelectedMessage(null);
       toast.success('Message deleted');
+    } catch (error: any) {
+      console.error('Error deleting message:', error);
+      toast.error(error.message || 'Failed to delete message');
     }
   };
 
@@ -293,7 +364,7 @@ export default function InboxPage() {
                   key={msg.id}
                   onClick={() => {
                     setSelectedMessage(msg);
-                    if (!msg.isRead) markAsRead(msg.id);
+                    if (!msg.isRead) markAsRead(msg.id, msg.type);
                   }}
                   className={`w-full p-4 text-left border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
                     selectedMessage?.id === msg.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
@@ -341,7 +412,7 @@ export default function InboxPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleStar(msg.id);
+                        toggleStar(msg.id, msg.type);
                       }}
                       className="flex-shrink-0"
                     >
@@ -414,7 +485,7 @@ export default function InboxPage() {
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => toggleStar(selectedMessage.id)}
+                      onClick={() => toggleStar(selectedMessage.id, selectedMessage.type)}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                       title="Star"
                     >
@@ -425,14 +496,14 @@ export default function InboxPage() {
                       />
                     </button>
                     <button
-                      onClick={() => archiveMessage(selectedMessage.id)}
+                      onClick={() => archiveMessage(selectedMessage.id, selectedMessage.type)}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                       title="Archive"
                     >
                       <Archive className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
                     <button
-                      onClick={() => deleteMessage(selectedMessage.id)}
+                      onClick={() => deleteMessage(selectedMessage.id, selectedMessage.type)}
                       className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                       title="Delete"
                     >

@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import { toast } from 'react-toastify';
+import { API_ENDPOINTS } from '../config/api';
 
 interface FeedbackProps {
   onNavigate: (page: string, params?: any) => void;
@@ -25,14 +26,37 @@ export default function Feedback({ onNavigate }: FeedbackProps) {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      toast.success('Thank you for your feedback! We appreciate your input.');
+    try {
+      const response = await fetch(API_ENDPOINTS.messages.feedback, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          feedbackType: feedbackType,
+          title: formData.title,
+          description: formData.description,
+          rating: rating > 0 ? rating : undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit feedback');
+      }
+
+      toast.success(data.message || 'Thank you for your feedback! We appreciate your input.');
       setFormData({ name: '', email: '', title: '', description: '' });
       setRating(0);
       setFeedbackType('suggestion');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit feedback. Please try again.');
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

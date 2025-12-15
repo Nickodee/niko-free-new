@@ -97,6 +97,10 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
         logo: formData.logo || undefined,
         description: formData.about.trim() || undefined,
       };
+      
+      // Debug: Log the interests being sent
+      console.log('Sending interests:', allInterests);
+      console.log('Interests JSON:', applicationData.interests);
 
       // Call API
       await applyAsPartner(applicationData);
