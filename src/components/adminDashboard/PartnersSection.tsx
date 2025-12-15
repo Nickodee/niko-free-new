@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CheckCircle, XCircle, Search, Users } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Search, Users, AlertTriangle } from 'lucide-react';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
 import { toast } from 'react-toastify';
 import { getToken } from '../../services/authService';
@@ -54,7 +54,38 @@ export default function PartnersSection({}: PartnersProps) {
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
   const [rejectModalOpen, setRejectModalOpen] = React.useState(false);
   const [partnerToReject, setPartnerToReject] = React.useState<Partner | null>(null);
-  const [rejectionReason, setRejectionReason] = React.useState('');
+  const [selectedRejectionReason, setSelectedRejectionReason] = React.useState('');
+  const [internalRejectionNote, setInternalRejectionNote] = React.useState('');
+  const [showRejectionConfirm, setShowRejectionConfirm] = React.useState(false);
+
+  // Predefined rejection reasons with full descriptions (to be sent in email)
+  const REJECTION_REASONS = [
+    {
+      id: 1,
+      title: "Incomplete or Insufficient Information",
+      description: "The partner did not provide all required application details (e.g., missing contact info, business description, ID verification, tax or registration documents), making it impossible to assess their eligibility."
+    },
+    {
+      id: 2,
+      title: "Does Not Meet Eligibility Criteria",
+      description: "The applicant's profile or business category does not align with our platform's requirements (e.g., ineligible services, geographical restrictions, or lack of relevant industry experience)."
+    },
+    {
+      id: 3,
+      title: "Unable to Verify Identity or Credentials",
+      description: "We were unable to verify the applicant's identity, business legitimacy, or required certifications (e.g., inconsistent information, unverifiable documents, or lack of a professional online presence)."
+    },
+    {
+      id: 4,
+      title: "Policy or Compliance Conflicts",
+      description: "The applicant's practices, terms, or offerings conflict with our platform policies, legal standards, or community guidelines (e.g., non-compliance with data protection laws, prohibited services, or ethical concerns)."
+    },
+    {
+      id: 5,
+      title: "Incompatible Business Category",
+      description: "The partner's business does not fit into any of our supported categories or market segments, making integration with our platform impractical."
+    }
+  ];
 
   // Categories
   const landingCategories = [
@@ -228,15 +259,19 @@ export default function PartnersSection({}: PartnersProps) {
   // Handle reject partner - open modal
   const handleRejectPartner = (partner: Partner) => {
     setPartnerToReject(partner);
-    setRejectionReason('');
+    setSelectedRejectionReason('');
+    setInternalRejectionNote('');
     setRejectModalOpen(true);
   };
 
   // Confirm reject partner
   const confirmRejectPartner = async () => {
-    if (!partnerToReject) return;
+    if (!partnerToReject || !selectedRejectionReason) return;
     
-    const reason = rejectionReason.trim() || 'Application does not meet requirements';
+    // Find the full reason object with description
+    const reasonObj = REJECTION_REASONS.find(r => r.title === selectedRejectionReason);
+    if (!reasonObj) return;
+    
     setActionLoading(partnerToReject.id);
     
     try {
@@ -246,7 +281,10 @@ export default function PartnersSection({}: PartnersProps) {
           'Content-Type': 'application/json',
           ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
         },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ 
+          reason: reasonObj.description, // Send full description in email
+          internalNote: internalRejectionNote.trim() || undefined // Optional admin note
+        }),
       });
 
       const data = await response.json();
@@ -256,9 +294,13 @@ export default function PartnersSection({}: PartnersProps) {
           autoClose: 4000,
         });
         
-        // Add note to partner notes
+        // Add note to partner notes with both reason and internal note
+        const noteText = internalRejectionNote.trim() 
+          ? `Rejected: ${reasonObj.title}\nInternal Note: ${internalRejectionNote.trim()}`
+          : `Rejected: ${reasonObj.title}`;
+        
         addNoteForPartner(partnerToReject.id, {
-          text: `Rejected: ${reason}`,
+          text: noteText,
           type: 'delete',
           date: new Date().toISOString(),
           author: 'Admin',
@@ -276,10 +318,11 @@ export default function PartnersSection({}: PartnersProps) {
           });
         }
         
-        // Close modal
+        // Close modal and reset state
         setRejectModalOpen(false);
         setPartnerToReject(null);
-        setRejectionReason('');
+        setSelectedRejectionReason('');
+        setInternalRejectionNote('');
       } else {
         toast.error(data.error || 'Failed to reject partner');
       }
@@ -289,6 +332,12 @@ export default function PartnersSection({}: PartnersProps) {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // Show rejection confirmation step
+  const handleShowRejectionConfirm = () => {
+    if (!selectedRejectionReason || !internalRejectionNote.trim()) return;
+    setShowRejectionConfirm(true);
   };
 
   // Handle suspend partner
@@ -916,90 +965,220 @@ export default function PartnersSection({}: PartnersProps) {
       {/* Rejection Modal */}
       {rejectModalOpen && partnerToReject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full relative animate-fadeIn">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full relative animate-fadeIn max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 rounded-t-2xl">
+            <div className="sticky top-0 bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 rounded-t-2xl z-10">
               <button
                 className="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl font-bold transition-colors w-8 h-8 flex items-center justify-center"
                 onClick={() => {
                   setRejectModalOpen(false);
                   setPartnerToReject(null);
-                  setRejectionReason('');
+                  setSelectedRejectionReason('');
+                  setInternalRejectionNote('');
+                  setShowRejectionConfirm(false);
                 }}
               >
                 &times;
               </button>
-              <h2 className="text-2xl font-bold text-white">Reject Partner Application</h2>
+              <div className="flex items-center gap-3">
+                <XCircle className="w-8 h-8 text-white" />
+                <h2 className="text-2xl font-bold text-white">Reject Partner Application</h2>
+              </div>
             </div>
 
             {/* Content */}
             <div className="p-6">
-              {/* Partner Info */}
-              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
-                    <span className="text-white text-xl font-bold">
-                      {partnerToReject.name.charAt(0)}
-                    </span>
+              {!showRejectionConfirm ? (
+                <>
+                  {/* Partner Info */}
+                  <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
+                        <span className="text-white text-xl font-bold">
+                          {partnerToReject.name.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white">{partnerToReject.name}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{partnerToReject.email}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                      ⚠️ Select a rejection reason and add an internal note before confirming.
+                    </p>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">{partnerToReject.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{partnerToReject.email}</p>
+
+                  {/* Rejection Reason Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      Rejection Reason <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                      This reason will be sent to the partner via email.
+                    </p>
+                    <div className="space-y-2">
+                      {REJECTION_REASONS.map((reason) => (
+                        <label
+                          key={reason.id}
+                          className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            selectedRejectionReason === reason.title
+                              ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-700 bg-white dark:bg-gray-800'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="rejectionReason"
+                            value={reason.title}
+                            checked={selectedRejectionReason === reason.title}
+                            onChange={(e) => setSelectedRejectionReason(e.target.value)}
+                            className="mt-1 w-4 h-4 text-red-600 focus:ring-red-500"
+                          />
+                          <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white">
+                            {reason.title}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-red-700 dark:text-red-300 font-medium">
-                  ⚠️ This action will permanently reject this partner application and send them a rejection email.
-                </p>
-              </div>
 
-              {/* Rejection Reason */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Rejection Reason <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Please provide a clear reason for rejection. This will be included in the email sent to the partner and saved in admin notes."
-                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
-                  rows={5}
-                  autoFocus
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  {rejectionReason.length}/500 characters
-                </p>
-              </div>
+                  {/* Internal Note */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      Internal Note <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                      This note is for admin records only and will NOT be sent to the partner.
+                    </p>
+                    <textarea
+                      value={internalRejectionNote}
+                      onChange={(e) => setInternalRejectionNote(e.target.value)}
+                      placeholder="Add internal details about why this partner is being rejected (e.g., specific issues found, red flags, etc.)"
+                      className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none"
+                      rows={4}
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {internalRejectionNote.length}/500 characters
+                    </p>
+                  </div>
 
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
-                  onClick={() => {
-                    setRejectModalOpen(false);
-                    setPartnerToReject(null);
-                    setRejectionReason('');
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  onClick={confirmRejectPartner}
-                  disabled={!rejectionReason.trim() || actionLoading === partnerToReject.id}
-                >
-                  {actionLoading === partnerToReject.id ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      <span>Rejecting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-5 h-5" />
-                      <span>Reject Partner</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <button
+                      className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+                      onClick={() => {
+                        setRejectModalOpen(false);
+                        setPartnerToReject(null);
+                        setSelectedRejectionReason('');
+                        setInternalRejectionNote('');
+                        setShowRejectionConfirm(false);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      onClick={handleShowRejectionConfirm}
+                      disabled={!selectedRejectionReason || !internalRejectionNote.trim()}
+                    >
+                      <span>Continue to Confirmation</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Confirmation Step */}
+                  <div className="mb-6">
+                    <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
+                          <AlertTriangle className="w-8 h-8 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Confirm Rejection</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Please review the details before proceeding
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Partner Details */}
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Partner</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{partnerToReject.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{partnerToReject.email}</p>
+                      </div>
+
+                      {/* Selected Reason */}
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                          Rejection Reason (will be sent in email)
+                        </p>
+                        <p className="font-semibold text-red-600 dark:text-red-400">
+                          {selectedRejectionReason}
+                        </p>
+                      </div>
+
+                      {/* Internal Note */}
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                          Internal Note (admin only)
+                        </p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                          {internalRejectionNote}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4 flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                        <p className="font-semibold mb-1">Important:</p>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li>This action cannot be undone</li>
+                          <li>An automatic rejection email will be sent to the partner</li>
+                          <li>The partner will be removed from the pending list</li>
+                          <li>Internal notes will be saved in admin records</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Confirmation Actions */}
+                  <div className="flex gap-3">
+                    <button
+                      className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-2"
+                      onClick={() => setShowRejectionConfirm(false)}
+                      disabled={actionLoading === partnerToReject.id}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                      </svg>
+                      <span>Go Back</span>
+                    </button>
+                    <button
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      onClick={confirmRejectPartner}
+                      disabled={actionLoading === partnerToReject.id}
+                    >
+                      {actionLoading === partnerToReject.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Rejecting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-5 h-5" />
+                          <span>Confirm Rejection</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
