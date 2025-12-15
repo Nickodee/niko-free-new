@@ -314,6 +314,8 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                         <img 
                           src={getImageUrl(partnerData.logo)}
                           alt={partnerData.business_name}
+                          loading="lazy"
+                          decoding="async"
                           className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
                           onError={(e) => {
                             // Fallback to UI Avatars if image fails to load
@@ -343,6 +345,8 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                             <img 
                               src={getImageUrl(partnerData.logo)}
                               alt={partnerData.business_name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(partnerData?.business_name || 'Partner')}&background=27aae2&color=fff&size=128`;

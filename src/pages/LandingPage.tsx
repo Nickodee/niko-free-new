@@ -1013,6 +1013,8 @@ export default function LandingPage({
             <img
               src="https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=1920"
               alt="Events background"
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover"
             />
           </video>
@@ -1379,6 +1381,8 @@ export default function LandingPage({
                           <img
                             src={event.image}
                             alt={event.title}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 opacity-80 group-hover:opacity-100"
                           />
                           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/20"></div>
@@ -1457,6 +1461,8 @@ export default function LandingPage({
                                   src={`https://i.pravatar.cc/150?img=${
                                     (parseInt(event.id) * 3) % 70
                                   }`}
+                                  loading="lazy"
+                                  decoding="async"
                                   alt="Attendee"
                                   className="w-6 h-6 rounded-full border-2 border-white"
                                 />
@@ -1465,12 +1471,16 @@ export default function LandingPage({
                                     (parseInt(event.id) * 3 + 1) % 70
                                   }`}
                                   alt="Attendee"
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-6 h-6 rounded-full border-2 border-white"
                                 />
                                 <img
                                   src={`https://i.pravatar.cc/150?img=${
                                     (parseInt(event.id) * 3 + 2) % 70
                                   }`}
+                                  loading="lazy"
+                                  decoding="async"
                                   alt="Attendee"
                                   className="w-6 h-6 rounded-full border-2 border-white"
                                 />

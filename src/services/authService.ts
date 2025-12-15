@@ -209,6 +209,25 @@ export const resetPassword = async (token: string, newPassword: string): Promise
   return responseData;
 };
 
+// Reset partner password with token
+export const resetPartnerPassword = async (token: string, newPassword: string): Promise<{ message: string }> => {
+  const response = await fetch(API_ENDPOINTS.auth.partnerResetPassword, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token, password: newPassword }),
+  });
+
+  const responseData = await response.json();
+
+  if (!response.ok) {
+    throw new Error(responseData.error || 'Failed to reset password');
+  }
+
+  return responseData;
+};
+
 // Partner login
 interface PartnerLoginData {
   email: string;

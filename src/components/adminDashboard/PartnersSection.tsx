@@ -58,34 +58,12 @@ export default function PartnersSection({}: PartnersProps) {
   const [internalRejectionNote, setInternalRejectionNote] = React.useState('');
   const [showRejectionConfirm, setShowRejectionConfirm] = React.useState(false);
 
-  // Predefined rejection reasons with full descriptions (to be sent in email)
-  const REJECTION_REASONS = [
-    {
-      id: 1,
-      title: "Incomplete or Insufficient Information",
-      description: "The partner did not provide all required application details (e.g., missing contact info, business description, ID verification, tax or registration documents), making it impossible to assess their eligibility."
-    },
-    {
-      id: 2,
-      title: "Does Not Meet Eligibility Criteria",
-      description: "The applicant's profile or business category does not align with our platform's requirements (e.g., ineligible services, geographical restrictions, or lack of relevant industry experience)."
-    },
-    {
-      id: 3,
-      title: "Unable to Verify Identity or Credentials",
-      description: "We were unable to verify the applicant's identity, business legitimacy, or required certifications (e.g., inconsistent information, unverifiable documents, or lack of a professional online presence)."
-    },
-    {
-      id: 4,
-      title: "Policy or Compliance Conflicts",
-      description: "The applicant's practices, terms, or offerings conflict with our platform policies, legal standards, or community guidelines (e.g., non-compliance with data protection laws, prohibited services, or ethical concerns)."
-    },
-    {
-      id: 5,
-      title: "Incompatible Business Category",
-      description: "The partner's business does not fit into any of our supported categories or market segments, making integration with our platform impractical."
-    }
-  ];
+  // Rejection reasons - fetched from API
+  const [rejectionReasons, setRejectionReasons] = React.useState<Array<{
+    id: number;
+    title: string;
+    description: string;
+  }>>([]);
 
   // Categories
   const landingCategories = [
@@ -157,6 +135,26 @@ export default function PartnersSection({}: PartnersProps) {
     };
 
     fetchData();
+    
+    // Fetch rejection reasons
+    const fetchRejectionReasons = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.admin.rejectionReasons, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setRejectionReasons(data.reasons || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch rejection reasons:', error);
+      }
+    };
+    
+    fetchRejectionReasons();
   }, []);
 
   // Filter partners based on active tab, search, and category
@@ -264,8 +262,8 @@ export default function PartnersSection({}: PartnersProps) {
   const confirmRejectPartner = async () => {
     if (!partnerToReject || !selectedRejectionReason) return;
     
-    // Find the full reason object with description
-    const reasonObj = REJECTION_REASONS.find(r => r.title === selectedRejectionReason);
+    // Find the reason object by ID
+    const reasonObj = rejectionReasons.find(r => r.id === Number(selectedRejectionReason));
     if (!reasonObj) return;
     
     setActionLoading(partnerToReject.id);
@@ -278,8 +276,8 @@ export default function PartnersSection({}: PartnersProps) {
           ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
         },
         body: JSON.stringify({ 
-          reason: reasonObj.description, // Send full description in email
-          internalNote: internalRejectionNote.trim() || undefined // Optional admin note
+          rejection_reason_id: reasonObj.id,
+          internal_note: internalRejectionNote.trim() || undefined // Optional admin note
         }),
       });
 
@@ -817,6 +815,8 @@ export default function PartnersSection({}: PartnersProps) {
                       {partnerDetails.partner?.logo ? (
                         <img 
                           src={partnerDetails.partner.logo.startsWith('http') ? partnerDetails.partner.logo : `${API_BASE_URL}${partnerDetails.partner.logo}`}
+                          loading="lazy"
+                          decoding="async"
                           alt={partnerDetails.partner.business_name}
                           className="w-20 h-20 rounded-xl object-cover border-2 border-white dark:border-gray-600 shadow-lg"
                         />
@@ -887,6 +887,36 @@ export default function PartnersSection({}: PartnersProps) {
                           {partnerDetails.partner.description}
                         </p>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Rejection Reason Section - Only show if partner is rejected */}
+                  {partnerDetails.partner?.status === 'rejected' && partnerDetails.partner?.rejection_reason && (
+                    <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-6 border-2 border-red-200 dark:border-red-800 shadow-sm">
+                      <h4 className="font-bold text-lg text-red-900 dark:text-red-200 mb-4 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                        Rejection Reason
+                      </h4>
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-red-200 dark:border-red-700">
+                        <p className="text-sm font-semibold text-red-800 dark:text-red-300 mb-2">
+                          {partnerDetails.partner.rejection_reason}
+                        </p>
+                        {partnerDetails.partner.rejection_reason_id && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Reason ID: {partnerDetails.partner.rejection_reason_id}
+                          </p>
+                        )}
+                      </div>
+                      {partnerDetails.partner?.internal_rejection_note && (
+                        <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-700">
+                          <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
+                            Internal Note (Admin Only):
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                            {partnerDetails.partner.internal_rejection_note}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1063,28 +1093,37 @@ export default function PartnersSection({}: PartnersProps) {
                       This reason will be sent to the partner via email.
                     </p>
                     <div className="space-y-2">
-                      {REJECTION_REASONS.map((reason) => (
-                        <label
-                          key={reason.id}
-                          className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                            selectedRejectionReason === reason.title
-                              ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-700 bg-white dark:bg-gray-800'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="rejectionReason"
-                            value={reason.title}
-                            checked={selectedRejectionReason === reason.title}
-                            onChange={(e) => setSelectedRejectionReason(e.target.value)}
-                            className="mt-1 w-4 h-4 text-red-600 focus:ring-red-500"
-                          />
-                          <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white">
-                            {reason.title}
-                          </span>
-                        </label>
-                      ))}
+                      {rejectionReasons.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Loading rejection reasons...</p>
+                      ) : (
+                        rejectionReasons.map((reason) => (
+                          <label
+                            key={reason.id}
+                            className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                              selectedRejectionReason === String(reason.id)
+                                ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-700 bg-white dark:bg-gray-800'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="rejectionReason"
+                              value={reason.id}
+                              checked={selectedRejectionReason === String(reason.id)}
+                              onChange={(e) => setSelectedRejectionReason(e.target.value)}
+                              className="mt-1 w-4 h-4 text-red-600 focus:ring-red-500"
+                            />
+                            <div className="flex-1">
+                              <span className="text-sm font-medium text-gray-900 dark:text-white block mb-1">
+                                {reason.title}
+                              </span>
+                              <span className="text-xs text-gray-600 dark:text-gray-400">
+                                {reason.description}
+                              </span>
+                            </div>
+                          </label>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -1163,9 +1202,23 @@ export default function PartnersSection({}: PartnersProps) {
                         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
                           Rejection Reason (will be sent in email)
                         </p>
-                        <p className="font-semibold text-red-600 dark:text-red-400">
-                          {selectedRejectionReason}
-                        </p>
+                        {(() => {
+                          const reason = rejectionReasons.find(r => r.id === Number(selectedRejectionReason));
+                          return reason ? (
+                            <div>
+                              <p className="font-semibold text-red-600 dark:text-red-400 mb-2">
+                                {reason.title}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {reason.description}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="font-semibold text-red-600 dark:text-red-400">
+                              {selectedRejectionReason}
+                            </p>
+                          );
+                        })()}
                       </div>
 
                       {/* Internal Note */}

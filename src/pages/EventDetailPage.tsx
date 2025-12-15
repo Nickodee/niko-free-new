@@ -678,6 +678,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                   <img
                     src={eventImage}
                     alt={eventData.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute top-4 left-4 flex items-center gap-2">
@@ -816,6 +818,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                             <img
                               src={getImageUrl(eventData.partner.logo)}
                               alt={eventData.partner.business_name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
                               onError={(e) => {
                                 // Fallback to placeholder if image fails to load

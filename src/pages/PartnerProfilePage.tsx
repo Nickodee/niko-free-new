@@ -358,6 +358,8 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
                     <img
                       src={getImageUrl(partnerData.logo)}
                       alt={partnerData.business_name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(partnerData.business_name)}&background=27aae2&color=fff&size=256`;

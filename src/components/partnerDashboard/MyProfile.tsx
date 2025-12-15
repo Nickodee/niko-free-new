@@ -270,6 +270,8 @@ export default function MyProfile() {
               <img 
                 src={getImageUrl(logo)}
                 alt="Logo"
+                loading="lazy"
+                decoding="async"
                 className="w-24 h-24 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
                 onError={(e) => {
                   // If image fails to load, show placeholder

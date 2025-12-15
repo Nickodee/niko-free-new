@@ -15,6 +15,7 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ContactUs from './pages/ContactUs';
 import Feedback from './pages/Feedback';
+import ResetPassword from './pages/ResetPassword';
 import AdminRoute from './components/AdminRoute';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
@@ -205,6 +206,14 @@ function AppContent() {
         <Route 
           path="/feedback" 
           element={<Feedback onNavigate={navigateTo} />} 
+        />
+        <Route 
+          path="/reset-password" 
+          element={<ResetPassword onNavigate={navigateTo} />} 
+        />
+        <Route 
+          path="/partner/reset-password" 
+          element={<ResetPassword onNavigate={navigateTo} />} 
         />
       </Routes>
     </div>
