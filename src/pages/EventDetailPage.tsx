@@ -875,7 +875,11 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                         height="100%"
                         frameBorder="0"
                         style={{ border: 0 }}
-                        src={`https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.8159534114384!2d36.82035431475395!3d-1.2880051359988408!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d6d6f8f8f3%3A0x3f0e0e0e0e0e0e0e!2s${encodeURIComponent(location)}!5e0!3m2!1sen!2ske!4v1234567890123!5m2!1sen!2ske`}
+                        src={
+                          eventData.latitude && eventData.longitude
+                            ? `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1000!2d${eventData.longitude}!3d${eventData.latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s${encodeURIComponent(location)}!2s${encodeURIComponent(location)}!5e0!3m2!1sen!2ske!4v${Date.now()}!5m2!1sen!2ske`
+                            : `https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+                        }
                         allowFullScreen
                         loading="lazy"
                         referrerPolicy="no-referrer-when-downgrade"

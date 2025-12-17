@@ -180,58 +180,32 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
     return `${hour24.toString().padStart(2, '0')}:${minute}`;
   };
 
-  // Time state for dropdowns
-  const [startTimeState, setStartTimeState] = useState(() => parseTime(''));
-  const [endTimeState, setEndTimeState] = useState(() => parseTime(''));
-  const [isTimeStateSynced, setIsTimeStateSynced] = useState(false);
-
-  // Sync time state when formData times change (important for edit mode)
-  useEffect(() => {
-    if (formData.startTime && formData.startTime !== '00:00') {
-      const parsed = parseTime(formData.startTime);
-      // Only update if it's actually different to avoid loops
-      if (parsed.hour !== startTimeState.hour || 
-          parsed.minute !== startTimeState.minute || 
-          parsed.period !== startTimeState.period) {
-        setStartTimeState(parsed);
-        setIsTimeStateSynced(true);
-      }
-    }
-  }, [formData.startTime]);
-
-  useEffect(() => {
-    if (formData.endTime && formData.endTime !== '00:00') {
-      const parsed = parseTime(formData.endTime);
-      // Only update if it's actually different to avoid loops
-      if (parsed.hour !== endTimeState.hour || 
-          parsed.minute !== endTimeState.minute || 
-          parsed.period !== endTimeState.period) {
-        setEndTimeState(parsed);
-        setIsTimeStateSynced(true);
-      }
-    }
-  }, [formData.endTime]);
+  // Time state for dropdowns - initialize with default times
+  const [startTimeState, setStartTimeState] = useState(() => parseTime('09:00'));
+  const [endTimeState, setEndTimeState] = useState(() => parseTime('17:00'));
 
   // Update formData when time state changes (user interaction)
   useEffect(() => {
-    // Don't update during initial sync from loaded data
-    if (!isTimeStateSynced && formData.startTime) return;
-    
     const newStartTime = formatTimeTo24(startTimeState.hour, startTimeState.minute, startTimeState.period);
-    if (newStartTime !== formData.startTime) {
-      setFormData(prev => ({ ...prev, startTime: newStartTime }));
-    }
+    setFormData(prev => ({ ...prev, startTime: newStartTime }));
   }, [startTimeState.hour, startTimeState.minute, startTimeState.period]);
 
   useEffect(() => {
-    // Don't update during initial sync from loaded data
-    if (!isTimeStateSynced && formData.endTime) return;
-    
     const newEndTime = formatTimeTo24(endTimeState.hour, endTimeState.minute, endTimeState.period);
-    if (newEndTime !== formData.endTime) {
-      setFormData(prev => ({ ...prev, endTime: newEndTime }));
-    }
+    setFormData(prev => ({ ...prev, endTime: newEndTime }));
   }, [endTimeState.hour, endTimeState.minute, endTimeState.period]);
+
+  // Initialize time states when editing an event
+  useEffect(() => {
+    if (isEditMode && formData.startTime && formData.startTime !== '00:00') {
+      const parsedStart = parseTime(formData.startTime);
+      setStartTimeState(parsedStart);
+    }
+    if (isEditMode && formData.endTime && formData.endTime !== '00:00') {
+      const parsedEnd = parseTime(formData.endTime);
+      setEndTimeState(parsedEnd);
+    }
+  }, [isEditMode, formData.startTime, formData.endTime]);
 
   // Validate end time is after start time for one-day events
   const isEndTimeValid = (): boolean => {
@@ -244,7 +218,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
     return end > start;
   };
 
-  // Fetch categories on mount
+  // Fetch categories on mount and reset form when modal opens
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -266,6 +240,41 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
       // Clear location suggestions when modal closes
       setLocationSuggestions([]);
       setShowLocationSuggestions(false);
+      
+      // Reset form data when creating a new event (not editing)
+      if (!eventId) {
+        setFormData({
+          locationType: 'physical',
+          locationName: '',
+          coordinates: null,
+          onlineLink: '',
+          linkShareTime: '',
+          startDate: '',
+          startTime: '',
+          endDate: '',
+          endTime: '',
+          closedCategories: [],
+          openInterests: [],
+          eventName: '',
+          eventPhoto: null,
+          photoPreview: '',
+          description: '',
+          attendeeLimit: null,
+          isUnlimited: true,
+          isFree: true,
+          ticketTypes: [],
+          promoCodes: [],
+          hosts: []
+        });
+        // Reset time states
+        setStartTimeState(() => parseTime('09:00'));
+        setEndTimeState(() => parseTime('17:00'));
+        // Reset one-day event toggle
+        setIsOneDayEvent(true);
+        // Clear any errors
+        setError('');
+        setTimeslotErrors({});
+      }
     }
     
     // Cleanup timeout on unmount
@@ -274,7 +283,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         clearTimeout(locationSearchTimeout);
       }
     };
-  }, [isOpen, locationSearchTimeout]);
+  }, [isOpen, eventId, locationSearchTimeout]);
 
   // Load event data if editing
   useEffect(() => {
