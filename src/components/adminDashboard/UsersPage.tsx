@@ -10,6 +10,7 @@ export default function UsersPage() {
   const [userList, setUserList] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [currentSort, setCurrentSort] = React.useState<{ column: 'name' | 'date' | null, direction: 'asc' | 'desc' }>({ column: null, direction: 'asc' });
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -67,15 +68,64 @@ export default function UsersPage() {
     setUserList(prev => prev.filter(u => u.id !== id));
   };
 
-  // Filter users based on search query
-  const filteredUsers = userList.filter(user => {
-    const query = searchQuery.toLowerCase();
-    return (
-      user.name.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      user.phone.toLowerCase().includes(query)
-    );
-  });
+  const handleSort = (column: 'name' | 'date') => {
+    setCurrentSort(prev => {
+      if (prev.column === column) {
+        // If already sorting this column, toggle direction or reset to none
+        if (prev.direction === 'asc') {
+          return { column, direction: 'desc' };
+        } else {
+          return { column: null, direction: 'asc' };
+        }
+      } else {
+        // Start sorting this column ascending
+        return { column, direction: 'asc' };
+      }
+    });
+  };
+
+  const getSortIcon = (column: 'name' | 'date') => {
+    if (currentSort.column !== column) return '↕️';
+    return currentSort.direction === 'asc' ? '↑' : '↓';
+  };
+
+  // Filter and sort users
+  const filteredUsers = React.useMemo(() => {
+    let filtered = userList.filter(user => {
+      const query = searchQuery.toLowerCase();
+      return (
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query) ||
+        user.phone.toLowerCase().includes(query)
+      );
+    });
+
+    // Sort users
+    if (currentSort.column) {
+      filtered = [...filtered].sort((a, b) => {
+        if (currentSort.column === 'name') {
+          const nameA = a.name.toLowerCase();
+          const nameB = b.name.toLowerCase();
+          if (currentSort.direction === 'asc') {
+            return nameA.localeCompare(nameB);
+          } else {
+            return nameB.localeCompare(nameA);
+          }
+        } else if (currentSort.column === 'date') {
+          const dateA = new Date(a.created_at || 0);
+          const dateB = new Date(b.created_at || 0);
+          if (currentSort.direction === 'asc') {
+            return dateA.getTime() - dateB.getTime();
+          } else {
+            return dateB.getTime() - dateA.getTime();
+          }
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [userList, searchQuery, currentSort]);
 
   // Show user detail page if a user is selected
   if (viewUser) {
@@ -84,27 +134,30 @@ export default function UsersPage() {
 
   return (
     <div className="w-full mx-auto px-2 sm:px-4 lg:px-0">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <User className="w-6 h-6 text-[#27aae2]" />
-            All Users
-          </h2>
-          <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-blue-700 dark:text-blue-300 rounded-full text-sm font-semibold border border-blue-300 dark:border-blue-700">
-            {userList.length}
-          </span>
-        </div>
-        
-        {/* Search Bar */}
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name, email, or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#27aae2] focus:border-transparent"
-          />
+      <div className="flex flex-col gap-4 mb-4 sm:mb-6">
+        {/* Header with title and count */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <User className="w-6 h-6 text-[#27aae2]" />
+              All Users
+            </h2>
+            <span className="px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-blue-700 dark:text-blue-300 rounded-full text-sm font-semibold border border-blue-300 dark:border-blue-700">
+              {filteredUsers.length} of {userList.length}
+            </span>
+          </div>
+          
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, email, or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#27aae2] focus:border-transparent"
+            />
+          </div>
         </div>
       </div>
       
@@ -183,9 +236,19 @@ export default function UsersPage() {
           <thead>
             <tr className="bg-gray-100 dark:bg-gray-700">
               <th className="py-2 sm:py-3 px-2 sm:px-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Select</th>
-              <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">User</th>
+              <th 
+                className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                onClick={() => handleSort('name')}
+              >
+                User {getSortIcon('name')}
+              </th>
               <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Phone</th>
-              <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Joined</th>
+              <th 
+                className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                onClick={() => handleSort('date')}
+              >
+                Joined {getSortIcon('date')}
+              </th>
               <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Status</th>
               <th className="py-2 sm:py-3 px-2 sm:px-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Actions</th>
             </tr>
