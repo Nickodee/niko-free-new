@@ -482,15 +482,15 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
         {/* Password Change Warning Modal */}
         {showPasswordWarning && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border-4 border-red-500">
-              {/* Header with red gradient */}
-              <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex items-center space-x-3">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border-4" style={{ borderColor: '#27aae2' }}>
+              {/* Header with blue gradient */}
+              <div className="px-6 py-4 flex items-center space-x-3" style={{ background: 'linear-gradient(to right, #27aae2, #1a8ec4)' }}>
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
                   <AlertTriangle className="w-7 h-7 text-white" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-white">Security Alert</h2>
-                  <p className="text-sm text-red-100">Action Required</p>
+                  <p className="text-sm text-blue-100">Action Required</p>
                 </div>
               </div>
 
@@ -503,8 +503,8 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
                     For your security, please update your default password immediately. This is required for all new partner accounts.
                   </p>
-                  <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded">
-                    <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                  <div className="border-l-4 p-4 rounded" style={{ backgroundColor: '#e6f7ff', borderColor: '#27aae2' }}>
+                    <p className="text-sm font-medium" style={{ color: '#1a8ec4' }}>
                       ⚠️ Your account is using a default password. Please change it to secure your account.
                     </p>
                   </div>
@@ -520,7 +520,10 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                       setShowPasswordWarning(false);
                       setActiveTab('settings');
                     }}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                    className="flex-1 px-6 py-3 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                    style={{ background: 'linear-gradient(to right, #27aae2, #1a8ec4)' }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
                     <SettingsIcon className="w-5 h-5" />
                     <span>Update Password Now</span>
