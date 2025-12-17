@@ -762,10 +762,28 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
                               <p className="text-sm font-medium text-gray-900 dark:text-white">Date & Time</p>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
                                 {formatDate(selectedEventForDetails.start_date)}
+                                {selectedEventForDetails.start_date && (
+                                  <span className="block text-xs mt-1">
+                                    {new Date(selectedEventForDetails.start_date).toLocaleTimeString('en-US', {
+                                      hour: 'numeric',
+                                      minute: '2-digit',
+                                      hour12: true
+                                    })}
+                                  </span>
+                                )}
                               </p>
                               {selectedEventForDetails.end_date && (
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                   to {formatDate(selectedEventForDetails.end_date)}
+                                  {selectedEventForDetails.end_date && (
+                                    <span className="block text-xs mt-1">
+                                      {new Date(selectedEventForDetails.end_date).toLocaleTimeString('en-US', {
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                        hour12: true
+                                      })}
+                                    </span>
+                                  )}
                                 </p>
                               )}
                             </div>
@@ -794,6 +812,25 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                   {selectedEventForDetails.category.name || selectedEventForDetails.category}
                                 </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedEventForDetails.interests && selectedEventForDetails.interests.length > 0 && (
+                            <div className="flex items-start space-x-3">
+                              <Tag className="w-5 h-5 text-[#27aae2] mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">Interests/Tags</p>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {selectedEventForDetails.interests.map((interest: string, idx: number) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#27aae2]/10 text-[#27aae2] border border-[#27aae2]/20"
+                                    >
+                                      {interest}
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )}
