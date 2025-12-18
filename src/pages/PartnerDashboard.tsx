@@ -443,9 +443,9 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
             // Refresh dashboard data after withdrawal
             const refreshData = async () => {
               try {
-                const refreshedDashboardData = await getPartnerDashboard();
-                if (refreshedDashboardData?.stats?.pending_earnings !== undefined) {
-                  setPendingEarnings(refreshedDashboardData.stats.pending_earnings);
+                const dashboardData = await getPartnerDashboard();
+                if (dashboardData?.stats?.pending_earnings !== undefined) {
+                  setPendingEarnings(dashboardData.stats.pending_earnings);
                 }
               } catch (err) {
                 console.error('Error refreshing dashboard:', err);
