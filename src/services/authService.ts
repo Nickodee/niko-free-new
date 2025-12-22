@@ -264,6 +264,13 @@ export const partnerLogin = async (data: PartnerLoginData): Promise<PartnerAuthR
   if (responseData.access_token) {
     localStorage.setItem('niko_free_partner_token', responseData.access_token);
     localStorage.setItem('niko_free_partner', JSON.stringify(responseData.partner));
+    
+    // Store staff information if user is staff
+    if (responseData.is_staff && responseData.staff) {
+      localStorage.setItem('niko_free_staff', JSON.stringify(responseData.staff));
+    } else {
+      localStorage.removeItem('niko_free_staff');
+    }
   }
 
   return responseData;

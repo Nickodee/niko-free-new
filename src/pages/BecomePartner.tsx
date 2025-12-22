@@ -336,7 +336,7 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
 
     setIsGeneratingAbout(true);
     try {
-      // Use Gemini API service
+      // Use OpenAI API service (via geminiService which now uses OpenAI for partner descriptions)
       const geminiService = await import('../services/geminiService');
       const { generatePartnerDescription } = geminiService;
       

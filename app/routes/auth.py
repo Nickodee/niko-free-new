@@ -272,37 +272,86 @@ def partner_register():
 @bp.route('/partner/login', methods=['POST'])
 @limiter.limit("10 per hour")
 def partner_login():
-    """Partner login"""
+    """Partner or Staff login"""
+    from flask import current_app
+    from app.models.partner import PartnerStaff
+    
     data = request.get_json()
     
     if not data.get('email') or not data.get('password'):
         return jsonify({'error': 'Email and password are required'}), 400
     
     email = data['email'].lower().strip()
+    password = data['password']
     
-    # Find partner
+    # First try to find partner
     partner = Partner.query.filter_by(email=email).first()
     
-    if not partner or not partner.check_password(data['password']):
-        return jsonify({'error': 'Invalid email or password'}), 401
+    if partner and partner.check_password(password):
+        # Partner login
+        if not partner.is_active:
+            return jsonify({'error': 'Account is suspended'}), 403
+        
+        partner.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        access_token = create_access_token(identity=partner.id)
+        refresh_token = create_refresh_token(identity=partner.id)
+        
+        current_app.logger.info(f'Partner login successful for {email}')
+        
+        return jsonify({
+            'message': 'Login successful',
+            'partner': partner.to_dict(include_sensitive=True),
+            'is_staff': False,
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }), 200
     
-    if not partner.is_active:
-        return jsonify({'error': 'Account is suspended'}), 403
+    # Check if it's a staff member
+    user = User.query.filter_by(email=email).first()
     
-    # Update last login
-    partner.last_login = datetime.utcnow()
-    db.session.commit()
+    if user:
+        # Check password
+        password_valid = user.check_password(password)
+        current_app.logger.info(f'Staff login attempt for {email}: user_exists=True, password_valid={password_valid}')
+        
+        if password_valid:
+            staff = PartnerStaff.query.filter_by(user_id=user.id, is_active=True).first()
+            
+            if staff:
+                # Staff login
+                if not user.is_active:
+                    return jsonify({'error': 'Account is suspended'}), 403
+                
+                # Update last_login
+                staff.last_login = datetime.utcnow()
+                user.last_login = datetime.utcnow()
+                db.session.commit()
+                
+                # Use staff ID with prefix to differentiate from partner
+                staff_identity = f"staff_{staff.id}"
+                access_token = create_access_token(identity=staff_identity)
+                refresh_token = create_refresh_token(identity=staff_identity)
+                
+                current_app.logger.info(f'Staff login successful for {email} (staff_id={staff.id}, partner_id={staff.partner_id})')
+                
+                return jsonify({
+                    'message': 'Login successful',
+                    'partner': staff.partner.to_dict(include_sensitive=True),
+                    'staff': staff.to_dict(),
+                    'is_staff': True,
+                    'access_token': access_token,
+                    'refresh_token': refresh_token
+                }), 200
+            else:
+                current_app.logger.warning(f'Staff login failed for {email}: User exists but no active PartnerStaff record found')
+        else:
+            current_app.logger.warning(f'Staff login failed for {email}: Invalid password')
+    else:
+        current_app.logger.warning(f'Partner/Staff login failed: No user or partner found for email {email}')
     
-    # Generate tokens
-    access_token = create_access_token(identity=partner.id)
-    refresh_token = create_refresh_token(identity=partner.id)
-    
-    return jsonify({
-        'message': 'Login successful',
-        'partner': partner.to_dict(include_sensitive=True),
-        'access_token': access_token,
-        'refresh_token': refresh_token
-    }), 200
+    return jsonify({'error': 'Invalid email or password'}), 401
 
 
 # ============ TOKEN REFRESH ============

@@ -680,6 +680,7 @@ export const addTeamMember = async (
     name: string;
     email: string;
     phone?: string;
+    password?: string;
     role?: string;
     permissions?: string[];
   }

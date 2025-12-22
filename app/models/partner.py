@@ -98,3 +98,55 @@ class Partner(db.Model):
     def __repr__(self):
         return f'<Partner {self.business_name}>'
 
+
+class PartnerStaff(db.Model):
+    """Staff/Team member model for partners"""
+    __tablename__ = 'partner_staff'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Partner relationship
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False)
+    
+    # Staff account (linked to User model for login)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    
+    # Staff Information
+    name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    phone = db.Column(db.String(20), nullable=True)
+    
+    # Role and Permissions
+    role = db.Column(db.String(50), default='Staff')  # Manager, Staff
+    permissions = db.Column(db.JSON, default=list)  # List of permission strings
+    
+    # Status
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Timestamps
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    partner = db.relationship('Partner', backref='staff_members')
+    user = db.relationship('User', backref='staff_roles')
+    
+    def to_dict(self):
+        """Convert staff to dictionary"""
+        return {
+            'id': self.id,
+            'partner_id': self.partner_id,
+            'user_id': self.user_id,
+            'name': self.name,
+            'email': self.email,
+            'phone': self.phone,
+            'role': self.role,
+            'permissions': self.permissions or [],
+            'is_active': self.is_active,
+            'added_at': self.added_at.isoformat() if self.added_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None
+        }
+    
+    def __repr__(self):
+        return f'<PartnerStaff {self.name} - {self.partner.business_name}>'
+

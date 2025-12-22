@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from sqlalchemy import func
 from app import db
-from app.models.partner import Partner
+from app.models.partner import Partner, PartnerStaff
 from app.models.event import Event, EventHost, EventInterest, EventPromotion
 from app.models.ticket import TicketType, PromoCode, Booking
 from app.models.payment import PartnerPayout
@@ -672,4 +672,192 @@ def request_payout(current_partner):
         'message': 'Payout request submitted successfully',
         'payout': payout.to_dict()
     }), 201
+
+
+# ============ TEAM MANAGEMENT ============
+
+@bp.route('/team', methods=['GET'])
+@partner_required
+def get_team_members(current_partner):
+    """Get all team members for partner"""
+    staff_members = PartnerStaff.query.filter_by(
+        partner_id=current_partner.id
+    ).order_by(PartnerStaff.added_at.desc()).all()
+    
+    return jsonify({
+        'members': [staff.to_dict() for staff in staff_members]
+    }), 200
+
+
+@bp.route('/team', methods=['POST'])
+@partner_required
+def add_team_member(current_partner):
+    """Add new team member - creates User account and sends email with credentials"""
+    import secrets
+    import string
+    from app.utils.email import send_staff_credentials_email
+    
+    data = request.get_json()
+    
+    # Validate required fields
+    if not data.get('name') or not data.get('email'):
+        return jsonify({'error': 'Name and email are required'}), 400
+    
+    name = data['name'].strip()
+    email = data['email'].lower().strip()
+    phone = data.get('phone', '').strip() or None
+    role = data.get('role', 'Staff')
+    permissions = data.get('permissions', [])
+    provided_password = data.get('password', '').strip() or None
+    
+    # Validate email
+    from app.utils.validators import validate_email
+    if not validate_email(email):
+        return jsonify({'error': 'Invalid email address'}), 400
+    
+    # Check if email already exists
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'Email already registered'}), 409
+    
+    # Check if staff already exists for this partner
+    existing_staff = PartnerStaff.query.join(User).filter(
+        User.email == email,
+        PartnerStaff.partner_id == current_partner.id
+    ).first()
+    if existing_staff:
+        return jsonify({'error': 'Staff member already exists'}), 409
+    
+    # Use provided password or generate random password
+    if provided_password:
+        password = provided_password
+    else:
+        password_length = 12
+        alphabet = string.ascii_letters + string.digits + string.punctuation
+        password = ''.join(secrets.choice(alphabet) for i in range(password_length))
+    
+    # Create User account
+    user = User(
+        email=email,
+        first_name=name.split()[0] if name.split() else name,
+        last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
+        phone_number=phone,
+        password_hash=None,  # Will be set below
+        oauth_provider='email',
+        is_active=True
+    )
+    user.set_password(password)
+    
+    db.session.add(user)
+    db.session.flush()  # Get user ID
+    
+    # Create PartnerStaff record
+    staff = PartnerStaff(
+        partner_id=current_partner.id,
+        user_id=user.id,
+        name=name,
+        email=email,
+        phone=phone,
+        role=role,
+        permissions=permissions,
+        is_active=True
+    )
+    
+    db.session.add(staff)
+    db.session.commit()
+    
+    # Send email with credentials immediately
+    import sys
+    email_sent = False
+    email_error = None
+    
+    sys.stderr.write("\n" + "=" * 80 + "\n")
+    sys.stderr.write(f"📧 [TEAM MEMBER] CREATING STAFF\n")
+    sys.stderr.write(f"   Name: {name}\n")
+    sys.stderr.write(f"   Email: {email}\n")
+    sys.stderr.write(f"   Role: {role}\n")
+    sys.stderr.write(f"   Partner: {current_partner.business_name}\n")
+    sys.stderr.write(f"   Password: {password}\n")
+    sys.stderr.write("=" * 80 + "\n")
+    sys.stderr.flush()
+    
+    current_app.logger.info(f"📧 [TEAM MEMBER] Creating staff member: {name} ({email})")
+    current_app.logger.info(f"📧 [TEAM MEMBER] Role: {role}, Partner: {current_partner.business_name}")
+    
+    # Check email configuration
+    mail_server = current_app.config.get('MAIL_SERVER')
+    mail_username = current_app.config.get('MAIL_USERNAME')
+    mail_password_set = bool(current_app.config.get('MAIL_PASSWORD'))
+    
+    sys.stderr.write(f"📧 [EMAIL CONFIG] MAIL_SERVER: {mail_server}\n")
+    sys.stderr.write(f"📧 [EMAIL CONFIG] MAIL_USERNAME: {mail_username}\n")
+    sys.stderr.write(f"📧 [EMAIL CONFIG] MAIL_PASSWORD: {'SET' if mail_password_set else 'NOT SET'}\n")
+    sys.stderr.flush()
+    
+    current_app.logger.info(f"📧 [EMAIL CONFIG] MAIL_SERVER: {mail_server}, MAIL_USERNAME: {mail_username}")
+    
+    try:
+        sys.stderr.write(f"📧 [TEAM MEMBER] Importing send_staff_credentials_email...\n")
+        sys.stderr.flush()
+        from app.utils.email import send_staff_credentials_email
+        sys.stderr.write(f"📧 [TEAM MEMBER] Import successful!\n")
+        sys.stderr.write(f"📧 [TEAM MEMBER] Calling send_staff_credentials_email...\n")
+        sys.stderr.write(f"   To: {user.email}\n")
+        sys.stderr.write(f"   Staff: {user.first_name} {user.last_name}\n")
+        sys.stderr.flush()
+        
+        current_app.logger.info(f"📧 [TEAM MEMBER] Sending credentials email to {user.email}...")
+        send_staff_credentials_email(user, password, current_partner, role)
+        
+        email_sent = True
+        sys.stderr.write(f"✅ [TEAM MEMBER] Email sent successfully to {user.email}!\n")
+        sys.stderr.write("=" * 80 + "\n\n")
+        sys.stderr.flush()
+        current_app.logger.info(f"✅ [TEAM MEMBER] Staff credentials email sent successfully to {user.email}")
+    except Exception as e:
+        email_error = str(e)
+        sys.stderr.write(f"❌ [TEAM MEMBER] ERROR sending email: {email_error}\n")
+        sys.stderr.write(f"❌ [TEAM MEMBER] Exception type: {type(e).__name__}\n")
+        import traceback
+        sys.stderr.write(traceback.format_exc())
+        sys.stderr.write("=" * 80 + "\n\n")
+        sys.stderr.flush()
+        current_app.logger.error(f"❌ [TEAM MEMBER] Failed to send email: {email_error}")
+        current_app.logger.exception("Full traceback:")
+        # Don't fail the request if email fails
+    
+    response_data = {
+        'message': 'Team member added successfully',
+        'member': staff.to_dict(),
+        'password': password,  # Only returned once for display
+        'email_sent': email_sent
+    }
+    
+    if email_error:
+        response_data['email_error'] = email_error
+    
+    return jsonify(response_data), 201
+
+
+@bp.route('/team/<int:member_id>', methods=['DELETE'])
+@partner_required
+def remove_team_member(current_partner, member_id):
+    """Remove team member"""
+    staff = PartnerStaff.query.filter_by(
+        id=member_id,
+        partner_id=current_partner.id
+    ).first()
+    
+    if not staff:
+        return jsonify({'error': 'Team member not found'}), 404
+    
+    # Delete the user account (cascade will handle staff record)
+    user = User.query.get(staff.user_id)
+    if user:
+        db.session.delete(user)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Team member removed successfully'
+    }), 200
 

@@ -39,6 +39,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
   const [availableBalance, setAvailableBalance] = useState(0);
   const [showPasswordWarning, setShowPasswordWarning] = useState(false);
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [isStaff, setIsStaff] = useState(false);
   const navigate = useNavigate();
 
   // Check authentication on mount
@@ -49,6 +50,19 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
       return;
     }
     setIsAuthorized(true);
+    
+    // Check if user is staff
+    const staffData = localStorage.getItem('niko_free_staff');
+    if (staffData) {
+      try {
+        const staff = JSON.parse(staffData);
+        setIsStaff(true);
+        // Set default tab to events for staff
+        setActiveTab('events');
+      } catch (e) {
+        console.error('Error parsing staff data:', e);
+      }
+    }
     
     const fetchPartnerData = async () => {
       try {
@@ -72,11 +86,16 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
         if (response) {
           const partner = response.partner || response;
           
+          // Check if user is staff
+          const staffData = localStorage.getItem('niko_free_staff');
+          const isStaff = !!staffData;
+          
           // Ensure logo is included - don't filter out valid logos
           const updatedPartnerData = {
             ...partner,
             // Keep the logo field even if it exists, don't filter base64 here
-            logo: partner.logo || cachedPartner?.logo || null
+            logo: partner.logo || cachedPartner?.logo || null,
+            is_staff: isStaff || response.is_staff || false
           };
           
           setPartnerData(updatedPartnerData);
@@ -108,7 +127,8 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
     fetchPartnerData();
   }, [navigate]);
 
-  const menuItems = [
+  // Menu items - different for staff vs partner
+  const allMenuItems = [
     { id: 'overview', label: 'Home', icon: Home },
     { id: 'events', label: 'Events', icon: Calendar },
     { id: 'attendees', label: 'Attendees', icon: Users },
@@ -119,6 +139,11 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
     { id: 'scanner', label: 'Scan Tickets', icon: QrCode },
     { id: 'verification', label: 'Partner Verification', icon: Award }
   ];
+
+  // Staff only sees events and scanner
+  const menuItems = isStaff 
+    ? allMenuItems.filter(item => item.id === 'events' || item.id === 'scanner')
+    : allMenuItems;
 
   // Close account menu when clicking outside
   useEffect(() => {
@@ -311,14 +336,23 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                           <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                         </div>
                       )}
-                      <div className="hidden lg:block text-left">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {partnerData?.business_name || 'Partner Account'}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {partnerData?.email || 'Loading...'}
-                        </p>
-                      </div>
+                      {!partnerData?.is_staff && (
+                        <div className="hidden lg:block text-left">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {partnerData?.business_name || 'Partner Account'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {partnerData?.email || 'Loading...'}
+                          </p>
+                        </div>
+                      )}
+                      {partnerData?.is_staff && (
+                        <div className="hidden lg:block text-left">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Staff Account
+                          </p>
+                        </div>
+                      )}
                     </button>
 
                     {/* Dropdown Menu */}

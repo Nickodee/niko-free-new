@@ -1,4 +1,4 @@
-import { UserPlus, Users, Shield, Trash2, Mail, Phone, X } from 'lucide-react';
+import { UserPlus, Users, Shield, Trash2, Mail, Phone, X, Key, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTeamMembers, addTeamMember, removeTeamMember } from '../../services/partnerService';
 
@@ -22,22 +22,37 @@ export default function AssignRoles() {
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
-  const [inviteRole, setInviteRole] = useState<'Manager' | 'Staff'>('Manager');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [inviteRole, setInviteRole] = useState<'Staff'>('Staff');
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  
+  // Generate random password
+  const generatePassword = () => {
+    const length = 12;
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    setInvitePassword(password);
+  };
 
   useEffect(() => {
     const fetchTeam = async () => {
       try {
         setIsLoading(true);
         setError('');
-        const members = await getTeamMembers();
+        const response = await getTeamMembers();
+        // Handle both array response and object with members property
+        const members = Array.isArray(response) ? response : (response.members || response.team || []);
         setUsers(
           members.map((m: any) => ({
             id: m.id,
             name: m.name,
             email: m.email,
             phone: m.phone,
-            role: m.role || 'Manager',
+            role: m.role || 'Staff',
             permissions: m.permissions || [],
             added_at: m.added_at,
           }))
@@ -57,7 +72,9 @@ export default function AssignRoles() {
     setInviteName('');
     setInviteEmail('');
     setInvitePhone('');
-    setInviteRole('Manager');
+    setInvitePassword('');
+    setShowPassword(false);
+    setInviteRole('Staff');
     setIsInviteOpen(true);
   };
 
@@ -68,15 +85,13 @@ export default function AssignRoles() {
     try {
       setInviteSubmitting(true);
       const role = inviteRole;
-      const defaultPermissions =
-        role.toLowerCase() === 'manager'
-          ? ['Edit Events', 'Manage Tickets', 'View Analytics']
-          : ['View Events', 'Scan Tickets'];
+      const defaultPermissions = ['View Events', 'Scan Tickets'];
 
       const created = await addTeamMember({
         name: inviteName.trim(),
         email: inviteEmail.trim(),
         phone: invitePhone.trim() || undefined,
+        password: invitePassword.trim() || undefined, // Optional - backend will generate if not provided
         role,
         permissions: defaultPermissions,
       });
@@ -182,9 +197,9 @@ export default function AssignRoles() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {user.permissions.map((permission, index) => (
+                    {user.permissions.map((permission) => (
                       <span
-                        key={index}
+                        key={`${user.id}-${permission}`}
                         className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded"
                       >
                         {permission}
@@ -276,34 +291,48 @@ export default function AssignRoles() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Role
+                  Password (optional - will be auto-generated if not provided)
                 </label>
                 <div className="flex space-x-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="w-full px-3 py-2 pr-20 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                      value={invitePassword}
+                      onChange={e => setInvitePassword(e.target.value)}
+                      placeholder="Leave empty to auto-generate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setInviteRole('Manager')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
-                      inviteRole === 'Manager'
-                        ? 'bg-[#27aae2] text-white border-[#27aae2]'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700'
-                    }`}
+                    onClick={generatePassword}
+                    className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center space-x-1"
+                    title="Generate random password"
                   >
-                    Manager
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInviteRole('Staff')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
-                      inviteRole === 'Staff'
-                        ? 'bg-[#27aae2] text-white border-[#27aae2]'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700'
-                    }`}
-                  >
-                    Staff
+                    <RefreshCw className="w-4 h-4" />
+                    <span className="text-xs">Generate</span>
                   </button>
                 </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Leave empty to auto-generate a secure password, or create your own.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Role
+                </label>
+                <div className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium border border-gray-300 dark:border-gray-700">
+                  Staff
+                </div>
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Managers can edit events, manage tickets and view analytics. Staff can view events and scan tickets.
+                  Staff can view events and scan tickets.
                 </p>
               </div>
               <div className="flex justify-end space-x-3 pt-2">

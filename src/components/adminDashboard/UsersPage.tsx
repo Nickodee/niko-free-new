@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, Search, Ban, XCircle, CheckCircle, AlertCircle, Loader, X } from 'lucide-react';
+import { User, Search, Ban, XCircle, CheckCircle, AlertCircle, Loader, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { API_BASE_URL, getImageUrl, API_ENDPOINTS } from '../../config/api';
 import { getToken } from '../../services/authService';
 import UserDetailPage from './UserDetailPage';
@@ -18,6 +18,8 @@ export default function UsersPage() {
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'recent' | 'inactive' | 'dormant'>('all');
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Helper function to map user data with activity status
   const mapUserWithActivityStatus = (u: any) => {
@@ -273,8 +275,32 @@ export default function UsersPage() {
     }
   };
 
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle sort order if clicking the same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort field and default to ascending
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Get sort icon for a field
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return null; // No icon if not sorting by this field
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3 h-3 inline-block ml-1" />
+    ) : (
+      <ArrowDown className="w-3 h-3 inline-block ml-1" />
+    );
+  };
+
   // Filter users based on search query and status filter
-  const filteredUsers = userList.filter(user => {
+  let filteredUsers = userList.filter(user => {
     // Search filter
     const query = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery || (
@@ -288,6 +314,39 @@ export default function UsersPage() {
 
     return matchesSearch && matchesStatus;
   });
+
+  // Apply sorting
+  if (sortField) {
+    filteredUsers = [...filteredUsers].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'email':
+          aValue = a.email.toLowerCase();
+          bValue = b.email.toLowerCase();
+          break;
+        case 'joined':
+          aValue = a.created_at ? new Date(a.created_at).getTime() : 0;
+          bValue = b.created_at ? new Date(b.created_at).getTime() : 0;
+          break;
+        case 'lastActive':
+          aValue = a.lastActiveDate ? a.lastActiveDate.getTime() : 0;
+          bValue = b.lastActiveDate ? b.lastActiveDate.getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
 
   // Count users by activity status
   const statusCounts = {

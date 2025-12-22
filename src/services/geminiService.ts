@@ -95,7 +95,7 @@ Return only the description text without any additional formatting or explanatio
 };
 
 /**
- * Generate partner business description using Gemini API
+ * Generate partner business description using OpenAI API
  */
 export const generatePartnerDescription = async (
   params: GeneratePartnerDescriptionParams
@@ -116,23 +116,30 @@ Generate a compelling business description (100-200 words) that:
 
 Return only the description text without any additional formatting or explanations.`;
 
-    // Use v1beta with gemini-2.0-flash model and API key in header
-    const response = await fetch(GEMINI_API_URL, {
+    // Use OpenAI API
+    // Get API key from environment variable
+    const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY in your environment variables.');
+    }
+    const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+
+    const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-goog-api-key': GEMINI_API_KEY,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        contents: [
+        model: 'gpt-3.5-turbo',
+        messages: [
           {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
+            role: 'user',
+            content: prompt,
           },
         ],
+        temperature: 0.7,
+        max_tokens: 300,
       }),
     });
 
@@ -144,17 +151,17 @@ Return only the description text without any additional formatting or explanatio
       } catch {
         // If response is not JSON, use statusText
       }
-      throw new Error(`Gemini API error: ${errorMessage}`);
+      throw new Error(`OpenAI API error: ${errorMessage}`);
     }
 
     const data = await response.json();
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const generatedText = data.candidates[0].content.parts[0].text;
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const generatedText = data.choices[0].message.content;
       return generatedText.trim();
     }
 
-    throw new Error('No content generated from Gemini API');
+    throw new Error('No content generated from OpenAI API');
   } catch (error) {
     console.error('Error generating partner description:', error);
     throw error;
