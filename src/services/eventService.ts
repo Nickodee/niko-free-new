@@ -26,6 +26,7 @@ export const getEvents = async (params?: {
   category?: string;
   location?: string;
   search?: string;
+  date?: string;
   is_free?: boolean;
   featured?: boolean;
   this_weekend?: boolean;
@@ -37,6 +38,7 @@ export const getEvents = async (params?: {
   if (params?.category) queryParams.append('category', params.category);
   if (params?.location) queryParams.append('location', params.location);
   if (params?.search) queryParams.append('search', params.search);
+  if (params?.date) queryParams.append('date', params.date);
   if (params?.is_free !== undefined) queryParams.append('is_free', params.is_free.toString());
   if (params?.featured) queryParams.append('featured', 'true');
   if (params?.this_weekend) queryParams.append('this_weekend', 'true');

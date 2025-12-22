@@ -116,7 +116,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'roles', label: 'Assign Roles', icon: UserPlus },
-    // { id: 'scanner', label: 'Scan Tickets', icon: QrCode },
+    { id: 'scanner', label: 'Scan Tickets', icon: QrCode },
     { id: 'verification', label: 'Partner Verification', icon: Award }
   ];
 
@@ -181,7 +181,14 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
             {/* Sidebar Header */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Partner Portal</h2>
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src="/src/images/TRANSPARENT 3.png" 
+                    alt="Niko Free Logo" 
+                    className="w-10 h-10 object-contain"
+                  />
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Partner Portal</h2>
+                </div>
                 <button
                   onClick={() => setSidebarOpen(false)}
                   className="lg:hidden text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"

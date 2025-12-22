@@ -71,9 +71,68 @@
       }
     }
     </script>
+    <style>
+      /* Initial loading spinner styles */
+      #initial-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom, #f9fafb, #ffffff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        #initial-loader {
+          background: linear-gradient(to bottom, #111827, #1f2937);
+        }
+      }
+      
+      .loader-content {
+        text-align: center;
+      }
+      
+      .spinner {
+        width: 64px;
+        height: 64px;
+        border: 4px solid rgba(39, 170, 226, 0.1);
+        border-top-color: #27aae2;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .loader-text {
+        color: #6b7280;
+        font-size: 18px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        .loader-text {
+          color: #9ca3af;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Initial loading spinner -->
+      <div id="initial-loader">
+        <div class="loader-content">
+          <div class="spinner"></div>
+          <p class="loader-text">Loading events...</p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

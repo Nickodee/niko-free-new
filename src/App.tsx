@@ -10,6 +10,7 @@ import BecomePartner from './pages/BecomePartner';
 import AboutUs from './pages/AboutUs';
 import ThisWeekend from './pages/ThisWeekend';
 import CalendarPage from './pages/CalendarPage';
+import AllEventsPage from './pages/AllEventsPage';
 import DownloadTicket from './pages/DownloadTicket';
 import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -183,6 +184,15 @@ function AppContent() {
           path="/calendar" 
           element={
             <CalendarPage 
+              onNavigate={navigateTo} 
+              onEventClick={navigateToEventDetail} 
+            />
+          } 
+        />
+        <Route 
+          path="/events" 
+          element={
+            <AllEventsPage 
               onNavigate={navigateTo} 
               onEventClick={navigateToEventDetail} 
             />

@@ -1080,7 +1080,10 @@ export default function LandingPage({
                   {/* Mobile: Collapsed Search Button */}
                   {!isSearchExpanded && (
                     <button
-                      onClick={() => setIsSearchExpanded(true)}
+                      onClick={() => {
+                        // Navigate directly to all events page on mobile
+                        window.location.href = '/events';
+                      }}
                       className="md:hidden w-full flex items-center justify-center space-x-2 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-full border border-gray-200 dark:border-gray-700 px-4 py-2.5 shadow-xl transition-all"
                     >
                       <Search
@@ -1183,7 +1186,14 @@ export default function LandingPage({
                         (e.currentTarget.style.backgroundColor = "#27aae2")
                       }
                       onClick={() => {
-                        // Handle search action
+                        // Navigate to all events page with search params
+                        const params = new URLSearchParams();
+                        if (searchQuery.trim()) params.set('search', searchQuery.trim());
+                        if (selectedLocation.trim()) params.set('location', selectedLocation.trim());
+                        
+                        const queryString = params.toString();
+                        const path = queryString ? `/events?${queryString}` : '/events';
+                        window.location.href = path;
                         setIsSearchExpanded(false);
                       }}
                     >

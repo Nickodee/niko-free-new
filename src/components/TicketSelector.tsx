@@ -132,6 +132,9 @@ export default function TicketSelector({
   
   const totalPrice = actualSelectedTicket ? getTotalPrice(actualSelectedTicket, getQuantity(actualSelectedTicket.id)) : 0;
   
+  // Check if selected ticket is sold out
+  const isSelectedTicketSoldOut = actualSelectedTicket ? actualSelectedTicket.available === 0 : false;
+  
   // Check if tickets are selected (for enabling promo code)
   const hasSelectedTickets = actualSelectedTicket && getQuantity(actualSelectedTicket.id) > 0;
   
@@ -175,7 +178,11 @@ export default function TicketSelector({
                 setQuantityFor(ticket.id, 1);
               }}
               className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                selectedTicketType === ticket.id
+                ticket.available === 0
+                  ? selectedTicketType === ticket.id
+                    ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/10'
+                    : 'border-red-500 dark:border-red-500 opacity-75'
+                  : selectedTicketType === ticket.id
                   ? 'border-[#27aae2] bg-[#27aae2]/5'
                   : 'border-gray-200 dark:border-gray-700 hover:border-[#27aae2]/50'
               }`}
@@ -237,7 +244,11 @@ export default function TicketSelector({
                 setQuantityFor(ticket.id, 1);
               }}
               className={`border-2 rounded-xl p-4 cursor-pointer transition-all relative ${
-                selectedTicketType === ticket.id
+                ticket.available === 0
+                  ? selectedTicketType === ticket.id
+                    ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/10'
+                    : 'border-red-500 dark:border-red-500 opacity-75'
+                  : selectedTicketType === ticket.id
                   ? 'border-[#27aae2] bg-[#27aae2]/5'
                   : 'border-gray-200 dark:border-gray-700 hover:border-[#27aae2]/50'
               }`}
@@ -295,10 +306,16 @@ export default function TicketSelector({
                 setQuantityFor(ticket.id, 1);
               }}
               className={`border-2 rounded-xl p-4 cursor-pointer transition-all relative ${
-                selectedTicketType === ticket.id
+                ticket.available === 0
+                  ? selectedTicketType === ticket.id
+                    ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/10'
+                    : 'border-red-500 dark:border-red-500 opacity-75'
+                  : selectedTicketType === ticket.id
                   ? 'border-[#27aae2] bg-[#27aae2]/5'
+                  : ticket.popular
+                  ? 'border-[#27aae2] hover:bg-[#27aae2]/5'
                   : 'border-gray-200 dark:border-gray-700 hover:border-[#27aae2]/50'
-              } ${ticket.popular ? 'border-[#27aae2]' : ''}`}
+              }`}
             >
               {ticket.popular && (
                 <span className="absolute -top-2 -right-2 bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white text-xs font-bold px-3 py-1 rounded-full">
@@ -401,7 +418,11 @@ export default function TicketSelector({
                 setQuantityFor(ticket.id, 1);
               }}
               className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                selectedTicketType === ticket.id || (tickets.uniform.length === 1)
+                ticket.available === 0
+                  ? selectedTicketType === ticket.id || (tickets.uniform.length === 1)
+                    ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/10'
+                    : 'border-red-500 dark:border-red-500 opacity-75'
+                  : selectedTicketType === ticket.id || (tickets.uniform.length === 1)
                   ? 'border-[#27aae2] bg-[#27aae2]/5'
                   : 'border-gray-200 dark:border-gray-700 hover:border-[#27aae2]/50'
               }`}
@@ -583,16 +604,23 @@ export default function TicketSelector({
           
           onBuyTicket(ticketId, qty);
         }}
-        disabled={ticketType !== 'uniform' && !selectedTicketType && !selectedTimeSlot}
-        className={`w-full py-4 rounded-xl font-bold text-lg transition-all transform hover:scale-105 ${
-          isRSVPed
-            ? 'bg-green-600 text-white hover:bg-green-700'
+        disabled={
+          isSelectedTicketSoldOut || 
+          (ticketType !== 'uniform' && !selectedTicketType && !selectedTimeSlot)
+        }
+        className={`w-full py-4 rounded-xl font-bold text-lg transition-all transform ${
+          isSelectedTicketSoldOut
+            ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed blur-sm'
+            : isRSVPed
+            ? 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
             : ticketType !== 'uniform' && !selectedTicketType && !selectedTimeSlot
             ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed'
-            : 'bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white hover:shadow-xl'
+            : 'bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white hover:shadow-xl hover:scale-105'
         }`}
       >
-        {isRSVPed 
+        {isSelectedTicketSoldOut
+          ? 'Sold Out - Not Available'
+          : isRSVPed 
           ? (finalPrice === 0 ? 'RSVP Confirmed!' : 'Ticket Purchased!') 
           : (finalPrice === 0 ? 'RSVP' : 'Buy Ticket')
         }
