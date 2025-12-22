@@ -1049,7 +1049,7 @@ export default function LandingPage({
             playsInline
             className="absolute inset-0 w-full h-full object-cover"
           >
-            <source src="/video/watermarked_preview.mp4" type="video/mp4" />
+            <source src="/video/videohome.mp4" type="video/mp4" />
             {/* Fallback image if video doesn't load */}
             <img
               src="https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=1920"

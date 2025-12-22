@@ -283,7 +283,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         clearTimeout(locationSearchTimeout);
       }
     };
-  }, [isOpen, eventId, locationSearchTimeout]);
+  }, [isOpen, eventId]);
 
   // Load event data if editing
   useEffect(() => {
