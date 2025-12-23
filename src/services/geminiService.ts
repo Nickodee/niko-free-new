@@ -1,11 +1,9 @@
 /**
- * Gemini API Service
- * Handles AI content generation using Google Gemini API
+ * AI Service
+ * Handles AI content generation using Azure OpenAI via backend API
  */
 
-const GEMINI_API_KEY = 'AIzaSyCMg5HbFMj5Hivs2qtXQkWjoLsKvBbYkSk';
-// Using v1beta with gemini-2.0-flash model
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
 
 export interface GenerateEventDescriptionParams {
   eventName: string;
@@ -25,47 +23,42 @@ export interface GeneratePartnerDescriptionParams {
 }
 
 /**
- * Generate event description using Gemini API
+ * Get authentication token from localStorage
+ */
+const getAuthToken = (): string | null => {
+  const token = localStorage.getItem('partner_token') || localStorage.getItem('access_token');
+  return token;
+};
+
+/**
+ * Generate event description using Azure OpenAI via backend API
+ * Note: This endpoint is public and doesn't require authentication
  */
 export const generateEventDescription = async (
   params: GenerateEventDescriptionParams
 ): Promise<string> => {
   try {
-    const prompt = `Generate an engaging and professional event description for an event called "${params.eventName}". 
+    const token = getAuthToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Add auth token if available (for logged-in partners), but not required
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
-${params.categories && params.categories.length > 0 ? `Categories: ${params.categories.join(', ')}` : ''}
-${params.interests && params.interests.length > 0 ? `Interests: ${params.interests.join(', ')}` : ''}
-${params.locationType ? `Location Type: ${params.locationType}` : ''}
-${params.locationName ? `Location: ${params.locationName}` : ''}
-${params.startDate ? `Date: ${params.startDate}` : ''}
-${params.startTime ? `Time: ${params.startTime}` : ''}
-
-Generate a compelling event description (150-300 words) that:
-- Is engaging and professional
-- Highlights the key features and benefits
-- Encourages attendance
-- Is suitable for an event listing platform
-- Uses clear, concise language
-
-Return only the description text without any additional formatting or explanations.`;
-
-    // Use v1beta with gemini-2.0-flash model and API key in header
-    const response = await fetch(GEMINI_API_URL, {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.generateEventDescription}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': GEMINI_API_KEY,
-      },
+      headers,
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
+        eventName: params.eventName,
+        categories: params.categories,
+        interests: params.interests,
+        locationType: params.locationType,
+        locationName: params.locationName,
+        startDate: params.startDate,
+        startTime: params.startTime,
       }),
     });
 
@@ -73,21 +66,20 @@ Return only the description text without any additional formatting or explanatio
       let errorMessage = response.statusText || 'Unknown error';
       try {
         const errorData = await response.json();
-        errorMessage = errorData.error?.message || errorMessage;
+        errorMessage = errorData.error || errorMessage;
       } catch {
         // If response is not JSON, use statusText
       }
-      throw new Error(`Gemini API error: ${errorMessage}`);
+      throw new Error(`Failed to generate event description: ${errorMessage}`);
     }
 
     const data = await response.json();
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const generatedText = data.candidates[0].content.parts[0].text;
-      return generatedText.trim();
+    if (data.description) {
+      return data.description.trim();
     }
 
-    throw new Error('No content generated from Gemini API');
+    throw new Error('No description received from server');
   } catch (error) {
     console.error('Error generating event description:', error);
     throw error;
@@ -95,44 +87,31 @@ Return only the description text without any additional formatting or explanatio
 };
 
 /**
- * Generate partner business description using Gemini API
+ * Generate partner business description using Azure OpenAI via backend API
+ * Note: This endpoint is public and doesn't require authentication (for partner applications)
  */
 export const generatePartnerDescription = async (
   params: GeneratePartnerDescriptionParams
 ): Promise<string> => {
   try {
-    const prompt = `Generate a professional business description for "${params.businessName}".
+    const token = getAuthToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Add auth token if available (for logged-in partners), but not required
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
-${params.category ? `Category: ${params.category}` : ''}
-${params.location ? `Location: ${params.location}` : ''}
-${params.interests && params.interests.length > 0 ? `Interests: ${params.interests.join(', ')}` : ''}
-
-Generate a compelling business description (100-200 words) that:
-- Describes what the business does
-- Highlights unique selling points
-- Is professional and engaging
-- Suitable for a partner application
-- Uses clear, concise language
-
-Return only the description text without any additional formatting or explanations.`;
-
-    // Use v1beta with gemini-2.0-flash model and API key in header
-    const response = await fetch(GEMINI_API_URL, {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.generatePartnerDescription}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': GEMINI_API_KEY,
-      },
+      headers,
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
+        businessName: params.businessName,
+        category: params.category,
+        location: params.location,
+        interests: params.interests,
       }),
     });
 
@@ -140,21 +119,20 @@ Return only the description text without any additional formatting or explanatio
       let errorMessage = response.statusText || 'Unknown error';
       try {
         const errorData = await response.json();
-        errorMessage = errorData.error?.message || errorMessage;
+        errorMessage = errorData.error || errorMessage;
       } catch {
         // If response is not JSON, use statusText
       }
-      throw new Error(`Gemini API error: ${errorMessage}`);
+      throw new Error(`Failed to generate partner description: ${errorMessage}`);
     }
 
     const data = await response.json();
     
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const generatedText = data.candidates[0].content.parts[0].text;
-      return generatedText.trim();
+    if (data.description) {
+      return data.description.trim();
     }
 
-    throw new Error('No content generated from Gemini API');
+    throw new Error('No description received from server');
   } catch (error) {
     console.error('Error generating partner description:', error);
     throw error;

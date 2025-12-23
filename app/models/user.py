@@ -28,11 +28,15 @@ class User(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     email_verified = db.Column(db.Boolean, default=False)
     phone_verified = db.Column(db.Boolean, default=False)
-    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    is_admin = db.Column(db.Boolean, default=False, index=True)  # Admin access flag
     
     # Preferences
     keep_logged_in = db.Column(db.Boolean, default=False)
     location = db.Column(db.String(200), nullable=True)
+    
+    # Password Reset
+    reset_token = db.Column(db.String(255), nullable=True, unique=True, index=True)
+    reset_token_expires = db.Column(db.DateTime, nullable=True)
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -42,7 +46,8 @@ class User(db.Model):
     # Relationships
     bookings = db.relationship('Booking', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     bucketlist = db.relationship('Event', secondary='bucketlist', backref='wishlist_users', lazy='dynamic')
-    notifications = db.relationship('Notification', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    notifications = db.relationship('Notification', foreign_keys='Notification.user_id', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    admin_notifications = db.relationship('Notification', foreign_keys='Notification.admin_id', backref='admin_user', lazy='dynamic', cascade='all, delete-orphan')
     
     def set_password(self, password):
         """Hash and set password"""
@@ -68,6 +73,7 @@ class User(db.Model):
             'oauth_provider': self.oauth_provider,
             'is_active': self.is_active,
             'is_verified': self.is_verified,
+            'is_admin': self.is_admin,
             'location': self.location,
             'created_at': self.created_at.isoformat(),
             'last_login': self.last_login.isoformat() if self.last_login else None
@@ -76,7 +82,6 @@ class User(db.Model):
         if include_sensitive:
             data['email_verified'] = self.email_verified
             data['phone_verified'] = self.phone_verified
-            data['is_admin'] = self.is_admin
             
         return data
     

@@ -2,6 +2,7 @@ from datetime import datetime
 from app import db
 
 
+
 class Event(db.Model):
     """Event model"""
     __tablename__ = 'events'
@@ -22,6 +23,7 @@ class Event(db.Model):
     # Date and Time
     start_date = db.Column(db.DateTime, nullable=False, index=True)
     end_date = db.Column(db.DateTime, nullable=True)
+    attendee_capacity = db.Column(db.Integer, nullable=True)  # Maximum number of attendees
     
     # Location
     is_online = db.Column(db.Boolean, default=False)
@@ -48,7 +50,6 @@ class Event(db.Model):
     # Statistics
     view_count = db.Column(db.Integer, default=0)
     attendee_count = db.Column(db.Integer, default=0)
-    share_count = db.Column(db.Integer, default=0)
     total_tickets_sold = db.Column(db.Integer, default=0)
     revenue = db.Column(db.Numeric(10, 2), default=0.00)
     
@@ -69,15 +70,35 @@ class Event(db.Model):
     
     def to_dict(self, include_stats=False):
         """Convert event to dictionary"""
+        # Filter out base64 data URIs from poster_image (they shouldn't be in DB, but handle if they are)
+        poster_image = self.poster_image
+        if poster_image and poster_image.startswith('data:image'):
+            # If somehow a base64 string got stored, return None so frontend can handle it
+            poster_image = None
+        
+        # Calculate tickets left (sum of all ticket types' quantity_available)
+        tickets_left = None
+        total_tickets_available = 0
+        has_limited_tickets = False
+        
+        for ticket_type in self.ticket_types:
+            if ticket_type.quantity_available is not None:
+                has_limited_tickets = True
+                total_tickets_available += ticket_type.quantity_available
+        
+        if has_limited_tickets:
+            tickets_left = total_tickets_available
+        
         data = {
             'id': self.id,
             'title': self.title,
             'description': self.description,
-            'poster_image': self.poster_image,
+            'poster_image': poster_image,
             'partner': self.organizer.to_dict() if self.organizer else None,
             'category': self.category.to_dict() if self.category else None,
             'start_date': self.start_date.isoformat(),
             'end_date': self.end_date.isoformat() if self.end_date else None,
+            'attendee_capacity': self.attendee_capacity,
             'is_online': self.is_online,
             'venue_name': self.venue_name,
             'venue_address': self.venue_address,
@@ -93,15 +114,27 @@ class Event(db.Model):
             'published_at': self.published_at.isoformat() if self.published_at else None,
             'hosts': [host.to_dict() for host in self.hosts],
             'interests': [interest.name for interest in self.interests],
-            'ticket_types': [tt.to_dict() for tt in self.ticket_types]
+            'ticket_types': [tt.to_dict() for tt in self.ticket_types],
+            'promo_codes': [pc.to_dict() for pc in self.promo_codes],
+            # Always include attendee_count (total tickets sold, not number of bookings)
+            'attendee_count': self.attendee_count,
+            'tickets_left': tickets_left  # None means unlimited tickets
         }
         
         if include_stats:
             data['view_count'] = self.view_count
-            data['attendee_count'] = self.attendee_count
-            data['share_count'] = self.share_count
             data['total_tickets_sold'] = self.total_tickets_sold
             data['revenue'] = float(self.revenue)
+            # Add bucketlist count (likes) - query the bucketlist table directly
+            from app.models.user import bucketlist
+            from sqlalchemy import func
+            bucketlist_count = db.session.query(func.count(bucketlist.c.user_id)).filter(
+                bucketlist.c.event_id == self.id
+            ).scalar() or 0
+            data['bucketlist_count'] = bucketlist_count
+            # Add actual bookings count (people going) - kept for backward compatibility
+            bookings_count = self.bookings.filter_by(status='confirmed').count()
+            data['bookings_count'] = bookings_count
             
         return data
     
@@ -159,8 +192,9 @@ class EventPromotion(db.Model):
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    def to_dict(self):
-        return {
+    def to_dict(self, include_status=False):
+        """Convert promotion to dictionary"""
+        data = {
             'id': self.id,
             'event_id': self.event_id,
             'start_date': self.start_date.isoformat(),
@@ -170,4 +204,17 @@ class EventPromotion(db.Model):
             'is_active': self.is_active,
             'is_paid': self.is_paid
         }
+        
+        if include_status:
+            from datetime import datetime
+            now = datetime.utcnow()
+            data['is_active_now'] = self.start_date <= now <= self.end_date
+            if now < self.start_date:
+                data['time_until_start'] = (self.start_date - now).total_seconds()
+            elif now > self.end_date:
+                data['time_until_end'] = 0
+            else:
+                data['time_until_end'] = (self.end_date - now).total_seconds()
+        
+        return data
 

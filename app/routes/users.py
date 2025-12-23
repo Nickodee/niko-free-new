@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required
 from datetime import datetime
 from sqlalchemy import or_
-from app import db
+from app import db, limiter
 from app.models.user import User
 from app.models.event import Event
-from app.models.booking import Booking
+from app.models.ticket import Booking
 from app.models.notification import Notification
 from app.utils.decorators import user_required
 from app.utils.file_upload import upload_file
@@ -33,15 +33,28 @@ def update_profile(current_user):
     if data.get('last_name'):
         current_user.last_name = data['last_name'].strip()
     
-    if data.get('phone_number'):
-        # Check if phone is already taken
-        existing = User.query.filter(
-            User.phone_number == data['phone_number'],
-            User.id != current_user.id
-        ).first()
-        if existing:
-            return jsonify({'error': 'Phone number already in use'}), 409
-        current_user.phone_number = data['phone_number']
+    if data.get('phone_number') is not None:
+        # Strip and normalize phone number
+        phone_number = data['phone_number'].strip() if isinstance(data['phone_number'], str) else None
+        if phone_number:  # Only process if not empty after stripping
+            # Validate phone number
+            from app.utils.validators import validate_phone
+            if not validate_phone(phone_number):
+                return jsonify({'error': 'Invalid phone number'}), 400
+            
+            # Check if phone is already taken by another user
+            existing = User.query.filter(
+                User.phone_number == phone_number,
+                User.id != current_user.id
+            ).first()
+            if existing:
+                return jsonify({'error': 'Phone number already in use'}), 409
+            
+            # Set phone number
+            current_user.phone_number = phone_number
+        else:
+            # Allow clearing phone number by setting to None
+            current_user.phone_number = None
     
     if data.get('date_of_birth'):
         try:
@@ -49,8 +62,10 @@ def update_profile(current_user):
         except:
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
     
-    if data.get('location'):
-        current_user.location = data['location']
+    if data.get('location') is not None:
+        # Allow setting location to empty string or None
+        location = data['location'].strip() if isinstance(data['location'], str) else None
+        current_user.location = location if location else None
     
     current_user.updated_at = datetime.utcnow()
     db.session.commit()
@@ -91,6 +106,7 @@ def upload_profile_picture(current_user):
 
 
 @bp.route('/bookings', methods=['GET'])
+@limiter.exempt
 @user_required
 def get_bookings(current_user):
     """Get user's bookings"""
@@ -114,6 +130,14 @@ def get_bookings(current_user):
         )
     elif status == 'cancelled':
         query = query.filter(Booking.status == 'cancelled')
+    elif status == 'pending':
+        # Pending bookings are unpaid or failed bookings that haven't been cancelled
+        # Include both 'unpaid' and 'failed' payment statuses since failed payments
+        # are still pending and can be retried
+        query = query.filter(
+            Booking.status == 'pending',
+            Booking.payment_status.in_(['unpaid', 'failed'])
+        )
     
     # Order by date
     query = query.order_by(Booking.created_at.desc())
@@ -122,7 +146,7 @@ def get_bookings(current_user):
     bookings = query.paginate(page=page, per_page=per_page, error_out=False)
     
     return jsonify({
-        'bookings': [booking.to_dict() for booking in bookings.items],
+        'bookings': [booking.to_dict(include_event_stats=True) for booking in bookings.items],
         'total': bookings.total,
         'page': bookings.page,
         'pages': bookings.pages,
@@ -134,15 +158,25 @@ def get_bookings(current_user):
 @user_required
 def get_booking(current_user, booking_id):
     """Get specific booking"""
-    booking = Booking.query.filter_by(
-        id=booking_id,
-        user_id=current_user.id
-    ).first()
-    
-    if not booking:
-        return jsonify({'error': 'Booking not found'}), 404
-    
-    return jsonify(booking.to_dict()), 200
+    try:
+        booking = Booking.query.filter_by(
+            id=booking_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not booking:
+            return jsonify({'msg': 'Booking not found'}), 404
+        
+        booking_dict = booking.to_dict(include_event_stats=True)
+        return jsonify({
+            'booking': booking_dict
+        }), 200
+    except AttributeError as e:
+        current_app.logger.error(f'Attribute error fetching booking {booking_id}: {str(e)}', exc_info=True)
+        return jsonify({'msg': f'Failed to fetch booking: {str(e)}'}), 422
+    except Exception as e:
+        current_app.logger.error(f'Error fetching booking {booking_id}: {str(e)}', exc_info=True)
+        return jsonify({'msg': f'Failed to fetch booking: {str(e)}'}), 500
 
 
 @bp.route('/bucketlist', methods=['GET'])
@@ -152,16 +186,14 @@ def get_bucketlist(current_user):
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     
-    # Get wishlist events
-    events = current_user.bucketlist.filter(
-        Event.is_published == True,
-        Event.status == 'approved'
-    ).order_by(Event.start_date).paginate(
+    # Get all wishlist events (don't filter by published/approved so users can see all their liked events)
+    # Users should be able to see events they liked even if they're pending or unpublished
+    events = current_user.bucketlist.order_by(Event.start_date).paginate(
         page=page, per_page=per_page, error_out=False
     )
     
     return jsonify({
-        'events': [event.to_dict() for event in events.items],
+        'events': [event.to_dict(include_stats=True) for event in events.items],
         'total': events.total,
         'page': events.page,
         'pages': events.pages
@@ -267,6 +299,39 @@ def mark_all_notifications_read(current_user):
     db.session.commit()
     
     return jsonify({'message': 'All notifications marked as read'}), 200
+
+
+@bp.route('/change-password', methods=['POST'])
+@user_required
+def change_password(current_user):
+    """Change user password"""
+    data = request.get_json()
+    
+    if not data.get('current_password') or not data.get('new_password'):
+        return jsonify({'error': 'Current password and new password are required'}), 400
+    
+    # Verify current password
+    if not current_user.check_password(data['current_password']):
+        return jsonify({'error': 'Current password is incorrect'}), 401
+    
+    # Validate new password
+    from app.utils.validators import validate_password
+    is_valid, error_msg = validate_password(data['new_password'])
+    if not is_valid:
+        return jsonify({'error': error_msg}), 400
+    
+    # Check if new password is same as current
+    if current_user.check_password(data['new_password']):
+        return jsonify({'error': 'New password must be different from current password'}), 400
+    
+    # Update password
+    current_user.set_password(data['new_password'])
+    current_user.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Password changed successfully'
+    }), 200
 
 
 @bp.route('/search', methods=['GET'])

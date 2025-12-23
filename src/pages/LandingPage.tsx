@@ -359,7 +359,7 @@ export default function LandingPage({
       id: event.id.toString(),
       title: event.title,
       image: event.poster_image
-        ? event.poster_image.startsWith("http")
+        ? (event.poster_image.startsWith("http://") || event.poster_image.startsWith("https://"))
           ? event.poster_image
           : `${API_BASE_URL}${
               event.poster_image.startsWith("/") ? "" : "/"
@@ -491,7 +491,7 @@ export default function LandingPage({
               id: event.id.toString(),
               title: event.title,
               image: event.poster_image
-                ? event.poster_image.startsWith("http")
+                ? (event.poster_image.startsWith("http://") || event.poster_image.startsWith("https://"))
                   ? event.poster_image
                   : `${API_BASE_URL}${
                       event.poster_image.startsWith("/") ? "" : "/"
@@ -571,7 +571,7 @@ export default function LandingPage({
             id: event.id.toString(),
             title: event.title,
             image: event.poster_image
-              ? event.poster_image.startsWith("http")
+              ? (event.poster_image.startsWith("http://") || event.poster_image.startsWith("https://"))
                 ? event.poster_image
                 : `${API_BASE_URL}${
                     event.poster_image.startsWith("/") ? "" : "/"

@@ -43,6 +43,7 @@ class TicketType(db.Model):
             'sales_start': self.sales_start.isoformat() if self.sales_start else None,
             'sales_end': self.sales_end.isoformat() if self.sales_end else None,
             'is_active': self.is_active,
+            'is_available': self.is_active,  # Alias for frontend compatibility
             'min_per_order': self.min_per_order,
             'max_per_order': self.max_per_order
         }
@@ -83,6 +84,7 @@ class Booking(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     confirmed_at = db.Column(db.DateTime, nullable=True)
     cancelled_at = db.Column(db.DateTime, nullable=True)
+    reserved_until = db.Column(db.DateTime, nullable=True, index=True)  # When reservation expires (5 minutes for payment)
     
     # Relationships
     tickets = db.relationship('Ticket', backref='booking', lazy='dynamic', cascade='all, delete-orphan')
@@ -99,23 +101,55 @@ class Booking(db.Model):
         """Generate unique booking number"""
         return f"NF-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
     
-    def to_dict(self):
-        return {
+    def to_dict(self, include_event_stats=False):
+        try:
+            user_dict = None
+            if self.user:
+                try:
+                    user_dict = self.user.to_dict()
+                except Exception as e:
+                    # Fallback if user serialization fails
+                    user_dict = {'id': self.user.id, 'email': getattr(self.user, 'email', None)}
+            
+            event_dict = None
+            if self.event:
+                try:
+                    event_dict = self.event.to_dict(include_stats=include_event_stats)
+                except Exception as e:
+                    # Fallback if event serialization fails
+                    event_dict = {'id': self.event.id, 'title': getattr(self.event, 'title', None)}
+            
+            tickets_list = []
+            try:
+                tickets_list = [ticket.to_dict() for ticket in self.tickets]
+            except Exception as e:
+                # Fallback if tickets serialization fails
+                tickets_list = []
+            
+            return {
             'id': self.id,
             'booking_number': self.booking_number,
-            'user': self.user.to_dict() if self.user else None,
-            'event': self.event.to_dict() if self.event else None,
+                'user': user_dict,
+                'event': event_dict,
             'quantity': self.quantity,
-            'total_amount': float(self.total_amount),
-            'discount_amount': float(self.discount_amount),
+                'total_amount': float(self.total_amount) if self.total_amount else 0.0,
+                'discount_amount': float(self.discount_amount) if self.discount_amount else 0.0,
             'status': self.status,
             'payment_status': self.payment_status,
             'is_checked_in': self.is_checked_in,
             'checked_in_at': self.checked_in_at.isoformat() if self.checked_in_at else None,
-            'created_at': self.created_at.isoformat(),
+                'created_at': self.created_at.isoformat() if self.created_at else None,
             'confirmed_at': self.confirmed_at.isoformat() if self.confirmed_at else None,
-            'tickets': [ticket.to_dict() for ticket in self.tickets]
-        }
+            'reserved_until': self.reserved_until.isoformat() if self.reserved_until else None,
+                'tickets': tickets_list
+            }
+        except Exception as e:
+            # Last resort fallback
+            return {
+                'id': self.id,
+                'booking_number': getattr(self, 'booking_number', None),
+                'error': f'Serialization error: {str(e)}'
+            }
 
 
 class Ticket(db.Model):

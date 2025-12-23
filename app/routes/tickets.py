@@ -1,12 +1,19 @@
 from flask import Blueprint, request, jsonify, current_app
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import func
 from app import db
 from app.models.event import Event
 from app.models.ticket import TicketType, Booking, Ticket, PromoCode
 from app.models.payment import Payment
 from app.utils.decorators import user_required, partner_required
 from app.utils.qrcode_generator import generate_qr_code
-from app.utils.email import send_booking_confirmation_email
+from app.utils.email import send_booking_confirmation_email, send_booking_cancellation_email
+from app.utils.ticket_pdf import generate_ticket_pdf
+from app.utils.sms import (
+    send_booking_confirmation_sms,
+    send_booking_cancellation_sms
+)
+from app.routes.notifications import notify_new_booking, create_notification
 
 bp = Blueprint('tickets', __name__)
 
@@ -15,46 +22,74 @@ bp = Blueprint('tickets', __name__)
 @user_required
 def validate_promo_code(current_user):
     """Validate promo code"""
-    data = request.get_json()
-    
-    if not data.get('code') or not data.get('event_id'):
-        return jsonify({'error': 'code and event_id are required'}), 400
-    
-    # Find promo code
-    promo = PromoCode.query.filter_by(
-        code=data['code'].upper(),
-        event_id=data['event_id'],
-        is_active=True
-    ).first()
-    
-    if not promo:
-        return jsonify({'error': 'Invalid promo code'}), 404
-    
-    # Check validity period
-    now = datetime.utcnow()
-    if promo.valid_from and now < promo.valid_from:
-        return jsonify({'error': 'Promo code not yet valid'}), 400
-    
-    if promo.valid_until and now > promo.valid_until:
-        return jsonify({'error': 'Promo code expired'}), 400
-    
-    # Check usage limits
-    if promo.max_uses and promo.current_uses >= promo.max_uses:
-        return jsonify({'error': 'Promo code usage limit reached'}), 400
-    
-    # Check per-user usage
-    user_usage = Booking.query.filter_by(
-        user_id=current_user.id,
-        promo_code_id=promo.id
-    ).count()
-    
-    if user_usage >= promo.max_uses_per_user:
-        return jsonify({'error': 'You have already used this promo code'}), 400
-    
-    return jsonify({
-        'valid': True,
-        'promo_code': promo.to_dict()
-    }), 200
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        code = data.get('code')
+        event_id = data.get('event_id')
+        
+        if not code or not event_id:
+            return jsonify({'error': 'code and event_id are required'}), 400
+        
+        # Convert event_id to int if it's a string
+        try:
+            event_id = int(event_id)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid event_id format'}), 400
+        
+        # Normalize code to uppercase
+        code = code.upper().strip()
+        
+        # Find promo code (case-insensitive search for safety)
+        from sqlalchemy import func
+        promo = PromoCode.query.filter(
+            func.upper(PromoCode.code) == code,
+            PromoCode.event_id == event_id,
+            PromoCode.is_active == True
+        ).first()
+        
+        if not promo:
+            # Check if code exists but for different event (case-insensitive)
+            promo_exists = PromoCode.query.filter(
+                func.upper(PromoCode.code) == code,
+                PromoCode.is_active == True
+            ).first()
+            if promo_exists:
+                return jsonify({'error': 'Promo code exists but is not valid for this event'}), 404
+            return jsonify({'error': 'Invalid promo code'}), 404
+        
+        # Check validity period
+        now = datetime.utcnow()
+        if promo.valid_from and now < promo.valid_from:
+            return jsonify({'error': 'Promo code not yet valid'}), 400
+        
+        if promo.valid_until and now > promo.valid_until:
+            return jsonify({'error': 'Promo code expired'}), 400
+        
+        # Check usage limits
+        if promo.max_uses is not None and promo.current_uses >= promo.max_uses:
+            return jsonify({'error': 'Promo code usage limit reached'}), 400
+        
+        # Check per-user usage
+        user_usage = Booking.query.filter_by(
+            user_id=current_user.id,
+            promo_code_id=promo.id
+        ).count()
+        
+        if user_usage >= promo.max_uses_per_user:
+            return jsonify({'error': 'You have already used this promo code'}), 400
+        
+        return jsonify({
+            'valid': True,
+            'promo_code': promo.to_dict()
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f'Error validating promo code: {str(e)}')
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 
 @bp.route('/book', methods=['POST'])
@@ -64,8 +99,8 @@ def book_event(current_user):
     data = request.get_json()
     
     # Validate required fields
-    if not data.get('event_id') or not data.get('ticket_type_id'):
-        return jsonify({'error': 'event_id and ticket_type_id are required'}), 400
+    if not data.get('event_id'):
+        return jsonify({'error': 'event_id is required'}), 400
     
     quantity = data.get('quantity', 1)
     
@@ -84,12 +119,65 @@ def book_event(current_user):
     if event.start_date < datetime.utcnow():
         return jsonify({'error': 'Cannot book past events'}), 400
     
-    # Get ticket type
-    ticket_type = TicketType.query.filter_by(
-        id=data['ticket_type_id'],
-        event_id=event.id,
-        is_active=True
+    # Check if user has already booked this event (prevent duplicate bookings)
+    existing_booking = Booking.query.filter_by(
+        user_id=current_user.id,
+        event_id=event.id
+    ).filter(
+        Booking.status != 'cancelled'
     ).first()
+    
+    if existing_booking:
+        if existing_booking.status == 'confirmed':
+            return jsonify({
+                'error': 'You have already booked tickets for this event',
+                'booking_id': existing_booking.id,
+                'booking_number': existing_booking.booking_number
+            }), 409  # 409 Conflict
+        elif existing_booking.status == 'pending':
+            return jsonify({
+                'error': 'You have a pending booking for this event. Please complete the payment or cancel the existing booking.',
+                'booking_id': existing_booking.id,
+                'booking_number': existing_booking.booking_number
+            }), 409  # 409 Conflict
+    
+    # Get ticket type - for free events, create default if none exists
+    ticket_type = None
+    if data.get('ticket_type_id'):
+        ticket_type = TicketType.query.filter_by(
+            id=data['ticket_type_id'],
+            event_id=event.id,
+            is_active=True
+        ).first()
+    
+    # For free events without ticket types, create a default one
+    if event.is_free and not ticket_type:
+        # Check if a default free ticket type exists
+        ticket_type = TicketType.query.filter_by(
+            event_id=event.id,
+            name='Free Admission',
+            is_active=True
+        ).first()
+        
+        if not ticket_type:
+            # Create default free ticket type
+            ticket_type = TicketType(
+                event_id=event.id,
+                name='Free Admission',
+                price=0.00,
+                quantity_total=None,  # None = unlimited
+                quantity_available=None,  # None = unlimited
+                quantity_sold=0,
+                min_per_order=1,
+                max_per_order=10,
+                is_active=True
+            )
+            db.session.add(ticket_type)
+            db.session.flush()
+    
+    # For paid events, ticket type is required
+    if not event.is_free and not ticket_type:
+        return jsonify({'error': 'Ticket type is required for paid events'}), 400
     
     if not ticket_type:
         return jsonify({'error': 'Ticket type not found'}), 404
@@ -101,9 +189,21 @@ def book_event(current_user):
     if quantity > ticket_type.max_per_order:
         return jsonify({'error': f'Maximum {ticket_type.max_per_order} tickets allowed'}), 400
     
-    # Check availability
+    # Check availability (accounting for reserved but not expired tickets)
     if ticket_type.quantity_available is not None:
-        if quantity > ticket_type.quantity_available:
+        # Count tickets reserved by pending bookings that haven't expired
+        reserved_count = db.session.query(func.sum(Booking.quantity)).filter(
+            Booking.event_id == event.id,
+            Booking.status == 'pending',
+            Booking.payment_status == 'unpaid',
+            Booking.reserved_until.isnot(None),
+            Booking.reserved_until >= datetime.utcnow()
+        ).scalar() or 0
+        
+        # Available tickets = total available - reserved (non-expired) tickets
+        actually_available = ticket_type.quantity_available - reserved_count
+        
+        if quantity > actually_available:
             return jsonify({'error': 'Not enough tickets available'}), 400
     
     # Check sales period
@@ -146,7 +246,28 @@ def book_event(current_user):
     platform_fee = final_amount * commission_rate
     partner_amount = final_amount - platform_fee
     
-    # Create booking
+    # Update user phone number if provided (even if user already has one, allow update)
+    if data.get('phone_number'):
+        from app.utils.validators import validate_phone
+        phone = data.get('phone_number')
+        if validate_phone(phone):
+            # Check if phone is already taken by another user
+            from app.models.user import User
+            existing = User.query.filter(
+                User.phone_number == phone,
+                User.id != current_user.id
+            ).first()
+            if not existing:
+                current_user.phone_number = phone
+                print(f"📱 [TICKETS] Updated user {current_user.id} phone number to {phone}")
+                # Commit phone number update immediately so it's available for SMS
+                db.session.commit()
+    
+    # Create booking with 5-minute reservation timer for paid events
+    reserved_until = None
+    if not event.is_free:
+        reserved_until = datetime.utcnow() + timedelta(minutes=5)
+    
     booking = Booking(
         user_id=current_user.id,
         event_id=event.id,
@@ -157,7 +278,8 @@ def book_event(current_user):
         discount_amount=discount_amount,
         promo_code_id=promo_code.id if promo_code else None,
         status='pending',
-        payment_status='unpaid' if not event.is_free else 'paid'
+        payment_status='unpaid' if not event.is_free else 'paid',
+        reserved_until=reserved_until
     )
     
     db.session.add(booking)
@@ -203,6 +325,30 @@ def book_event(current_user):
         # Send confirmation email
         send_booking_confirmation_email(booking, tickets)
         
+        # Send confirmation SMS
+        # Use phone number from request if provided, or from user profile
+        phone_for_sms = data.get('phone_number') or current_user.phone_number
+        print(f"📱 [TICKETS] About to send booking confirmation SMS for booking {booking.id}")
+        print(f"📱 [TICKETS] Phone number for SMS: {phone_for_sms}")
+        send_booking_confirmation_sms(booking, tickets, phone_number_override=phone_for_sms)
+        print(f"📱 [TICKETS] Booking confirmation SMS call completed for booking {booking.id}")
+        
+        # Notify user of successful booking
+        create_notification(
+            user_id=current_user.id,
+            title='Booking Confirmed! 🎉',
+            message=f'Your booking for "{event.title}" has been confirmed. {quantity} ticket(s) reserved.',
+            notification_type='booking',
+            event_id=event.id,
+            booking_id=booking.id,
+            action_url=f'/bookings/{booking.id}',
+            action_text='View Booking',
+            send_email=False  # Email already sent above
+        )
+        
+        # Notify partner of new booking
+        notify_new_booking(event, booking)
+        
         return jsonify({
             'message': 'Booking confirmed!',
             'booking': booking.to_dict(),
@@ -220,50 +366,85 @@ def book_event(current_user):
     }), 201
 
 
+# Cancel booking route - support both /cancel/<id> and /bookings/<id>/cancel
+@bp.route('/cancel/<int:booking_id>', methods=['POST'])
 @bp.route('/bookings/<int:booking_id>/cancel', methods=['POST'])
 @user_required
 def cancel_booking(current_user, booking_id):
     """Cancel booking"""
-    booking = Booking.query.filter_by(
-        id=booking_id,
-        user_id=current_user.id
-    ).first()
-    
-    if not booking:
-        return jsonify({'error': 'Booking not found'}), 404
-    
-    if booking.status == 'cancelled':
-        return jsonify({'error': 'Booking already cancelled'}), 400
-    
-    # Check if event has already started
-    if booking.event.start_date < datetime.utcnow():
-        return jsonify({'error': 'Cannot cancel booking for past events'}), 400
-    
-    # Cancel booking
-    booking.status = 'cancelled'
-    booking.cancelled_at = datetime.utcnow()
-    
-    # Restore ticket availability
-    if booking.status == 'confirmed':
-        for ticket in booking.tickets:
-            ticket.is_valid = False
+    try:
+        current_app.logger.info(f'Cancel booking request: booking_id={booking_id}, user_id={current_user.id if current_user else None}')
         
-        ticket_type = booking.tickets.first().ticket_type if booking.tickets.first() else None
-        if ticket_type and ticket_type.quantity_available is not None:
-            ticket_type.quantity_available += booking.quantity
-            ticket_type.quantity_sold -= booking.quantity
+        if not current_user:
+            return jsonify({'msg': 'User authentication required'}), 401
         
-        # Update event stats
-        booking.event.attendee_count -= booking.quantity
-        booking.event.total_tickets_sold -= booking.quantity
-    
-    # TODO: Process refund if paid
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Booking cancelled successfully'
-    }), 200
+        if not booking_id:
+            return jsonify({'msg': 'Booking ID is required'}), 400
+        
+        booking = Booking.query.filter_by(
+            id=booking_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not booking:
+            return jsonify({'msg': 'Booking not found'}), 404
+        
+        if booking.status == 'cancelled':
+            return jsonify({'msg': 'Booking already cancelled'}), 400
+        
+        # Check if event exists and has started
+        if not booking.event:
+            return jsonify({'msg': 'Event not found for this booking'}), 404
+        
+        if booking.event.start_date < datetime.utcnow():
+            return jsonify({'msg': 'Cannot cancel booking for past events'}), 400
+        
+        # Store original status before cancelling
+        was_confirmed = booking.status == 'confirmed'
+        
+        # Cancel booking
+        booking.status = 'cancelled'
+        booking.cancelled_at = datetime.utcnow()
+        
+        # Restore ticket availability if booking was confirmed
+        if was_confirmed:
+            for ticket in booking.tickets:
+                ticket.is_valid = False
+            
+            ticket_type = booking.tickets.first().ticket_type if booking.tickets.first() else None
+            if ticket_type and ticket_type.quantity_available is not None:
+                ticket_type.quantity_available += booking.quantity
+                ticket_type.quantity_sold -= booking.quantity
+            
+            # Update event stats
+            if booking.event:
+                booking.event.attendee_count -= booking.quantity
+                booking.event.total_tickets_sold -= booking.quantity
+        
+        # TODO: Process refund if paid
+        
+        db.session.commit()
+        
+        # Send cancellation SMS and email to user
+        try:
+            send_booking_cancellation_sms(current_user, booking, booking.event)
+        except Exception as sms_error:
+            current_app.logger.warning(f'Failed to send cancellation SMS: {str(sms_error)}')
+        
+        try:
+            send_booking_cancellation_email(current_user, booking, booking.event)
+        except Exception as email_error:
+            current_app.logger.warning(f'Failed to send cancellation email: {str(email_error)}')
+        
+        return jsonify({
+            'message': 'Booking cancelled successfully'
+        }), 200
+    except AttributeError as e:
+        current_app.logger.error(f'Attribute error cancelling booking {booking_id}: {str(e)}', exc_info=True)
+        return jsonify({'msg': f'Failed to cancel booking: {str(e)}'}), 422
+    except Exception as e:
+        current_app.logger.error(f'Error cancelling booking {booking_id}: {str(e)}', exc_info=True)
+        return jsonify({'msg': f'Failed to cancel booking: {str(e)}'}), 500
 
 
 @bp.route('/<ticket_number>/verify', methods=['GET'])
@@ -403,4 +584,264 @@ def scan_ticket(current_partner):
         'ticket': ticket.to_dict(),
         'attendee': ticket.booking.user.to_dict()
     }), 200
+
+
+@bp.route('/<int:booking_id>', methods=['GET'])
+@user_required
+def get_ticket(current_user, booking_id):
+    """Get ticket details with QR codes"""
+    booking = Booking.query.filter_by(
+        id=booking_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+    
+    # Get all tickets for this booking
+    tickets = list(booking.tickets.all())
+    if not tickets:
+        return jsonify({'error': 'No tickets found for this booking'}), 404
+    
+    # Ensure QR codes are generated for all tickets
+    from flask import current_app
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    
+    ticket_data = []
+    for ticket in tickets:
+        # Generate QR code if it doesn't exist
+        if not ticket.qr_code:
+            qr_data = ticket.ticket_number
+            qr_path = generate_qr_code(qr_data, ticket.ticket_number)
+            ticket.qr_code = qr_path
+            db.session.commit()
+        
+        # Build QR code URL
+        if ticket.qr_code.startswith('http'):
+            qr_url = ticket.qr_code
+        elif ticket.qr_code.startswith('/'):
+            qr_url = f"{base_url}{ticket.qr_code}"
+        else:
+            qr_url = f"{base_url}/uploads/{ticket.qr_code}"
+        
+        ticket_data.append({
+            'id': ticket.id,
+            'ticket_number': ticket.ticket_number,
+            'qr_code_url': qr_url,
+            'qr_code_path': ticket.qr_code,
+            'ticket_type': ticket.ticket_type.to_dict() if ticket.ticket_type else None,
+            'is_valid': ticket.is_valid,
+            'is_scanned': ticket.is_scanned,
+            'scanned_at': ticket.scanned_at.isoformat() if ticket.scanned_at else None
+        })
+    
+    return jsonify({
+        'booking': booking.to_dict(),
+        'tickets': ticket_data,
+        'download_url': f"{base_url}/api/tickets/{booking_id}/download"
+    }), 200
+
+
+@bp.route('/<int:booking_id>/qr', methods=['GET'])
+@user_required
+def get_ticket_qr(current_user, booking_id):
+    """Get QR code for a booking"""
+    booking = Booking.query.filter_by(
+        id=booking_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+    
+    # Get first ticket for QR code
+    ticket = booking.tickets.first()
+    if not ticket:
+        return jsonify({'error': 'No tickets found for this booking'}), 404
+    
+    # Generate QR code if it doesn't exist
+    if not ticket.qr_code:
+        qr_data = ticket.ticket_number
+        qr_path = generate_qr_code(qr_data, ticket.ticket_number)
+        ticket.qr_code = qr_path
+        db.session.commit()
+    
+    # Return QR code URL
+    from flask import current_app
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    # Handle both relative paths and full URLs
+    if ticket.qr_code.startswith('http'):
+        qr_url = ticket.qr_code
+    elif ticket.qr_code.startswith('/'):
+        qr_url = f"{base_url}{ticket.qr_code}"
+    else:
+        qr_url = f"{base_url}/uploads/{ticket.qr_code}"
+    
+    return jsonify({
+        'qr_code_url': qr_url,
+        'ticket_number': ticket.ticket_number,
+        'booking_number': booking.booking_number
+    }), 200
+
+
+@bp.route('/<int:booking_id>/download', methods=['GET'])
+@user_required
+def download_ticket(current_user, booking_id):
+    """Download ticket as PDF (authenticated)"""
+    from flask import send_file, current_app, Response
+    import os
+    
+    try:
+        booking = Booking.query.filter_by(
+            id=booking_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not booking:
+            return jsonify({'error': 'Booking not found'}), 404
+        
+        # Get all tickets for this booking
+        tickets = list(booking.tickets.all())
+        if not tickets:
+            return jsonify({'error': 'No tickets found for this booking'}), 404
+        
+        print(f"📄 [TICKET DOWNLOAD] Generating PDF for booking {booking_id}, {len(tickets)} tickets")
+        
+        # Ensure QR codes are generated for all tickets
+        for ticket in tickets:
+            if not ticket.qr_code:
+                print(f"📄 [TICKET DOWNLOAD] Generating QR code for ticket {ticket.ticket_number}")
+                qr_data = ticket.ticket_number
+                qr_path = generate_qr_code(qr_data, ticket.ticket_number)
+                ticket.qr_code = qr_path
+                db.session.commit()
+                print(f"📄 [TICKET DOWNLOAD] QR code generated: {qr_path}")
+        
+        # Generate PDF
+        print(f"📄 [TICKET DOWNLOAD] Creating PDF buffer...")
+        pdf_buffer = generate_ticket_pdf(booking, tickets)
+        
+        # Create filename
+        filename = f"ticket-{booking.booking_number}.pdf"
+        
+        print(f"📄 [TICKET DOWNLOAD] PDF generated successfully, sending file: {filename}")
+        
+        # Reset buffer position
+        pdf_buffer.seek(0)
+        
+        # Return PDF as download
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        print(f"❌ [TICKET DOWNLOAD] Error generating PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Failed to generate ticket PDF',
+            'details': str(e),
+            'message': 'Please try again or contact support if the issue persists'
+        }), 500
+
+
+@bp.route('/download/<booking_number>', methods=['GET'])
+def download_ticket_public(booking_number):
+    """Public download ticket as PDF using booking number (for SMS links)"""
+    from flask import send_file, current_app, Response
+    import os
+    
+    try:
+        # Find booking by booking number
+        booking = Booking.query.filter_by(booking_number=booking_number).first()
+        
+        if not booking:
+            return jsonify({'error': 'Booking not found'}), 404
+        
+        # Get all tickets for this booking
+        tickets = list(booking.tickets.all())
+        if not tickets:
+            return jsonify({'error': 'No tickets found for this booking'}), 404
+        
+        print(f"📄 [TICKET DOWNLOAD PUBLIC] Generating PDF for booking {booking_number}, {len(tickets)} tickets")
+        
+        # Ensure QR codes are generated for all tickets
+        for ticket in tickets:
+            if not ticket.qr_code:
+                print(f"📄 [TICKET DOWNLOAD PUBLIC] Generating QR code for ticket {ticket.ticket_number}")
+                qr_data = ticket.ticket_number
+                qr_path = generate_qr_code(qr_data, ticket.ticket_number)
+                ticket.qr_code = qr_path
+                db.session.commit()
+                print(f"📄 [TICKET DOWNLOAD PUBLIC] QR code generated: {qr_path}")
+        
+        # Generate PDF
+        print(f"📄 [TICKET DOWNLOAD PUBLIC] Creating PDF buffer...")
+        pdf_buffer = generate_ticket_pdf(booking, tickets)
+        
+        # Create filename
+        filename = f"ticket-{booking.booking_number}.pdf"
+        
+        print(f"📄 [TICKET DOWNLOAD PUBLIC] PDF generated successfully, sending file: {filename}")
+        
+        # Reset buffer position
+        pdf_buffer.seek(0)
+        
+        # Return PDF as download
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        print(f"❌ [TICKET DOWNLOAD PUBLIC] Error generating PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Failed to generate ticket PDF',
+            'details': str(e),
+            'message': 'Please try again or contact support if the issue persists'
+        }), 500
+
+
+@bp.route('/release-expired', methods=['POST'])
+def release_expired_bookings():
+    """Release expired pending bookings (called by background task or frontend)"""
+    try:
+        # Find all pending bookings that have expired (reserved_until < now)
+        expired_bookings = Booking.query.filter(
+            Booking.status == 'pending',
+            Booking.payment_status == 'unpaid',
+            Booking.reserved_until.isnot(None),
+            Booking.reserved_until < datetime.utcnow()
+        ).all()
+        
+        released_count = 0
+        for booking in expired_bookings:
+            # Cancel the expired booking
+            booking.status = 'cancelled'
+            booking.cancelled_at = datetime.utcnow()
+            
+            # Restore promo code usage if applicable
+            if booking.promo_code:
+                booking.promo_code.current_uses = max(0, booking.promo_code.current_uses - 1)
+            
+            released_count += 1
+        
+        if released_count > 0:
+            db.session.commit()
+            current_app.logger.info(f'Released {released_count} expired bookings')
+        
+        return jsonify({
+            'message': f'Released {released_count} expired booking(s)',
+            'released_count': released_count
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error releasing expired bookings: {str(e)}')
+        return jsonify({'error': 'Failed to release expired bookings'}), 500
 

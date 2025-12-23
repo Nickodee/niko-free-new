@@ -23,29 +23,6 @@ export default function UsersPage({ selectedUserId, onClearSelection }: UsersPag
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'recent' | 'inactive' | 'dormant'>('all');
-  const [sortField, setSortField] = useState<'name' | 'joined' | 'lastActive' | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-
-  // Sorting functions
-  const handleSort = (field: 'name' | 'joined' | 'lastActive') => {
-    if (sortField === field) {
-      // Toggle direction if same field
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new field and default to ascending
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const getSortIcon = (field: 'name' | 'joined' | 'lastActive') => {
-    if (sortField !== field) return null;
-    return sortDirection === 'asc' ? (
-      <ChevronUp className="inline w-4 h-4 ml-1" />
-    ) : (
-      <ChevronDown className="inline w-4 h-4 ml-1" />
-    );
-  };
 
   // Helper function to map user data with activity status
   const mapUserWithActivityStatus = (u: any) => {
@@ -323,50 +300,45 @@ export default function UsersPage({ selectedUserId, onClearSelection }: UsersPag
     }
   };
 
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle sort order if clicking the same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort field and default to ascending
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Get sort icon for a field
+  const getSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return null; // No icon if not sorting by this field
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3 h-3 inline-block ml-1" />
+    ) : (
+      <ArrowDown className="w-3 h-3 inline-block ml-1" />
+    );
+  };
+
   // Filter users based on search query and status filter
-  const filteredUsers = userList
-    .filter(user => {
-      // Search filter
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = !searchQuery || (
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query) ||
-        user.phone.toLowerCase().includes(query)
-      );
+  const filteredUsers = userList.filter(user => {
+    // Search filter
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || (
+      user.name.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      user.phone.toLowerCase().includes(query)
+    );
 
       // Status filter
       const matchesStatus = statusFilter === 'all' || user.activityStatus === statusFilter;
 
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      // Apply sorting if a field is selected
-      if (!sortField) return 0;
-
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortField) {
-        case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-          break;
-        case 'joined':
-          aValue = a.created_at ? new Date(a.created_at).getTime() : 0;
-          bValue = b.created_at ? new Date(b.created_at).getTime() : 0;
-          break;
-        case 'lastActive':
-          aValue = a.lastActiveDate ? a.lastActiveDate.getTime() : 0;
-          bValue = b.lastActiveDate ? b.lastActiveDate.getTime() : 0;
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
-    });
+    return matchesSearch && matchesStatus;
+  });
 
   // Count users by activity status
   const statusCounts = {
