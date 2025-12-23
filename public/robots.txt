@@ -8,13 +8,41 @@ Sitemap: https://niko-free.com/sitemap.xml
 Disallow: /admin-dashboard
 Disallow: /partner-dashboard
 Disallow: /user-dashboard
+Disallow: /admin-login
+Disallow: /reset-password
+Disallow: /download-ticket
+
+# Disallow API endpoints (backend)
 Disallow: /api/
 
-# Allow important pages
+# Allow important pages for SEO
 Allow: /
-Allow: /event-detail/
-Allow: /become-partner
-Allow: /about
+Allow: /event-detail/*
+Allow: /partner-profile/*
+Allow: /all-events
 Allow: /this-weekend
 Allow: /calendar
+Allow: /become-partner
+Allow: /about
+Allow: /contact
+Allow: /privacy-policy
+Allow: /terms-of-service
+Allow: /feedback
+Allow: /category/*
+
+# Crawl-delay for politeness
+Crawl-delay: 1
+
+# Specific rules for major search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
 

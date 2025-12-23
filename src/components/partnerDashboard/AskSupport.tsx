@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { sendSupportMessage } from '../../services/partnerService';
+import { MessageCircle, Phone, Mail } from 'lucide-react';
 
 interface AskSupportProps {
   onSent?: () => void;
@@ -59,29 +60,59 @@ export default function AskSupport({ onSent }: AskSupportProps) {
           {isSubmitting ? 'Sending...' : 'Send Message'}
         </button>
       </form>
-      <div className="mt-8 text-center">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Need more help?</h3>
-        <div className="flex justify-center space-x-4">
+      
+      {/* Need More Help Section */}
+      <div className="mt-10">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">Need more help?</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* WhatsApp */}
           <a
             href="https://wa.me/254700123456"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors"
+            className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-6 hover:shadow-lg hover:scale-105 transition-all duration-300 group"
           >
-            WhatsApp
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center group-hover:bg-green-600 transition-colors">
+                <MessageCircle className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="text-xl font-bold text-green-700 dark:text-green-400">WhatsApp</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Click to open WhatsApp</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">Message and data rates may apply</p>
+            </div>
           </a>
-          <a
-            href="mailto:admin@niko-free.com"
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors"
-          >
-            Email
-          </a>
+
+          {/* Call Us */}
           <a
             href="tel:+254700123456"
-            className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 font-medium transition-colors"
+            className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-6 hover:shadow-lg hover:scale-105 transition-all duration-300 group"
           >
-            Call Us
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-colors">
+                <Phone className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="text-xl font-bold text-blue-700 dark:text-blue-400">Call Us</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">+254 700 123 456</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500">Available 7:00am - 5:00pm</p>
+            </div>
           </a>
+
+          {/* Email */}
+          <a
+            href="mailto:admin@niko-free.com"
+            className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-2 border-purple-200 dark:border-purple-700 rounded-xl p-6 hover:shadow-lg hover:scale-105 transition-all duration-300 group"
+          >
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center group-hover:bg-purple-600 transition-colors">
+                <Mail className="w-8 h-8 text-white" />
+              </div>
+              <h4 className="text-xl font-bold text-purple-700 dark:text-purple-400">Send Email</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">We'd love to hear from you</p>
+              <p className="text-xs text-gray-500 dark:text-gray-500">Email us anytime</p>
+            </div>
+          </a>
+
         </div>
       </div>
     </div>

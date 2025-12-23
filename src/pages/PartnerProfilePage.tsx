@@ -317,11 +317,18 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
       {partnerData && (
         <SEO
           title={`${partnerData.business_name} - Partner Profile | Niko Free`}
-          description={partnerData.description || `View events and details for ${partnerData.business_name} on Niko Free.`}
-          keywords={`${partnerData.business_name}, event organizer, ${partnerData.category?.name || 'events'}, kenya events, niko free`}
+          description={partnerData.description || `View events and details for ${partnerData.business_name} on Niko Free. ${partnerData.category?.name || 'Event organizer'} in Kenya.`}
+          keywords={`${partnerData.business_name}, event organizer, ${partnerData.category?.name || 'events'}, kenya events, niko free, ${partnerData.venue_name || ''}, ${partnerData.venue_address || ''}`}
           image={partnerData.logo ? getImageUrl(partnerData.logo) : 'https://niko-free.com/src/images/Niko%20Free%20Logo.png'}
           url={`https://niko-free.com/partner/${partnerId}`}
           type="profile"
+          partner={{
+            name: partnerData.business_name,
+            description: partnerData.description,
+            image: partnerData.logo ? getImageUrl(partnerData.logo) : undefined,
+            category: partnerData.category?.name,
+            location: partnerData.venue_name || partnerData.venue_address || 'Kenya'
+          }}
         />
       )}
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 relative">

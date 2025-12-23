@@ -503,6 +503,10 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         setError('Please select at least one category');
         return;
       }
+      if (formData.openInterests.length < 5) {
+        setError('Please add at least 5 custom interests/tags');
+        return;
+      }
     }
     
     // Step 4 validation: Event Details
@@ -1452,8 +1456,9 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                   {/* Open Interests */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Add Custom Interests & Tag (Max 10)
+                      Add Custom Interests & Tags <span className="text-red-500">*</span> (Min 5, Max 10)
                     </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">(Interest and tags make your event findable)</p>
                     <div className="flex gap-2 mb-3">
                       <input
                         type="text"
@@ -1500,8 +1505,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                         </span>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {formData.openInterests.length}/10 interests added
+                    <p className={`text-xs mt-2 ${formData.openInterests.length < 5 ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {formData.openInterests.length}/10 interests added {formData.openInterests.length < 5 && '(Minimum 5 required)'}
                     </p>
                   </div>
                 </div>

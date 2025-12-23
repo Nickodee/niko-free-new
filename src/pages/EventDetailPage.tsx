@@ -377,20 +377,37 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
 
     // Get selected ticket type
     const ticketTypes = eventData.ticket_types || [];
+    // Filter to only active/available tickets
+    const activeTicketTypes = ticketTypes.filter((tt: any) => {
+      const isActive = tt.is_active !== false;
+      const isAvailable = tt.is_available !== false;
+      return isActive && isAvailable;
+    });
     let ticketTypeId: number | null = null;
 
-    if (ticketTypes.length > 0) {
+    if (activeTicketTypes.length > 0) {
       // If a specific ticket type is selected, use it
       if (selectedTicketType) {
-        const selected = ticketTypes.find((tt: any) => tt.id?.toString() === selectedTicketType);
-        ticketTypeId = selected?.id || ticketTypes[0].id;
+        const selected = activeTicketTypes.find((tt: any) => tt.id?.toString() === selectedTicketType);
+        if (!selected) {
+          setError('Selected ticket type is no longer available');
+          return;
+        }
+        ticketTypeId = selected?.id || activeTicketTypes[0].id;
       } else {
         // Use first available ticket type
-        ticketTypeId = ticketTypes[0].id;
+        ticketTypeId = activeTicketTypes[0].id;
       }
     } else if (ticketId) {
-      // If ticketId was passed from TicketSelector, try to use it
-      ticketTypeId = parseInt(ticketId) || null;
+      // If ticketId was passed from TicketSelector, verify it's still active
+      const ticketIdNum = parseInt(ticketId);
+      const selectedTicket = ticketTypes.find((tt: any) => tt.id === ticketIdNum);
+      if (selectedTicket && selectedTicket.is_active !== false && selectedTicket.is_available !== false) {
+        ticketTypeId = ticketIdNum;
+      } else {
+        setError('Selected ticket is no longer available');
+        return;
+      }
     }
 
     // For free events, we can proceed without ticket type (backend will create default)
@@ -589,7 +606,15 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   } else if (ticketTypes.length > 0) {
     // Use uniform for now - can be enhanced based on ticket type structure
     ticketType = 'uniform';
-    const mappedTickets = ticketTypes.map((tt: any) => ({
+    // Filter out disabled tickets (is_active === false or is_available === false)
+    const activeTicketTypes = ticketTypes.filter((tt: any) => {
+      // Check if ticket is active/available
+      const isActive = tt.is_active !== false;
+      const isAvailable = tt.is_available !== false;
+      return isActive && isAvailable;
+    });
+    
+    const mappedTickets = activeTicketTypes.map((tt: any) => ({
       id: tt.id?.toString() || tt.name?.toLowerCase().replace(/\s+/g, '-') || 'ticket-1',
       name: tt.name || 'Standard Ticket',
       price: parseFloat(tt.price || 0),
@@ -632,7 +657,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
         <SEO
           title={`${eventData.title} - Niko Free | Book Tickets Online`}
           description={eventData.description || `Join us for ${eventData.title}. Book your tickets now on Niko Free.`}
-          keywords={`${eventData.title}, ${eventData.category?.name || 'event'}, events kenya, tickets kenya, ${eventData.venue_name || eventData.venue_address || 'kenya'}, event booking, niko free`}
+          keywords={`${eventData.title}, ${eventData.category?.name || 'event'}, ${eventData.interests?.map((i: any) => i.name).join(', ') || ''}, events kenya, tickets kenya, ${eventData.venue_name || eventData.venue_address || 'kenya'}, event booking, niko free, ${eventData.partner?.business_name || ''}`}
           image={eventData.poster_image ? (eventData.poster_image.startsWith('http') ? eventData.poster_image : `${API_BASE_URL}${eventData.poster_image.startsWith('/') ? '' : '/'}${eventData.poster_image}`) : 'https://niko-free.com/src/images/Niko%20Free%20Logo.png'}
           url={`https://niko-free.com/event-detail/${eventId}`}
           type="website"
@@ -642,7 +667,11 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
             endDate: eventData.end_date,
             location: eventData.venue_name || eventData.venue_address || 'Kenya',
             description: eventData.description,
-            image: eventData.poster_image ? (eventData.poster_image.startsWith('http') ? eventData.poster_image : `${API_BASE_URL}${eventData.poster_image.startsWith('/') ? '' : '/'}${eventData.poster_image}`) : undefined
+            image: eventData.poster_image ? (eventData.poster_image.startsWith('http') ? eventData.poster_image : `${API_BASE_URL}${eventData.poster_image.startsWith('/') ? '' : '/'}${eventData.poster_image}`) : undefined,
+            category: eventData.category?.name,
+            interests: eventData.interests?.map((i: any) => i.name) || [],
+            price: eventData.ticket_types?.[0]?.price || 0,
+            organizer: eventData.partner?.business_name || 'Niko Free'
           }}
         />
       )}

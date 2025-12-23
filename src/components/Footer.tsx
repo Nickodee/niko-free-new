@@ -2,9 +2,10 @@ import { Calendar, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
 
 interface FooterProps {
   onNavigate?: (page: string) => void;
+  onOpenLoginModal?: () => void;
 }
 
-export default function Footer({ onNavigate }: FooterProps) {
+export default function Footer({ onNavigate, onOpenLoginModal }: FooterProps) {
   return (
     <footer className="bg-gradient-to-br from-gray-900 via-blue-900 to-black text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -43,10 +44,10 @@ export default function Footer({ onNavigate }: FooterProps) {
               <ul className="space-y-2 text-sm text-gray-300">
                 <li>
                   <button 
-                    onClick={() => onNavigate?.('landing')}
+                    onClick={() => onOpenLoginModal?.()}
                     className="hover:text-white transition-colors"
                   >
-                    Upcoming Events
+                    Quick Log In
                   </button>
                 </li>
                 <li>
@@ -59,14 +60,6 @@ export default function Footer({ onNavigate }: FooterProps) {
                 </li>
                 <li>
                   <button 
-                    onClick={() => onNavigate?.('landing')}
-                    className="hover:text-white transition-colors"
-                  >
-                    Popular Events
-                  </button>
-                </li>
-                <li>
-                  <button 
                     onClick={() => onNavigate?.('calendar')}
                     className="hover:text-white transition-colors"
                   >
@@ -75,7 +68,16 @@ export default function Footer({ onNavigate }: FooterProps) {
                 </li>
                 <li>
                   <button 
-                    onClick={() => onNavigate?.('landing')}
+                    onClick={() => {
+                      onNavigate?.('landing');
+                      // Scroll to categories section after a short delay to allow page navigation
+                      setTimeout(() => {
+                        const categoriesSection = document.getElementById('categories-section');
+                        if (categoriesSection) {
+                          categoriesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }, 100);
+                    }}
                     className="hover:text-white transition-colors"
                   >
                     Browse Categories

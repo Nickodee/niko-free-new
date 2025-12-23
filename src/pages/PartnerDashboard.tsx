@@ -187,7 +187,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                     alt="Niko Free Logo" 
                     className="w-10 h-10 object-contain"
                   />
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Partner Portal</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Partner Dashboard</h2>
                 </div>
                 <button
                   onClick={() => setSidebarOpen(false)}
@@ -260,7 +260,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                 </div>
 
                 {/* Center Section - Search Bar */}
-                <div className="flex-1 max-w-md hidden md:block">
+                {/* <div className="flex-1 max-w-md hidden md:block">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400" />
                     <input
@@ -271,7 +271,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
                       className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2 md:py-2.5 text-sm border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg md:rounded-xl focus:outline-none focus:ring-2 focus:ring-[#27aae2] focus:border-transparent"
                     />
                   </div>
-                </div>
+                </div> */}
 
                 {/* Right Section - Actions & Account */}
                 <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
@@ -415,7 +415,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
             )}
             {activeTab === 'attendees' && <Attendees />}
             {activeTab === 'boost' && <BoostEvent />}
-            {activeTab === 'analytics' && <Analytics />}
+            {activeTab === 'analytics' && <Analytics onNavigate={(tab: 'attendees' | 'events') => setActiveTab(tab)} />}
             {activeTab === 'notifications' && <Notifications />}
             {activeTab === 'roles' && <AssignRoles />}
             {activeTab === 'scanner' && <TicketScanner />}

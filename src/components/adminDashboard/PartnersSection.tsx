@@ -17,7 +17,10 @@ interface Partner {
   rating?: number;
 }
 
-interface PartnersProps {}
+interface PartnersProps {
+  selectedPartnerId?: string | null;
+  onClearSelection?: () => void;
+}
 
 interface PartnerNote {
   text: string;
@@ -34,7 +37,7 @@ interface PartnerStats {
   active_partners: number;
 }
 
-export default function PartnersSection({}: PartnersProps) {
+export default function PartnersSection({ selectedPartnerId, onClearSelection }: PartnersProps = {}) {
   const [allPartners, setAllPartners] = React.useState<Partner[]>([]);
   const [partnerStats, setPartnerStats] = React.useState<PartnerStats | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -166,6 +169,40 @@ export default function PartnersSection({}: PartnersProps) {
     
     fetchRejectionReasons();
   }, []);
+
+  // Handle selectedPartnerId from search - automatically set search filter
+  React.useEffect(() => {
+    if (selectedPartnerId && allPartners.length > 0) {
+      const partner = allPartners.find(p => p.id === selectedPartnerId);
+      if (partner) {
+        // Set search query to the partner's name to filter the list
+        setSearchQuery(partner.name);
+        // Set the active tab based on partner status
+        if (partner.status === 'pending') {
+          setActiveTab('pending');
+        } else if (partner.status === 'approved') {
+          setActiveTab('approved');
+        } else if (partner.status === 'suspended') {
+          setActiveTab('suspended');
+        } else if (partner.status === 'rejected') {
+          setActiveTab('rejected');
+        } else {
+          setActiveTab('all');
+        }
+        // Scroll to the partner card after a short delay
+        setTimeout(() => {
+          const partnerCard = document.getElementById(`partner-card-${selectedPartnerId}`);
+          if (partnerCard) {
+            partnerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 200);
+      }
+      // Clear the selection after handling
+      if (onClearSelection) {
+        setTimeout(() => onClearSelection(), 3000); // Clear highlight after 3 seconds
+      }
+    }
+  }, [selectedPartnerId, allPartners, onClearSelection]);
 
   // Filter partners based on active tab, search, and category
   const filteredPartners = React.useMemo(() => {
@@ -859,7 +896,12 @@ export default function PartnersSection({}: PartnersProps) {
           {filteredPartners.map((partner) => (
             <div
               key={partner.id}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border border-gray-100 dark:border-gray-700 cursor-pointer"
+              id={`partner-card-${partner.id}`}
+              className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border cursor-pointer ${
+                selectedPartnerId === partner.id
+                  ? 'border-[#27aae2] ring-2 ring-[#27aae2] border-2'
+                  : 'border-gray-100 dark:border-gray-700'
+              }`}
               onClick={(e) => {
                 if ((e.target as HTMLElement).tagName !== 'BUTTON' && (e.target as HTMLElement).tagName !== 'SPAN') {
                   setSelectedPartner(partner);

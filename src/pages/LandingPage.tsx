@@ -30,6 +30,7 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import EventCard from "../components/EventCard";
+import LoginModal from "../components/LoginModal";
 import PartnerLoginModal from "../components/PartnerLoginModal";
 import SEO from "../components/SEO";
 import {
@@ -109,6 +110,7 @@ export default function LandingPage({
   const [scrollCount, setScrollCount] = useState(0);
   const lastScrollY = React.useRef(0);
   const [showPartnerLoginModal, setShowPartnerLoginModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   // Randomize initial category position and direction on page load
   const [categoryRotation, setCategoryRotation] = useState(() => Math.floor(Math.random() * 20));
   const [rotationDirection, setRotationDirection] = useState<"left" | "right">(
@@ -813,7 +815,6 @@ export default function LandingPage({
       setShowCantMissLeftArrow(cantMissRef.current.scrollLeft > 0);
       
       // Calculate current slide based on scroll position
-      // Map scroll position to one of 3 dots
       const scrollLeft = cantMissRef.current.scrollLeft;
       const maxScroll = cantMissRef.current.scrollWidth - cantMissRef.current.clientWidth;
       
@@ -826,17 +827,29 @@ export default function LandingPage({
       // Calculate percentage scrolled
       const scrollPercentage = scrollLeft / maxScroll;
       
-      // Divide the scroll range into 3 sections with better boundaries
+      // Check if mobile (below sm breakpoint)
+      const isMobile = window.innerWidth < 640;
       let slideIndex = 0;
-      if (scrollPercentage > 0.66) {
-        slideIndex = 2;
-      } else if (scrollPercentage > 0.33) {
-        slideIndex = 1;
+      
+      if (isMobile) {
+        // Mobile: Each event takes ~75vw, so calculate based on card width
+        const containerWidth = cantMissRef.current.clientWidth;
+        const cardWidth = containerWidth * 0.75; // 75vw
+        const gap = 12; // gap-3 = 12px
+        slideIndex = Math.round(scrollLeft / (cardWidth + gap));
+        slideIndex = Math.min(slideIndex, cantMissEvents.length - 1);
+      } else {
+        // Desktop: 4 columns, 3 pagination dots
+        if (scrollPercentage > 0.66) {
+          slideIndex = 2;
+        } else if (scrollPercentage > 0.33) {
+          slideIndex = 1;
+        }
       }
       
       setCurrentCantMissSlide(slideIndex);
     }
-  }, []);
+  }, [cantMissEvents.length]);
 
   const scrollCantMiss = (direction: "left" | "right") => {
     if (!cantMissRef.current) return;
@@ -1424,7 +1437,7 @@ export default function LandingPage({
                   {cantMissEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="flex-shrink-0 snap-start snap-always w-[calc(100vw-2rem)] sm:w-[280px] md:w-[300px] lg:w-[calc(25%-18px)] cursor-pointer group"
+                      className="flex-shrink-0 snap-start snap-always w-[calc(75vw)] sm:w-[280px] md:w-[300px] lg:w-[calc(25%-18px)] cursor-pointer group"
                       onClick={() => onEventClick(event.id)}
                     >
                       <div className="rounded-2xl overflow-hidden h-full">
@@ -1595,32 +1608,56 @@ export default function LandingPage({
             {/* Pagination Dots */}
             {cantMissEvents.length > 0 && (
               <div className="flex justify-center mt-2 gap-2">
-                {[0, 1, 2].map((index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      if (cantMissRef.current) {
-                        const containerWidth = cantMissRef.current.clientWidth;
-                        cantMissRef.current.scrollTo({
-                          left: containerWidth * index,
-                          behavior: "smooth",
-                        });
-                      }
-                    }}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      currentCantMissSlide === index
-                        ? "w-8 bg-[#27aae2]"
-                        : "w-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500"
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
+                {(() => {
+                  // Mobile: 1 dot per event (since we show 1 full + 1/4 of next)
+                  // Desktop: 3 fixed dots
+                  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+                  const totalDots = isMobile 
+                    ? cantMissEvents.length
+                    : 3;
+                  
+                  return Array.from({ length: totalDots }).map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        if (cantMissRef.current) {
+                          const containerWidth = cantMissRef.current.clientWidth;
+                          const isMobile = window.innerWidth < 640;
+                          
+                          if (isMobile) {
+                            // Mobile: scroll to show specific event (75vw per card + gap)
+                            const cardWidth = containerWidth * 0.75;
+                            const gap = 12; // gap-3
+                            const scrollPosition = index * (cardWidth + gap);
+                            cantMissRef.current.scrollTo({
+                              left: scrollPosition,
+                              behavior: "smooth",
+                            });
+                          } else {
+                            // Desktop: scroll to show 4 columns at index position
+                            cantMissRef.current.scrollTo({
+                              left: containerWidth * index,
+                              behavior: "smooth",
+                            });
+                          }
+                        }
+                      }}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        currentCantMissSlide === index
+                          ? "w-8 bg-[#27aae2]"
+                          : "w-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500"
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ));
+                })()}
               </div>
             )}
           </div>
         </div>
 
         <div
+          id="categories-section"
           className="max-w-7xl mx-auto px-1 sm:px-6 lg:px-10 py-6 sm:py-10"
           data-aos="fade-up"
         >
@@ -1914,7 +1951,14 @@ export default function LandingPage({
           </div>
         </div>
 
-        <Footer onNavigate={onNavigate} />
+        <Footer onNavigate={onNavigate} onOpenLoginModal={() => setShowLoginModal(true)} />
+
+        {/* Login Modal */}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onNavigate={onNavigate}
+        />
 
         {/* Partner Login Modal */}
         <PartnerLoginModal

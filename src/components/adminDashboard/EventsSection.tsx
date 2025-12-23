@@ -30,7 +30,10 @@ interface PromotedEvent {
   clicks?: number;
 }
 
-interface EventsSectionProps {}
+interface EventsSectionProps {
+  selectedEventId?: string | null;
+  onClearSelection?: () => void;
+}
 
 interface EventStats {
   total_events: number;
@@ -39,7 +42,7 @@ interface EventStats {
   multiday_events: number;
 }
 
-export default function EventsSection({}: EventsSectionProps) {
+export default function EventsSection({ selectedEventId, onClearSelection }: EventsSectionProps = {}) {
   const [pendingEvents, setPendingEvents] = React.useState<PendingEvent[]>([]);
   const [allEvents, setAllEvents] = React.useState<any[]>([]);
   const [promotedEvents, setPromotedEvents] = React.useState<PromotedEvent[]>([]);
@@ -179,6 +182,34 @@ export default function EventsSection({}: EventsSectionProps) {
 
     fetchPromotedEvents();
   }, [activeTab]);
+
+  // Handle selectedEventId from search - automatically set search filter
+  React.useEffect(() => {
+    if (selectedEventId && allEvents.length > 0) {
+      const event = allEvents.find(e => String(e.id) === selectedEventId);
+      if (event) {
+        // Set search query to the event's title to filter the list
+        setSearchQuery(event.title);
+        // Set status filter based on event status
+        if (event.status) {
+          setStatusFilter(event.status);
+        }
+        // Set active tab to 'all' events
+        setActiveTab('all');
+        // Scroll to the event card after a short delay
+        setTimeout(() => {
+          const eventCard = document.getElementById(`event-card-${selectedEventId}`);
+          if (eventCard) {
+            eventCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 200);
+      }
+      // Clear the selection after handling
+      if (onClearSelection) {
+        setTimeout(() => onClearSelection(), 3000); // Clear highlight after 3 seconds
+      }
+    }
+  }, [selectedEventId, allEvents, onClearSelection]);
 
   const handleApproveEvent = async (eventId: string) => {
     setActionLoading(eventId);
@@ -540,7 +571,12 @@ export default function EventsSection({}: EventsSectionProps) {
               {filteredEvents.map((event) => (
           <div
             key={event.id}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all overflow-hidden border border-gray-100 dark:border-gray-700 cursor-pointer group"
+            id={`event-card-${event.id}`}
+            className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-lg transition-all overflow-hidden border cursor-pointer group ${
+              String(selectedEventId) === String(event.id)
+                ? 'border-[#27aae2] ring-2 ring-[#27aae2] border-2'
+                : 'border-gray-100 dark:border-gray-700'
+            }`}
             onClick={(e) => {
               // Only open modal if the card itself is clicked, not a button inside
               if ((e.target as HTMLElement).tagName !== 'BUTTON' && (e.target as HTMLElement).tagName !== 'SPAN') {

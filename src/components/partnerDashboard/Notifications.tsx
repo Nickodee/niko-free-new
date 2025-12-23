@@ -23,6 +23,7 @@ export default function Notifications() {
   const [error, setError] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all'); // Filter by notification type
 
   useEffect(() => {
     fetchNotifications();
@@ -177,6 +178,16 @@ export default function Notifications() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  // Filter notifications by type
+  const filteredNotifications = typeFilter === 'all' 
+    ? notifications 
+    : notifications.filter(n => n.notification_type === typeFilter);
+
+  // Get count for each type
+  const getTypeCount = (type: string) => {
+    return notifications.filter(n => n.notification_type === type).length;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -268,6 +279,64 @@ export default function Notifications() {
         </button>
       </div>
 
+      {/* Type Filter Chips */}
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => setTypeFilter('all')}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            typeFilter === 'all'
+              ? 'bg-[#27aae2] text-white shadow-lg'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-[#27aae2] dark:hover:border-[#27aae2]'
+          }`}
+        >
+          All Types ({notifications.length})
+        </button>
+        <button
+          onClick={() => setTypeFilter('booking')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            typeFilter === 'booking'
+              ? 'bg-blue-500 text-white shadow-lg'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>New Bookings ({getTypeCount('booking')})</span>
+        </button>
+        <button
+          onClick={() => setTypeFilter('payment')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            typeFilter === 'payment'
+              ? 'bg-green-500 text-white shadow-lg'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-green-500 dark:hover:border-green-500'
+          }`}
+        >
+          <DollarSign className="w-4 h-4" />
+          <span>Payment ({getTypeCount('payment')})</span>
+        </button>
+        <button
+          onClick={() => setTypeFilter('approval')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            typeFilter === 'approval'
+              ? 'bg-purple-500 text-white shadow-lg'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-500'
+          }`}
+        >
+          <CheckCircle className="w-4 h-4" />
+          <span>Event Approved ({getTypeCount('approval')})</span>
+        </button>
+        <button
+          onClick={() => setTypeFilter('rejection')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            typeFilter === 'rejection'
+              ? 'bg-red-500 text-white shadow-lg'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-red-500 dark:hover:border-red-500'
+          }`}
+        >
+          <AlertCircle className="w-4 h-4" />
+          <span>Rejected ({getTypeCount('rejection')})</span>
+        </button>
+      </div>
+
       {/* Error Display */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-xl p-4">
@@ -279,7 +348,7 @@ export default function Notifications() {
       )}
 
       {/* Notifications List */}
-      {notifications.length === 0 ? (
+      {filteredNotifications.length === 0 ? (
         <div className="text-center py-12">
           <Bell className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -288,12 +357,14 @@ export default function Notifications() {
           <p className="text-gray-600 dark:text-gray-400">
             {filter === 'unread' 
               ? "You're all caught up! No unread notifications."
+              : typeFilter !== 'all'
+              ? `No ${typeFilter} notifications found.`
               : "You don't have any notifications yet."}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {notifications.map((notification) => {
+          {filteredNotifications.map((notification) => {
             const Icon = getNotificationIcon(notification.notification_type);
             const colorClass = getNotificationColor(notification.notification_type);
             

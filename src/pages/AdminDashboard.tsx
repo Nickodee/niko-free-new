@@ -1,4 +1,4 @@
-import { Settings, Menu, X, Search, User, LogOut, Shield, FileText, DollarSign, BarChart3, Users, Calendar, HelpCircle } from 'lucide-react';
+import { Settings, Menu, X, Search, User, LogOut, Shield, FileText, DollarSign, BarChart3, Users, Calendar, HelpCircle, Loader } from 'lucide-react';
 import { MessageSquare } from 'lucide-react';
 import { Users as UsersIcon } from 'lucide-react';
 import { Sun, Moon } from 'lucide-react';
@@ -6,8 +6,9 @@ import MessagesPage from '../components/adminDashboard/MessagesPage';
 import { useState } from 'react';
 import { useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getUser } from '../services/authService';
+import { getUser, getToken } from '../services/authService';
 import { getUserNotifications } from '../services/userService';
+import { API_ENDPOINTS, API_BASE_URL } from '../config/api';
 import OverviewStats from '../components/adminDashboard/OverviewStats';
 import UsersPage from '../components/adminDashboard/UsersPage';
 import PartnersSection from '../components/adminDashboard/PartnersSection';
@@ -21,6 +22,14 @@ import SettingsPage from '../components/adminDashboard/SettingsPage';
 import NotificationsPage from '../components/adminDashboard/NotificationsPage';
 import SupportPage from '../components/adminDashboard/SupportPage';
 import InboxPage from '../components/adminDashboard/InboxPage';
+
+interface SearchResult {
+  id: string;
+  type: 'user' | 'partner' | 'event';
+  title: string;
+  subtitle: string;
+  image?: string;
+}
 
 interface AdminDashboardProps {
   onNavigate: (page: string) => void;
@@ -36,8 +45,17 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'partners' | 'events' | 'settings' | 'reports' | 'revenue' | 'users' | 'profile' | 'notifications' | 'messages' | 'support' | 'inbox'>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   // Ref for account menu
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  // Selected item ID to filter in child components
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   useEffect(() => {
     // Get admin user from auth context or localStorage
@@ -145,7 +163,167 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
       window.removeEventListener('admin-navigate-event', handleNavigateEvent as EventListener);
     };
   }, []);
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // Search functionality with debounce
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        return;
+      }
+
+      setIsSearching(true);
+      setShowSearchResults(true);
+
+      try {
+        const token = getToken();
+        if (!token) return;
+
+        const searchLower = searchQuery.toLowerCase();
+        const results: SearchResult[] = [];
+
+        // Search Users
+        try {
+          const usersResponse = await fetch(API_ENDPOINTS.admin.users, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          const usersData = await usersResponse.json();
+          
+          if (usersData.users) {
+            usersData.users
+              .filter((u: any) => 
+                `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchLower) ||
+                u.email?.toLowerCase().includes(searchLower)
+              )
+              .slice(0, 3)
+              .forEach((u: any) => {
+                results.push({
+                  id: u.id.toString(),
+                  type: 'user',
+                  title: `${u.first_name} ${u.last_name}`,
+                  subtitle: u.email,
+                  image: u.profile_picture,
+                });
+              });
+          }
+        } catch (err) {
+          console.error('Error searching users:', err);
+        }
+
+        // Search Partners
+        try {
+          const partnersResponse = await fetch(API_ENDPOINTS.admin.partners, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          const partnersData = await partnersResponse.json();
+          
+          if (partnersData.partners) {
+            partnersData.partners
+              .filter((p: any) => 
+                p.business_name?.toLowerCase().includes(searchLower) ||
+                p.email?.toLowerCase().includes(searchLower)
+              )
+              .slice(0, 3)
+              .forEach((p: any) => {
+                results.push({
+                  id: p.id.toString(),
+                  type: 'partner',
+                  title: p.business_name,
+                  subtitle: p.email || p.category,
+                  image: p.profile_picture,
+                });
+              });
+          }
+        } catch (err) {
+          console.error('Error searching partners:', err);
+        }
+
+        // Search Events
+        try {
+          const eventsResponse = await fetch(API_ENDPOINTS.admin.events, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          const eventsData = await eventsResponse.json();
+          
+          if (eventsData.events) {
+            eventsData.events
+              .filter((e: any) => 
+                e.title?.toLowerCase().includes(searchLower) ||
+                e.description?.toLowerCase().includes(searchLower)
+              )
+              .slice(0, 3)
+              .forEach((e: any) => {
+                results.push({
+                  id: e.id.toString(),
+                  type: 'event',
+                  title: e.title,
+                  subtitle: e.venue_name || e.venue_address || 'Event',
+                  image: e.poster_image,
+                });
+              });
+          }
+        } catch (err) {
+          console.error('Error searching events:', err);
+        }
+
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(performSearch, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSearchResultClick = (result: SearchResult) => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+    setSearchResults([]);
+    
+    // Navigate to appropriate tab and set selected ID
+    switch (result.type) {
+      case 'user':
+        setSelectedUserId(result.id);
+        setSelectedPartnerId(null);
+        setSelectedEventId(null);
+        setActiveTab('users');
+        break;
+      case 'partner':
+        setSelectedPartnerId(result.id);
+        setSelectedUserId(null);
+        setSelectedEventId(null);
+        setActiveTab('partners');
+        break;
+      case 'event':
+        setSelectedEventId(result.id);
+        setSelectedUserId(null);
+        setSelectedPartnerId(null);
+        setActiveTab('events');
+        break;
+    }
+  };
 
   // Removed hardcoded data - components now fetch their own data
 
@@ -185,7 +363,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                   <Shield className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-gray-900 dark:text-white">Admin Portal</h2>
+                  <h2 className="font-bold text-gray-900 dark:text-white">Admin Dashboard</h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400">System Control</p>
                 </div>
               </div>
@@ -330,16 +508,101 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
               </div>
 
               {/* Center - Search Bar */}
-              <div className="hidden md:flex flex-1 max-w-md mx-8">
+              <div className="hidden md:flex flex-1 max-w-md mx-8" ref={searchRef}>
                 <div className="relative w-full">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search..."
+                    placeholder="Search users, partners, events..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-gray-700 dark:text-white border-0 rounded-xl focus:ring-2 focus:ring-[#27aae2] focus:bg-white dark:focus:bg-gray-600 transition-all"
+                    onFocus={() => searchQuery && setShowSearchResults(true)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-gray-100 dark:bg-gray-700 dark:text-white border-0 rounded-xl focus:ring-2 focus:ring-[#27aae2] focus:bg-white dark:focus:bg-gray-600 transition-all"
                   />
+                  {isSearching && (
+                    <Loader className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 animate-spin" />
+                  )}
+                  {searchQuery && !isSearching && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setShowSearchResults(false);
+                        setSearchResults([]);
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+
+                  {/* Search Results Dropdown */}
+                  {showSearchResults && searchQuery && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
+                      {isSearching ? (
+                        <div className="p-6 text-center">
+                          <Loader className="w-6 h-6 text-[#27aae2] animate-spin mx-auto mb-2" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Searching...</p>
+                        </div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="p-6 text-center">
+                          <Search className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">No results found</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Try searching for users, partners, or events</p>
+                        </div>
+                      ) : (
+                        <div className="py-2">
+                          {/* Group results by type */}
+                          {['user', 'partner', 'event'].map(type => {
+                            const typeResults = searchResults.filter(r => r.type === type);
+                            if (typeResults.length === 0) return null;
+
+                            return (
+                              <div key={type}>
+                                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                  {type === 'user' ? 'Users' : type === 'partner' ? 'Partners' : 'Events'}
+                                </div>
+                                {typeResults.map(result => (
+                                  <button
+                                    key={`${result.type}-${result.id}`}
+                                    onClick={() => handleSearchResultClick(result)}
+                                    className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                  >
+                                    {result.image ? (
+                                      <img
+                                        src={result.image.startsWith('http') ? result.image : `${API_BASE_URL}${result.image}`}
+                                        alt={result.title}
+                                        className="w-10 h-10 rounded-full object-cover"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(result.title)}&background=27aae2&color=fff&size=128`;
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#27aae2] to-[#1e8bb8] flex items-center justify-center">
+                                        <span className="text-white font-semibold text-sm">
+                                          {result.title.charAt(0).toUpperCase()}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <div className="flex-1 text-left">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {result.title}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        {result.subtitle}
+                                      </p>
+                                    </div>
+                                    {result.type === 'user' && <UsersIcon className="w-4 h-4 text-gray-400" />}
+                                    {result.type === 'partner' && <Users className="w-4 h-4 text-gray-400" />}
+                                    {result.type === 'event' && <Calendar className="w-4 h-4 text-gray-400" />}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -448,7 +711,7 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         <main className="flex-1 overflow-x-hidden p-6 lg:p-8">
           {activeTab === 'messages' && <MessagesPage />}
           {activeTab === 'notifications' && <NotificationsPage />}
-          {activeTab === 'users' && <UsersPage />}
+          {activeTab === 'users' && <UsersPage selectedUserId={selectedUserId} onClearSelection={() => setSelectedUserId(null)} />}
           {activeTab === 'inbox' && <InboxPage />}
           {activeTab === 'overview' && (
             <div className="space-y-8">
@@ -462,8 +725,8 @@ export default function AdminDashboard({ onNavigate }: AdminDashboardProps) {
               </div>
             </div>
           )}
-          {activeTab === 'partners' && <PartnersSection />}
-          {activeTab === 'events' && <EventsSection />}
+          {activeTab === 'partners' && <PartnersSection selectedPartnerId={selectedPartnerId} onClearSelection={() => setSelectedPartnerId(null)} />}
+          {activeTab === 'events' && <EventsSection selectedEventId={selectedEventId} onClearSelection={() => setSelectedEventId(null)} />}
           {activeTab === 'reports' && <Reports />}
           {activeTab === 'revenue' && <Revenue />}
           {activeTab === 'settings' && <SettingsPage />}

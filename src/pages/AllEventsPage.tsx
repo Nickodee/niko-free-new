@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
+import LoginModal from '../components/LoginModal';
 import SEO from '../components/SEO';
 import { getEvents, getCategories } from '../services/eventService';
 import { API_BASE_URL } from '../config/api';
@@ -26,6 +27,7 @@ export default function AllEventsPage({
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [priceFilter, setPriceFilter] = useState<'all' | 'free' | 'paid'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,9 +63,16 @@ export default function AllEventsPage({
           per_page: eventsPerPage,
         };
 
-        // Add search query
+        // Add enhanced search query - searches across multiple fields
+        // Backend should search in: title, description, category name, location, tags, interests, partner name
         if (searchQuery.trim()) {
           params.search = searchQuery.trim();
+          // Additional search parameters for comprehensive search
+          params.search_categories = true;
+          params.search_location = true;
+          params.search_tags = true;
+          params.search_interests = true;
+          params.search_partners = true;
         }
 
         // Add category filter
@@ -189,10 +198,19 @@ export default function AllEventsPage({
   return (
     <>
       <SEO
-        title="All Events - Discover Events in Kenya | Niko Free"
-        description="Browse and search all events happening in Kenya. Filter by category, location, date, and price to find the perfect event for you."
-        keywords="events kenya, search events, find events, event categories, kenya events, event search, filter events"
-        url="https://niko-free.com/events"
+        title={selectedCategory && selectedCategory !== 'all' 
+          ? `${selectedCategory} Events in Kenya | Niko Free` 
+          : "All Events - Discover Events in Kenya | Niko Free"}
+        description={selectedCategory && selectedCategory !== 'all'
+          ? `Browse ${selectedCategory} events happening in Kenya. Find and book tickets for ${selectedCategory.toLowerCase()} events on Niko Free.`
+          : "Browse and search all events happening in Kenya. Filter by category, location, date, and price to find the perfect event for you."}
+        keywords={`events kenya, ${selectedCategory || 'all events'}, search events, find events, event categories, kenya events, event search, filter events, ${selectedLocation || 'nairobi, mombasa'}, book tickets`}
+        url={`https://niko-free.com/events${selectedCategory && selectedCategory !== 'all' ? `?category=${selectedCategory}` : ''}`}
+        category={selectedCategory && selectedCategory !== 'all' ? {
+          name: selectedCategory,
+          description: `Discover and book ${selectedCategory} events in Kenya`,
+          eventCount: totalEvents
+        } : undefined}
       />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 transition-colors duration-200">
         {/* Navbar */}
@@ -207,7 +225,7 @@ export default function AllEventsPage({
                 <Search className="w-5 h-5 text-gray-400 dark:text-gray-500 mr-3" />
                 <input
                   type="text"
-                  placeholder="Search events..."
+                  placeholder="Search by event name, category, location, tags, interests, or partner..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -231,6 +249,37 @@ export default function AllEventsPage({
                 <span>Filters</span>
               </button>
             </div>
+
+            {/* Search Hints */}
+            {!showFilters && !searchQuery && (
+              <div className="mt-3 flex flex-wrap gap-2 items-center">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Try searching:</span>
+                <button
+                  onClick={() => setSearchQuery('concerts')}
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  concerts
+                </button>
+                <button
+                  onClick={() => setSearchQuery('Nairobi')}
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Nairobi
+                </button>
+                <button
+                  onClick={() => setSearchQuery('technology')}
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  technology
+                </button>
+                <button
+                  onClick={() => setSearchQuery('networking')}
+                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  networking
+                </button>
+              </div>
+            )}
 
             {/* Filters Panel */}
             {showFilters && (
@@ -481,8 +530,15 @@ export default function AllEventsPage({
         </div>
 
         {/* Footer */}
-        <Footer onNavigate={onNavigate} />
+        <Footer onNavigate={onNavigate} onOpenLoginModal={() => setShowLoginModal(true)} />
       </div>
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onNavigate={onNavigate}
+      />
     </>
   );
 }

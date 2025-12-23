@@ -5,6 +5,7 @@ import { API_BASE_URL, getImageUrl } from '../../config/api';
 import { initiatePayment } from '../../services/paymentService';
 import { getToken } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 interface PendingBooking {
   id: number;
@@ -30,6 +31,8 @@ export default function PendingBookings() {
   const [error, setError] = useState('');
   const [processingPayment, setProcessingPayment] = useState<number | null>(null);
   const [cancellingBooking, setCancellingBooking] = useState<number | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<PendingBooking | null>(null);
 
   useEffect(() => {
     fetchPendingBookings();
@@ -46,6 +49,13 @@ export default function PendingBookings() {
       // Users should be able to see and cancel past pending bookings
       // The "Pay Now" button will be disabled for past events anyway
       setPendingBookings(allBookings);
+      
+      if (allBookings.length > 0) {
+        toast.success(`You have ${allBookings.length} pending booking${allBookings.length > 1 ? 's' : ''} waiting for payment`, {
+          position: 'top-right',
+          autoClose: 4000,
+        });
+      }
     } catch (err: any) {
       console.error('Error fetching pending bookings:', err);
       const errorMessage = err.message || 'Failed to load pending bookings';
@@ -53,8 +63,16 @@ export default function PendingBookings() {
       // If rate limited, show a more helpful message
       if (errorMessage.includes('Too many requests')) {
         setError('Too many requests. Please wait a moment and refresh the page.');
+        toast.error('Too many requests. Please wait a moment.', {
+          position: 'top-right',
+          autoClose: 4000,
+        });
       } else {
         setError(errorMessage);
+        toast.error('Failed to load pending bookings', {
+          position: 'top-right',
+          autoClose: 4000,
+        });
       }
     } finally {
       setIsLoading(false);
@@ -64,37 +82,61 @@ export default function PendingBookings() {
   const handlePayNow = async (booking: PendingBooking) => {
     if (booking.event.is_free) {
       // Free events shouldn't have pending bookings, but handle it gracefully
-      alert('This is a free event. No payment required.');
+      toast.error('This is a free event. No payment required.', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
       return;
     }
 
     try {
       setProcessingPayment(booking.id);
       
+      toast.loading('Redirecting to payment...', {
+        position: 'top-right',
+        autoClose: 2000,
+      });
+      
       // Navigate to event detail page where they can complete payment
       navigate(`/event-detail/${booking.event.id}?booking=${booking.id}&pay=true`);
     } catch (err: any) {
       console.error('Error initiating payment:', err);
-      alert('Failed to initiate payment: ' + (err.message || 'Unknown error'));
+      toast.error('Failed to initiate payment: ' + (err.message || 'Unknown error'), {
+        position: 'top-right',
+        autoClose: 4000,
+      });
     } finally {
       setProcessingPayment(null);
     }
   };
 
-  const handleCancelBooking = async (bookingId: number) => {
-    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
-      return;
-    }
+  const handleCancelBooking = async (booking: PendingBooking) => {
+    setBookingToCancel(booking);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!bookingToCancel) return;
 
     try {
-      setCancellingBooking(bookingId);
+      setCancellingBooking(bookingToCancel.id);
+      setShowCancelModal(false);
+      
+      const loadingToast = toast.loading('Cancelling booking...', {
+        position: 'top-right',
+      });
       
       const token = getToken();
       if (!token) {
+        toast.dismiss(loadingToast);
+        toast.error('You must be logged in to cancel a booking', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
         throw new Error('You must be logged in to cancel a booking');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/tickets/cancel/${bookingId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tickets/cancel/${bookingToCancel.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -109,19 +151,35 @@ export default function PendingBookings() {
         // Check for specific error messages
         const errorMsg = data.msg || data.error || 'Failed to cancel booking';
         if (errorMsg.includes('past events') || errorMsg.includes('already started')) {
+          toast.dismiss(loadingToast);
+          toast.error('Cannot cancel booking for events that have already passed', {
+            position: 'top-right',
+            autoClose: 4000,
+          });
           throw new Error('Cannot cancel booking for events that have already passed');
         }
+        toast.dismiss(loadingToast);
+        toast.error(errorMsg, {
+          position: 'top-right',
+          autoClose: 4000,
+        });
         throw new Error(errorMsg);
       }
 
       // Remove from list
-      setPendingBookings(prev => prev.filter(b => b.id !== bookingId));
-      alert('Booking cancelled successfully');
+      setPendingBookings(prev => prev.filter(b => b.id !== bookingToCancel.id));
+      
+      toast.dismiss(loadingToast);
+      toast.success('Booking cancelled successfully!', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
     } catch (err: any) {
       console.error('Error cancelling booking:', err);
-      alert('Failed to cancel booking: ' + (err.message || 'Unknown error'));
+      // Error toast is already shown in the conditions above
     } finally {
       setCancellingBooking(null);
+      setBookingToCancel(null);
     }
   };
 
@@ -266,7 +324,7 @@ export default function PendingBookings() {
                     const eventIsPast = isEventPast(booking.event.start_date);
                     return (
                   <button
-                    onClick={() => handleCancelBooking(booking.id)}
+                    onClick={() => handleCancelBooking(booking)}
                         disabled={cancellingBooking === booking.id || eventIsPast}
                         title={eventIsPast ? 'Cannot cancel booking for events that have already passed' : ''}
                     className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 border-2 border-red-200 dark:border-red-800 rounded-lg font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -282,6 +340,57 @@ export default function PendingBookings() {
           </div>
         ))}
       </div>
+
+      {/* Cancel Booking Modal */}
+      {showCancelModal && bookingToCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all animate-scaleIn">
+            {/* Icon */}
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 rounded-full">
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+            </div>
+            
+            {/* Title */}
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">
+              Cancel Booking?
+            </h3>
+            
+            {/* Event Details */}
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                {bookingToCancel.event.title}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {bookingToCancel.quantity} ticket{bookingToCancel.quantity > 1 ? 's' : ''} • KES {parseFloat(bookingToCancel.total_amount.toString()).toLocaleString()}
+              </p>
+            </div>
+            
+            {/* Message */}
+            <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">
+              Are you sure you want to cancel this booking? This action cannot be undone and you'll need to book again if you change your mind.
+            </p>
+            
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setBookingToCancel(null);
+                }}
+                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Keep Booking
+              </button>
+              <button
+                onClick={confirmCancelBooking}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

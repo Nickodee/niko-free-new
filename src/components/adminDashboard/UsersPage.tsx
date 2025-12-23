@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { User, Search, Ban, XCircle, CheckCircle, AlertCircle, Loader, X } from 'lucide-react';
+import { User, Search, Ban, XCircle, CheckCircle, AlertCircle, Loader, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { API_BASE_URL, getImageUrl, API_ENDPOINTS } from '../../config/api';
 import { getToken } from '../../services/authService';
 import UserDetailPage from './UserDetailPage';
 
-export default function UsersPage() {
+interface UsersPageProps {
+  selectedUserId?: string | null;
+  onClearSelection?: () => void;
+}
+
+export default function UsersPage({ selectedUserId, onClearSelection }: UsersPageProps = {}) {
   const [viewUser, setViewUser] = React.useState<any | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [userList, setUserList] = React.useState<any[]>([]);
@@ -18,6 +23,29 @@ export default function UsersPage() {
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'recent' | 'inactive' | 'dormant'>('all');
+  const [sortField, setSortField] = useState<'name' | 'joined' | 'lastActive' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Sorting functions
+  const handleSort = (field: 'name' | 'joined' | 'lastActive') => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: 'name' | 'joined' | 'lastActive') => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+      <ChevronUp className="inline w-4 h-4 ml-1" />
+    ) : (
+      <ChevronDown className="inline w-4 h-4 ml-1" />
+    );
+  };
 
   // Helper function to map user data with activity status
   const mapUserWithActivityStatus = (u: any) => {
@@ -139,6 +167,28 @@ export default function UsersPage() {
 
     fetchUsers();
   }, []);
+
+  // Handle selectedUserId from search - automatically set search filter
+  useEffect(() => {
+    if (selectedUserId && userList.length > 0) {
+      const user = userList.find(u => u.id === selectedUserId);
+      if (user) {
+        // Set search query to the user's name or email to filter the list
+        setSearchQuery(user.name);
+        // Scroll to the user row after a short delay
+        setTimeout(() => {
+          const userRow = document.getElementById(`user-row-${selectedUserId}`);
+          if (userRow) {
+            userRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+      // Clear the selection after handling
+      if (onClearSelection) {
+        setTimeout(() => onClearSelection(), 3000); // Clear highlight after 3 seconds
+      }
+    }
+  }, [selectedUserId, userList, onClearSelection]);
 
   const handleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -274,20 +324,49 @@ export default function UsersPage() {
   };
 
   // Filter users based on search query and status filter
-  const filteredUsers = userList.filter(user => {
-    // Search filter
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = !searchQuery || (
-      user.name.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query) ||
-      user.phone.toLowerCase().includes(query)
-    );
+  const filteredUsers = userList
+    .filter(user => {
+      // Search filter
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || (
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query) ||
+        user.phone.toLowerCase().includes(query)
+      );
 
-    // Status filter
-    const matchesStatus = statusFilter === 'all' || user.activityStatus === statusFilter;
+      // Status filter
+      const matchesStatus = statusFilter === 'all' || user.activityStatus === statusFilter;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Apply sorting if a field is selected
+      if (!sortField) return 0;
+
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'joined':
+          aValue = a.created_at ? new Date(a.created_at).getTime() : 0;
+          bValue = b.created_at ? new Date(b.created_at).getTime() : 0;
+          break;
+        case 'lastActive':
+          aValue = a.lastActiveDate ? a.lastActiveDate.getTime() : 0;
+          bValue = b.lastActiveDate ? b.lastActiveDate.getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
 
   // Count users by activity status
   const statusCounts = {
@@ -485,15 +564,34 @@ export default function UsersPage() {
                 User {getSortIcon('name')}
               </th>
               <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Phone</th>
-              <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Joined</th>
-              <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Last Active</th>
+              <th 
+                className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                onClick={() => handleSort('joined')}
+              >
+                Joined {getSortIcon('joined')}
+              </th>
+              <th 
+                className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                onClick={() => handleSort('lastActive')}
+              >
+                Last Active {getSortIcon('lastActive')}
+              </th>
               <th className="py-2 sm:py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Status</th>
               <th className="py-2 sm:py-3 px-2 sm:px-4 text-center text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.map(user => (
-              <tr key={user.id} className="border-t border-gray-100 dark:border-gray-700 cursor-pointer" onClick={() => setViewUser(user)}>
+              <tr 
+                key={user.id} 
+                id={`user-row-${user.id}`}
+                className={`border-t border-gray-100 dark:border-gray-700 cursor-pointer transition-all duration-300 ${
+                  selectedUserId === user.id 
+                    ? 'bg-[#27aae2]/20 dark:bg-[#27aae2]/30 ring-2 ring-[#27aae2]' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                onClick={() => setViewUser(user)}
+              >
                 {/* Checkbox */}
                 <td className="py-2 sm:py-3 px-2 sm:px-4 text-center" onClick={e => e.stopPropagation()}>
                   <input

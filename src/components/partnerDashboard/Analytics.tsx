@@ -33,7 +33,11 @@ interface AnalyticsData {
 	chart_data?: ChartDataPoint[];
 }
 
-export default function Analytics() {
+interface AnalyticsProps {
+	onNavigate?: (tab: 'attendees' | 'events') => void;
+}
+
+export default function Analytics({ onNavigate }: AnalyticsProps) {
 	const [data, setData] = useState<AnalyticsData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
@@ -153,30 +157,39 @@ export default function Analytics() {
 
 			{/* Top summary cards */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-				<div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center space-x-4">
-					<div className="p-3 bg-[#e6f7fb] dark:bg-[#0f1724] rounded-lg">
-						<Calendar className="w-6 h-6 text-[#27aae2]" />
+				{/* Total Bookings - Clickable to Attendees */}
+				<button
+					onClick={() => onNavigate?.('attendees')}
+					className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center space-x-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer group"
+				>
+					<div className="p-3 bg-[#e6f7fb] dark:bg-[#0f1724] rounded-lg group-hover:bg-[#27aae2] transition-colors">
+						<Calendar className="w-6 h-6 text-[#27aae2] group-hover:text-white transition-colors" />
 					</div>
-					<div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">Total Bookings</div>
+					<div className="text-left">
+						<div className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-[#27aae2] transition-colors">Total Bookings</div>
 						<div className="text-2xl font-semibold text-gray-900 dark:text-white">
 							{data?.summary.total_bookings ?? 0}
 						</div>
 					</div>
-				</div>
+				</button>
 
-				<div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center space-x-4">
-					<div className="p-3 bg-[#eaf8f1] dark:bg-[#071214] rounded-lg">
-						<TrendingUp className="w-6 h-6 text-[#27aae2]" />
+				{/* Active Events - Clickable to Events */}
+				<button
+					onClick={() => onNavigate?.('events')}
+					className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center space-x-4 hover:shadow-lg hover:scale-105 transition-all cursor-pointer group"
+				>
+					<div className="p-3 bg-[#eaf8f1] dark:bg-[#071214] rounded-lg group-hover:bg-[#27aae2] transition-colors">
+						<TrendingUp className="w-6 h-6 text-[#27aae2] group-hover:text-white transition-colors" />
 					</div>
-					<div>
-						<div className="text-sm text-gray-500 dark:text-gray-400">Active Events</div>
+					<div className="text-left">
+						<div className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-[#27aae2] transition-colors">Active Events</div>
 						<div className="text-2xl font-semibold text-gray-900 dark:text-white">
 							{data?.summary.active_events ?? 0}
 						</div>
 					</div>
-				</div>
+				</button>
 
+				{/* Revenue - Not clickable */}
 				<div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center space-x-4">
 					<div className="p-3 bg-[#fff4e6] dark:bg-[#1a1208] rounded-lg">
 						<Clock className="w-6 h-6 text-[#27aae2]" />
