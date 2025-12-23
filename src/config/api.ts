@@ -4,9 +4,9 @@
  */
 
 // Base URL for the API - use environment variable or default to localhost for development
-export const API_BASE_URL = "https://nikofree-arhecnfueegrasf8.canadacentral-01.azurewebsites.net";
+// export const API_BASE_URL = "https://nikofree-arhecnfueegrasf8.canadacentral-01.azurewebsites.net";
 
-// export const API_BASE_URL = "http://localhost:8000";
+export const API_BASE_URL = "http://localhost:8000";
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -153,7 +153,7 @@ export const buildUrl = (endpoint: string): string => {
 
 /**
  * Get a valid image URL from poster_image field
- * Handles base64 data URIs, relative paths, and absolute URLs
+ * Handles base64 data URIs, Azure Blob Storage URLs, relative paths, and absolute URLs
  */
 export const getImageUrl = (posterImage: string | null | undefined): string => {
   if (!posterImage) {
@@ -165,7 +165,8 @@ export const getImageUrl = (posterImage: string | null | undefined): string => {
     return 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=1200';
   }
   
-  // Already a full URL
+  // Already a full URL (including Azure Blob Storage URLs)
+  // Azure URLs look like: https://account.blob.core.windows.net/container/path?sv=...
   if (posterImage.startsWith('http://') || posterImage.startsWith('https://')) {
     return posterImage;
   }

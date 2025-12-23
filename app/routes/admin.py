@@ -11,6 +11,10 @@ from app.models.category import Category, Location
 from app.models.admin import AdminLog
 from app.utils.decorators import admin_required
 from app.utils.email import send_partner_approval_email, send_event_approval_email
+from flask import current_app
+import os
+import uuid
+from werkzeug.utils import secure_filename
 
 bp = Blueprint('admin', __name__)
 
@@ -839,5 +843,129 @@ def promote_event_admin(current_admin, event_id):
         'message': 'Event promoted successfully',
         'promotion': promotion.to_dict()
     }), 201
+
+
+@bp.route('/migrate-to-azure', methods=['POST'])
+@admin_required
+def migrate_to_azure(current_admin):
+    """Migrate all local files to Azure and update database records"""
+    from app.utils.file_upload import upload_to_azure_blob
+    
+    stats = {
+        'events_updated': 0,
+        'partners_updated': 0,
+        'users_updated': 0,
+        'files_uploaded': 0,
+        'errors': []
+    }
+    
+    def find_local_file(local_path):
+        """Find local file"""
+        if not local_path:
+            return None
+        # Try absolute path
+        if os.path.isabs(local_path) and os.path.exists(local_path):
+            return local_path
+        # Try relative to uploads folder
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+        if not os.path.isabs(upload_folder):
+            # Go up one level from app directory
+            app_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            parent_dir = os.path.dirname(app_root)
+            upload_folder = os.path.join(parent_dir, upload_folder)
+        full_path = os.path.join(upload_folder, local_path.lstrip('/'))
+        return full_path if os.path.exists(full_path) else None
+    
+    def upload_local_file_to_azure(local_path, folder='general'):
+        """Upload local file to Azure"""
+        try:
+            from azure.storage.blob import BlobServiceClient, ContentSettings, generate_account_sas, ResourceTypes, AccountSasPermissions
+            from datetime import datetime, timedelta
+            
+            account_name = current_app.config.get('AZURE_STORAGE_ACCOUNT_NAME')
+            account_key = current_app.config.get('AZURE_STORAGE_ACCOUNT_KEY')
+            container_name = current_app.config.get('AZURE_STORAGE_CONTAINER', 'uploads')
+            
+            if not account_name or not account_key:
+                return None
+            
+            filename = os.path.basename(local_path)
+            name, ext = os.path.splitext(secure_filename(filename))
+            unique_filename = f"{folder}/{name}_{uuid.uuid4().hex[:8]}{ext}"
+            
+            account_url = f"https://{account_name}.blob.core.windows.net"
+            blob_service_client = BlobServiceClient(account_url=account_url, credential=account_key)
+            blob_client = blob_service_client.get_blob_client(container=container_name, blob=unique_filename)
+            
+            content_type = 'image/jpeg' if ext.lower() in ['.jpg', '.jpeg'] else 'image/png' if ext.lower() == '.png' else 'application/octet-stream'
+            
+            with open(local_path, 'rb') as file:
+                blob_client.upload_blob(file, overwrite=True, content_settings=ContentSettings(content_type=content_type))
+            
+            sas_token = generate_account_sas(
+                account_name=account_name,
+                account_key=account_key,
+                resource_types=ResourceTypes(object=True),
+                permission=AccountSasPermissions(read=True),
+                expiry=datetime.utcnow() + timedelta(days=365)
+            )
+            
+            return f"{blob_client.url}?{sas_token}"
+        except Exception as e:
+            return None
+    
+    # Migrate Events
+    events = Event.query.filter(Event.poster_image.isnot(None)).all()
+    for event in events:
+        if 'blob.core.windows.net' in (event.poster_image or ''):
+            continue
+        local_path = find_local_file(event.poster_image)
+        if local_path:
+            azure_url = upload_local_file_to_azure(local_path, folder='events')
+            if azure_url:
+                event.poster_image = azure_url
+                stats['events_updated'] += 1
+                stats['files_uploaded'] += 1
+            else:
+                stats['errors'].append(f"Event {event.id}: Failed to upload")
+    
+    # Migrate Partners
+    partners = Partner.query.filter(Partner.logo.isnot(None)).all()
+    for partner in partners:
+        if 'blob.core.windows.net' in (partner.logo or ''):
+            continue
+        local_path = find_local_file(partner.logo)
+        if local_path:
+            azure_url = upload_local_file_to_azure(local_path, folder='logos')
+            if azure_url:
+                partner.logo = azure_url
+                stats['partners_updated'] += 1
+                stats['files_uploaded'] += 1
+            else:
+                stats['errors'].append(f"Partner {partner.id}: Failed to upload")
+    
+    # Migrate Users
+    users = User.query.filter(User.profile_picture.isnot(None)).all()
+    for user in users:
+        if 'blob.core.windows.net' in (user.profile_picture or ''):
+            continue
+        local_path = find_local_file(user.profile_picture)
+        if local_path:
+            azure_url = upload_local_file_to_azure(local_path, folder='profiles')
+            if azure_url:
+                user.profile_picture = azure_url
+                stats['users_updated'] += 1
+                stats['files_uploaded'] += 1
+            else:
+                stats['errors'].append(f"User {user.id}: Failed to upload")
+    
+    db.session.commit()
+    
+    log_admin_action(current_admin, 'migrate_to_azure', 'system', 0, f"Migrated {stats['files_uploaded']} files to Azure")
+    
+    return jsonify({
+        'message': 'Migration completed',
+        'stats': stats
+    }), 200
 
 

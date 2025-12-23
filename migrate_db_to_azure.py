@@ -1,0 +1,266 @@
+#!/usr/bin/env python3
+"""
+Update database records to use Azure URLs - using raw SQL to avoid model issues
+"""
+import os
+import sys
+from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+import uuid
+
+# Load environment variables
+load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+def upload_file_to_azure(local_file_path, folder='general'):
+    """Upload a local file to Azure Blob Storage and return URL with SAS token"""
+    try:
+        from azure.storage.blob import BlobServiceClient, ContentSettings, generate_account_sas, ResourceTypes, AccountSasPermissions
+        from datetime import datetime, timedelta
+        
+        account_name = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
+        account_key = os.getenv('AZURE_STORAGE_ACCOUNT_KEY')
+        container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'uploads')
+        
+        if not account_name or not account_key:
+            return None
+        
+        # Get filename and create unique name
+        filename = os.path.basename(local_file_path)
+        name, ext = os.path.splitext(secure_filename(filename))
+        unique_filename = f"{folder}/{name}_{uuid.uuid4().hex[:8]}{ext}"
+        
+        # Initialize Blob Service Client
+        account_url = f"https://{account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(account_url=account_url, credential=account_key)
+        
+        # Get blob client
+        blob_client = blob_service_client.get_blob_client(container=container_name, blob=unique_filename)
+        
+        # Determine content type
+        content_type = 'application/octet-stream'
+        if ext.lower() in ['.jpg', '.jpeg']:
+            content_type = 'image/jpeg'
+        elif ext.lower() == '.png':
+            content_type = 'image/png'
+        elif ext.lower() == '.gif':
+            content_type = 'image/gif'
+        elif ext.lower() == '.pdf':
+            content_type = 'application/pdf'
+        
+        # Upload file
+        with open(local_file_path, 'rb') as file:
+            blob_client.upload_blob(
+                file,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type)
+            )
+        
+        # Generate SAS token
+        sas_token = generate_account_sas(
+            account_name=account_name,
+            account_key=account_key,
+            resource_types=ResourceTypes(object=True),
+            permission=AccountSasPermissions(read=True),
+            expiry=datetime.utcnow() + timedelta(days=365)
+        )
+        
+        blob_url = f"{blob_client.url}?{sas_token}"
+        return blob_url
+        
+    except Exception as e:
+        print(f"   ❌ Error uploading {local_file_path}: {str(e)}")
+        return None
+
+def find_local_file(local_path):
+    """Find local file, checking multiple possible locations"""
+    # Try as absolute path first
+    if os.path.isabs(local_path):
+        if os.path.exists(local_path):
+            return local_path
+    
+    # Try relative to uploads folder
+    uploads_paths = [
+        'uploads',
+        os.path.join('..', 'uploads'),
+        os.path.join(os.path.dirname(__file__), '..', 'uploads'),
+    ]
+    
+    for base in uploads_paths:
+        full_path = os.path.join(base, local_path.lstrip('/'))
+        if os.path.exists(full_path):
+            return os.path.abspath(full_path)
+    
+    return None
+
+def migrate_all():
+    """Migrate all files and update database using raw SQL"""
+    from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
+    from config import config
+    import os
+    
+    app = Flask(__name__)
+    # Use production config if DATABASE_URL is set, otherwise default
+    config_name = 'production' if os.getenv('DATABASE_URL') else 'default'
+    app.config.from_object(config[config_name])
+    db = SQLAlchemy(app)
+    
+    with app.app_context():
+        print("=" * 60)
+        print("🚀 Complete Azure Migration (Database Update)")
+        print("=" * 60)
+        print()
+        
+        # Track statistics
+        stats = {
+            'events_updated': 0,
+            'partners_updated': 0,
+            'users_updated': 0,
+            'files_uploaded': 0,
+            'errors': 0
+        }
+        
+        # 1. Migrate Event poster images
+        print("📸 Migrating Event poster images...")
+        result = db.session.execute(db.text("SELECT id, title, poster_image FROM events WHERE poster_image IS NOT NULL"))
+        events = result.fetchall()
+        print(f"   Found {len(events)} events with poster images")
+        
+        for event_id, title, poster_image in events:
+            if not poster_image:
+                continue
+            
+            # Skip if already Azure URL
+            if 'blob.core.windows.net' in poster_image:
+                print(f"   ⏭️  Event {event_id} ({title[:30] if title else 'N/A'}...): Already using Azure")
+                continue
+            
+            # Find local file
+            local_path = find_local_file(poster_image)
+            
+            if local_path and os.path.exists(local_path):
+                print(f"   📤 Event {event_id} ({title[:30] if title else 'N/A'}...): Uploading to Azure...")
+                azure_url = upload_file_to_azure(local_path, folder='events')
+                
+                if azure_url:
+                    db.session.execute(
+                        db.text("UPDATE events SET poster_image = :url WHERE id = :id"),
+                        {'url': azure_url, 'id': event_id}
+                    )
+                    db.session.commit()
+                    stats['events_updated'] += 1
+                    stats['files_uploaded'] += 1
+                    print(f"      ✅ Updated: {azure_url[:80]}...")
+                else:
+                    stats['errors'] += 1
+                    print(f"      ❌ Failed to upload")
+            else:
+                print(f"   ⚠️  Event {event_id}: Local file not found: {poster_image}")
+                stats['errors'] += 1
+        
+        print()
+        
+        # 2. Migrate Partner logos
+        print("🏢 Migrating Partner logos...")
+        result = db.session.execute(db.text("SELECT id, business_name, logo FROM partners WHERE logo IS NOT NULL"))
+        partners = result.fetchall()
+        print(f"   Found {len(partners)} partners with logos")
+        
+        for partner_id, business_name, logo in partners:
+            if not logo:
+                continue
+            
+            # Skip if already Azure URL
+            if 'blob.core.windows.net' in logo:
+                print(f"   ⏭️  Partner {partner_id} ({business_name[:30] if business_name else 'N/A'}...): Already using Azure")
+                continue
+            
+            # Find local file
+            local_path = find_local_file(logo)
+            
+            if local_path and os.path.exists(local_path):
+                print(f"   📤 Partner {partner_id} ({business_name[:30] if business_name else 'N/A'}...): Uploading to Azure...")
+                azure_url = upload_file_to_azure(local_path, folder='logos')
+                
+                if azure_url:
+                    db.session.execute(
+                        db.text("UPDATE partners SET logo = :url WHERE id = :id"),
+                        {'url': azure_url, 'id': partner_id}
+                    )
+                    db.session.commit()
+                    stats['partners_updated'] += 1
+                    stats['files_uploaded'] += 1
+                    print(f"      ✅ Updated: {azure_url[:80]}...")
+                else:
+                    stats['errors'] += 1
+                    print(f"      ❌ Failed to upload")
+            else:
+                print(f"   ⚠️  Partner {partner_id}: Local file not found: {logo}")
+                stats['errors'] += 1
+        
+        print()
+        
+        # 3. Migrate User profile pictures
+        print("👤 Migrating User profile pictures...")
+        result = db.session.execute(db.text("SELECT id, email, profile_picture FROM users WHERE profile_picture IS NOT NULL"))
+        users = result.fetchall()
+        print(f"   Found {len(users)} users with profile pictures")
+        
+        for user_id, email, profile_picture in users:
+            if not profile_picture:
+                continue
+            
+            # Skip if already Azure URL
+            if 'blob.core.windows.net' in profile_picture:
+                print(f"   ⏭️  User {user_id} ({email}): Already using Azure")
+                continue
+            
+            # Find local file
+            local_path = find_local_file(profile_picture)
+            
+            if local_path and os.path.exists(local_path):
+                print(f"   📤 User {user_id} ({email}): Uploading to Azure...")
+                azure_url = upload_file_to_azure(local_path, folder='profiles')
+                
+                if azure_url:
+                    db.session.execute(
+                        db.text("UPDATE users SET profile_picture = :url WHERE id = :id"),
+                        {'url': azure_url, 'id': user_id}
+                    )
+                    db.session.commit()
+                    stats['users_updated'] += 1
+                    stats['files_uploaded'] += 1
+                    print(f"      ✅ Updated: {azure_url[:80]}...")
+                else:
+                    stats['errors'] += 1
+                    print(f"      ❌ Failed to upload")
+            else:
+                print(f"   ⚠️  User {user_id}: Local file not found: {profile_picture}")
+                stats['errors'] += 1
+        
+        print()
+        print("=" * 60)
+        print("📊 Migration Summary")
+        print("=" * 60)
+        print(f"✅ Events updated: {stats['events_updated']}")
+        print(f"✅ Partners updated: {stats['partners_updated']}")
+        print(f"✅ Users updated: {stats['users_updated']}")
+        print(f"📤 Files uploaded to Azure: {stats['files_uploaded']}")
+        print(f"❌ Errors: {stats['errors']}")
+        print()
+        print("🎉 Migration complete! All database records now use Azure URLs.")
+        print("   New uploads will automatically go to Azure.")
+
+if __name__ == '__main__':
+    try:
+        migrate_all()
+    except KeyboardInterrupt:
+        print("\n\nMigration interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n\n❌ Unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+

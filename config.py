@@ -2,7 +2,9 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from current directory and parent directory
+load_dotenv()  # Try current directory first
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))  # Try parent directory
 
 
 class Config:
@@ -33,7 +35,8 @@ class Config:
     
     # File Upload
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
-    UPLOAD_FOLDER = 'uploads'
+    # Upload folder should be in parent directory (outside niko-free-new)
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads') if os.path.dirname(__file__) else '../uploads'
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
     
     # Email
@@ -70,6 +73,13 @@ class Config:
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     AWS_S3_BUCKET = os.getenv('AWS_S3_BUCKET', 'nikofree-uploads')
     AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
+    
+    # Azure Blob Storage
+    AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    AZURE_STORAGE_ACCOUNT_NAME = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
+    AZURE_STORAGE_ACCOUNT_KEY = os.getenv('AZURE_STORAGE_ACCOUNT_KEY')
+    AZURE_STORAGE_CONTAINER = os.getenv('AZURE_STORAGE_CONTAINER', 'uploads')
+    AZURE_STORAGE_USE_BLOB = os.getenv('AZURE_STORAGE_USE_BLOB', 'False').lower() == 'true'
     
     # Business Logic
     PLATFORM_COMMISSION_RATE = float(os.getenv('PLATFORM_COMMISSION_RATE', '0.07'))
