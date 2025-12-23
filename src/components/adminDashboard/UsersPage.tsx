@@ -23,6 +23,29 @@ export default function UsersPage({ selectedUserId, onClearSelection }: UsersPag
   const [selectedUserForDelete, setSelectedUserForDelete] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'recent' | 'inactive' | 'dormant'>('all');
+  const [sortField, setSortField] = useState<'name' | 'joined' | 'lastActive' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Sorting functions
+  const handleSort = (field: 'name' | 'joined' | 'lastActive') => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: 'name' | 'joined' | 'lastActive') => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? (
+      <ChevronUp className="inline w-4 h-4 ml-1" />
+    ) : (
+      <ChevronDown className="inline w-4 h-4 ml-1" />
+    );
+  };
 
   // Helper function to map user data with activity status
   const mapUserWithActivityStatus = (u: any) => {
