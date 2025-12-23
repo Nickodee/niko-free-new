@@ -103,13 +103,19 @@ def upload_to_azure_blob(file, folder='general'):
         return blob_url
         
     except ImportError:
-        print("azure-storage-blob not installed. Using local file upload instead.")
+        print("❌ [AZURE UPLOAD] azure-storage-blob not installed. Using local file upload instead.")
+        import traceback
+        traceback.print_exc()
         return None
     except AzureError as e:
-        print(f"Error uploading to Azure Blob Storage: {str(e)}")
+        print(f"❌ [AZURE UPLOAD] Azure error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
     except Exception as e:
-        print(f"Unexpected error uploading to Azure Blob Storage: {str(e)}")
+        print(f"❌ [AZURE UPLOAD] Unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -133,20 +139,26 @@ def upload_file(file, folder='general'):
     
     # Check if Azure Blob Storage is enabled
     use_azure = current_app.config.get('AZURE_STORAGE_USE_BLOB', False)
+    account_name = current_app.config.get('AZURE_STORAGE_ACCOUNT_NAME')
+    connection_string = current_app.config.get('AZURE_STORAGE_CONNECTION_STRING')
     
-    # Debug logging
-    if current_app.config.get('DEBUG', False):
-        print(f"[DEBUG] AZURE_STORAGE_USE_BLOB: {use_azure}")
-        print(f"[DEBUG] AZURE_STORAGE_ACCOUNT_NAME: {current_app.config.get('AZURE_STORAGE_ACCOUNT_NAME')}")
+    # Always log upload attempt (not just in DEBUG mode)
+    print(f"[FILE UPLOAD] AZURE_STORAGE_USE_BLOB: {use_azure}")
+    print(f"[FILE UPLOAD] AZURE_STORAGE_ACCOUNT_NAME: {account_name}")
+    print(f"[FILE UPLOAD] Has connection string: {bool(connection_string)}")
+    print(f"[FILE UPLOAD] Folder: {folder}, Filename: {file.filename if file else 'None'}")
     
     if use_azure:
         # Try Azure Blob Storage first
+        print(f"[FILE UPLOAD] Attempting Azure Blob Storage upload...")
         blob_url = upload_to_azure_blob(file, folder)
         if blob_url:
-            print(f"[DEBUG] File uploaded to Azure Blob Storage: {blob_url}")
+            print(f"[FILE UPLOAD] ✅ Successfully uploaded to Azure Blob Storage: {blob_url}")
             return blob_url
         # Fallback to local if Azure fails
-        print("⚠️ Azure Blob Storage upload failed, falling back to local storage")
+        print("⚠️ [FILE UPLOAD] Azure Blob Storage upload failed, falling back to local storage")
+    else:
+        print(f"[FILE UPLOAD] Azure Blob Storage is disabled, using local storage")
     
     # Local file upload (fallback or default)
     filename = secure_filename(file.filename)

@@ -3,23 +3,174 @@ from flask_mail import Message
 from app import mail
 from threading import Thread
 from datetime import datetime
-import sys
+import socket
+import smtplib
+import base64
+import os
+
+# Company colors
+COMPANY_BLUE = "#27aae2"
+COMPANY_BLUE_DARK = "#1e8bb8"
+COMPANY_BLACK = "#333333"
+COMPANY_WHITE = "#ffffff"
+COMPANY_BG_LIGHT = "#f5f5f5"
+
+# Logo base64 (embedded from favicon)
+LOGO_BASE64 = None
+LOGO_LOADED = False
+
+def _get_logo_base64():
+    """Get logo base64 data, loading it once"""
+    global LOGO_BASE64, LOGO_LOADED
+    if not LOGO_LOADED:
+        LOGO_LOADED = True  # Set flag first to prevent infinite recursion
+        # Try multiple path resolutions
+        possible_paths = []
+        
+        # Try Flask instance path if available
+        try:
+            if current_app and hasattr(current_app, 'instance_path'):
+                instance_root = os.path.dirname(current_app.instance_path)
+                possible_paths.append(os.path.join(instance_root, 'niko_free', 'dist', 'assets', 'favicon-C9tFaF8M.png'))
+        except:
+            pass
+        
+        # From app/utils/email.py -> project root -> niko_free/dist/assets/
+        email_file_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(email_file_dir)))
+        possible_paths.append(os.path.join(project_root, 'niko_free', 'dist', 'assets', 'favicon-C9tFaF8M.png'))
+        
+        # From current working directory
+        possible_paths.append(os.path.join(os.getcwd(), 'niko_free', 'dist', 'assets', 'favicon-C9tFaF8M.png'))
+        
+        # Relative path
+        possible_paths.append('niko_free/dist/assets/favicon-C9tFaF8M.png')
+        
+        logo_path = None
+        for path in possible_paths:
+            abs_path = os.path.abspath(path) if not os.path.isabs(path) else path
+            if os.path.exists(abs_path):
+                logo_path = abs_path
+                break
+        
+        if logo_path:
+            try:
+                with open(logo_path, 'rb') as f:
+                    logo_bytes = f.read()
+                    LOGO_BASE64 = base64.b64encode(logo_bytes).decode('utf-8')
+                try:
+                    if current_app and hasattr(current_app, 'logger'):
+                        current_app.logger.info(f"✅ Logo loaded successfully from: {logo_path} ({len(logo_bytes)} bytes)")
+                    else:
+                        print(f"✅ Logo loaded successfully from: {logo_path} ({len(logo_bytes)} bytes)")
+                except:
+                    print(f"✅ Logo loaded successfully from: {logo_path} ({len(logo_bytes)} bytes)")
+            except Exception as e:
+                error_msg = f"❌ Error loading logo from {logo_path}: {str(e)}"
+                try:
+                    if current_app and hasattr(current_app, 'logger'):
+                        current_app.logger.error(error_msg)
+                    else:
+                        print(error_msg)
+                except:
+                    print(error_msg)
+                LOGO_BASE64 = ""
+        else:
+            error_msg = f"❌ Logo file not found. Tried paths: {possible_paths}"
+            try:
+                if current_app and hasattr(current_app, 'logger'):
+                    current_app.logger.warning(error_msg)
+                else:
+                    print(error_msg)
+            except:
+                print(error_msg)
+            LOGO_BASE64 = ""
+    return LOGO_BASE64
+
+def get_email_header(title, subtitle=""):
+    """Generate email header with logo and company colors"""
+    logo_data = _get_logo_base64()
+    # Use logo if available, with proper styling for email clients
+    # Note: Some email clients have issues with base64 images, but this is the most reliable method
+    if logo_data:
+        logo_img = f'''<img src="data:image/png;base64,{logo_data}" 
+                         alt="Niko Free Logo" 
+                         width="150" 
+                         height="150"
+                         style="max-width: 150px; width: 150px; height: auto; display: block; margin: 0 auto 20px; border: 0; outline: none; text-decoration: none;" />'''
+    else:
+        # Fallback: text logo
+        logo_img = '<div style="font-size: 24px; font-weight: bold; color: #ffffff; margin-bottom: 20px;">NIKO FREE</div>'
+    
+    return f"""
+    <div style="background: linear-gradient(135deg, {COMPANY_BLUE} 0%, {COMPANY_BLUE_DARK} 100%); padding: 40px 30px; text-align: center;">
+        {logo_img}
+        <h1 style="color: {COMPANY_WHITE}; margin: 0; font-size: 28px; font-weight: bold;">{title}</h1>
+        {f'<p style="color: {COMPANY_WHITE}; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">{subtitle}</p>' if subtitle else ''}
+    </div>
+    """
+
+def get_email_footer():
+    """Generate email footer with company info"""
+    return f"""
+    <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="font-size: 12px; color: #999; margin: 0;">
+            © {datetime.now().year} Niko Free. All rights reserved.
+        </p>
+        <p style="font-size: 12px; color: #999; margin: 10px 0 0 0;">
+            <a href="https://niko-free.com" style="color: {COMPANY_BLUE}; text-decoration: none;">Visit Niko Free</a>
+        </p>
+    </div>
+    """
 
 
 def send_async_email(app, msg):
     """Send email asynchronously"""
     with app.app_context():
         try:
-            print(f"📧 [EMAIL] Sending email to: {', '.join(msg.recipients)}")
-            print(f"📧 [EMAIL] Subject: {msg.subject}")
+            # Check if email sending is suppressed (for development)
+            if app.config.get('MAIL_SUPPRESS_SEND', False):
+                print(f"📧 [DEV MODE] Email suppressed: {msg.subject} to {msg.recipients}")
+                return
+            
+            # Get SMTP connection with timeout
+            mail_server = app.config.get('MAIL_SERVER')
+            mail_port = app.config.get('MAIL_PORT', 587)
+            mail_timeout = app.config.get('MAIL_TIMEOUT', 30)  # Increased for SendGrid
+            
+            print(f"📧 [EMAIL] Attempting to send email to {msg.recipients}")
+            print(f"📧 [EMAIL] SMTP Server: {mail_server}:{mail_port}, Timeout: {mail_timeout}s")
+            
+            # Send email with explicit timeout handling
             mail.send(msg)
-            print(f"✅ [EMAIL] Successfully sent email to: {', '.join(msg.recipients)}")
+            print(f"✅ Email sent successfully: {msg.subject} to {msg.recipients}")
+        except (socket.timeout, TimeoutError) as e:
+            error_msg = f"❌ Email timeout error: {str(e)}. SMTP server {app.config.get('MAIL_SERVER')}:{app.config.get('MAIL_PORT')} is not responding (likely blocked by firewall)."
+            print(error_msg)
+            if hasattr(app, 'logger'):
+                app.logger.error(error_msg)
+        except (ConnectionError, ConnectionRefusedError, OSError) as e:
+            error_msg = f"❌ Email connection error: {str(e)}. Cannot connect to SMTP server {app.config.get('MAIL_SERVER')}:{app.config.get('MAIL_PORT')}."
+            print(error_msg)
+            if hasattr(app, 'logger'):
+                app.logger.error(error_msg)
+        except smtplib.SMTPException as e:
+            error_msg = f"❌ SMTP error: {str(e)} (Type: {type(e).__name__})"
+            print(error_msg)
+            if hasattr(app, 'logger'):
+                app.logger.error(error_msg)
         except Exception as e:
-            print(f"❌ [EMAIL] Error sending email to {', '.join(msg.recipients)}: {str(e)}")
+            error_msg = f"❌ Error sending email: {str(e)} (Type: {type(e).__name__})"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            if hasattr(app, 'logger'):
+                app.logger.error(error_msg, exc_info=True)
 
 
 def send_email(subject, recipient, html_body, text_body=None, sync=False):
     """Send email - sync=True for immediate sending, sync=False for async"""
+    import sys
     from flask import current_app
     
     # Check email configuration
@@ -60,37 +211,197 @@ def send_email(subject, recipient, html_body, text_body=None, sync=False):
             raise
     else:
         # Send asynchronously
-        app = current_app._get_current_object()
-        Thread(target=send_async_email, args=(app, msg)).start()
+        try:
+            app = current_app._get_current_object()
+            
+            # Check if email sending is suppressed
+            if app.config.get('MAIL_SUPPRESS_SEND', False):
+                print(f"📧 [DEV MODE] Email suppressed: {subject} to {recipient}")
+                return
+            
+            # Start thread and don't wait for it
+            thread = Thread(target=send_async_email, args=(app, msg))
+            thread.daemon = True  # Daemon thread won't block app shutdown
+            thread.start()
+            
+            # Log that email was queued
+            print(f"📧 [EMAIL] Email queued: {subject} to {recipient}")
+        except Exception as e:
+            # Don't let email errors crash the app
+            error_msg = f"❌ Error creating email: {str(e)}"
+            print(error_msg)
+            if hasattr(current_app, 'logger'):
+                current_app.logger.error(error_msg, exc_info=True)
+
+
+def send_password_reset_email(user, reset_token):
+    """Send password reset email"""
+    subject = "Reset Your Niko Free Password"
+    frontend_url = current_app.config.get('FRONTEND_URL') or current_app.config.get('BASE_URL') or 'https://www.niko-free.com'
+    reset_url = f"{frontend_url}/reset-password?token={reset_token}"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: {COMPANY_BLACK}; margin: 0; padding: 0; background-color: {COMPANY_BG_LIGHT};">
+        <div style="max-width: 600px; margin: 0 auto; background-color: {COMPANY_WHITE}; padding: 0;">
+            {get_email_header("Reset Your Password", "Password Reset Request")}
+            
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: {COMPANY_BLACK}; margin: 0 0 20px 0;">Hi <strong>{user.first_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">We received a request to reset your password for your Niko Free account.</p>
+                
+                <div style="background-color: #e3f2fd; border-left: 4px solid {COMPANY_BLUE}; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <p style="margin: 0; color: {COMPANY_BLUE_DARK};">
+                        <strong>⚠️ Security Notice:</strong> This link will expire in 1 hour.
+                    </p>
+                </div>
+                
+                <p style="font-size: 16px; color: #555; margin: 0 0 20px 0;">Click the button below to reset your password:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{reset_url}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, {COMPANY_BLUE} 0%, {COMPANY_BLUE_DARK} 100%); 
+                              color: {COMPANY_WHITE}; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                        Reset Password
+                    </a>
+                </div>
+                
+                <p style="margin-top: 30px; font-size: 14px; color: #666;">
+                    Or copy and paste this link into your browser:<br>
+                    <a href="{reset_url}" style="color: {COMPANY_BLUE}; word-break: break-all;">{reset_url}</a>
+                </p>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <p style="font-size: 14px; color: #666;">
+                        <strong>Didn't request this?</strong><br>
+                        If you didn't request a password reset, you can safely ignore this email. 
+                        Your password will remain unchanged.
+                    </p>
+                </div>
+            </div>
+            
+            {get_email_footer()}
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email(subject, user.email, html_body)
+
+
+def send_partner_password_reset_email(partner, reset_token):
+    """Send password reset email to partner"""
+    subject = "Reset Your Niko Free Partner Password"
+    frontend_url = current_app.config.get('FRONTEND_URL') or current_app.config.get('BASE_URL') or 'https://www.niko-free.com'
+    reset_url = f"{frontend_url}/partner/reset-password?token={reset_token}"
+    
+    partner_name = partner.contact_person or partner.business_name or 'Partner'
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: {COMPANY_BLACK}; margin: 0; padding: 0; background-color: {COMPANY_BG_LIGHT};">
+        <div style="max-width: 600px; margin: 0 auto; background-color: {COMPANY_WHITE}; padding: 0;">
+            {get_email_header("Reset Your Partner Password", "Password Reset Request")}
+            
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: {COMPANY_BLACK}; margin: 0 0 20px 0;">Hi <strong>{partner_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">We received a request to reset your password for your Niko Free partner account ({partner.business_name}).</p>
+                
+                <div style="background-color: #e3f2fd; border-left: 4px solid {COMPANY_BLUE}; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <p style="margin: 0; color: {COMPANY_BLUE_DARK};">
+                        <strong>⚠️ Security Notice:</strong> This link will expire in 1 hour.
+                    </p>
+                </div>
+                
+                <p style="font-size: 16px; color: #555; margin: 0 0 20px 0;">Click the button below to reset your password:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{reset_url}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, {COMPANY_BLUE} 0%, {COMPANY_BLUE_DARK} 100%); 
+                              color: {COMPANY_WHITE}; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                        Reset Password
+                    </a>
+                </div>
+                
+                <p style="margin-top: 30px; font-size: 14px; color: #666;">
+                    Or copy and paste this link into your browser:<br>
+                    <a href="{reset_url}" style="color: {COMPANY_BLUE}; word-break: break-all;">{reset_url}</a>
+                </p>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <p style="font-size: 14px; color: #666;">
+                        <strong>Didn't request this?</strong><br>
+                        If you didn't request a password reset, you can safely ignore this email. 
+                        Your password will remain unchanged.
+                    </p>
+                </div>
+            </div>
+            
+            {get_email_footer()}
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email(subject, partner.email, html_body)
 
 
 def send_welcome_email(user):
     """Send welcome email to new user"""
     subject = "Welcome to Niko Free!"
+    frontend_url = current_app.config.get('FRONTEND_URL') or current_app.config.get('BASE_URL') or 'https://www.niko-free.com'
+    
     html_body = f"""
+    <!DOCTYPE html>
     <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #4CAF50;">Welcome to Niko Free, {user.first_name}! 🎉</h2>
-                <p>Thank you for joining Niko Free - your gateway to amazing events in Kenya!</p>
-                <p>With Niko Free, you can:</p>
-                <ul>
-                    <li>Discover exciting events near you</li>
-                    <li>Book tickets easily and securely</li>
-                    <li>Save events to your bucketlist</li>
-                    <li>Get digital tickets with QR codes</li>
-                </ul>
-                <p>Start exploring events now!</p>
-                <a href="{current_app.config.get('FRONTEND_URL')}/events" 
-                   style="display: inline-block; padding: 12px 30px; background-color: #4CAF50; 
-                          color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">
-                    Browse Events
-                </a>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: {COMPANY_BLACK}; margin: 0; padding: 0; background-color: {COMPANY_BG_LIGHT};">
+        <div style="max-width: 600px; margin: 0 auto; background-color: {COMPANY_WHITE}; padding: 0;">
+            {get_email_header("Welcome to Niko Free! 🎉", "Your Gateway to Amazing Events")}
+            
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: {COMPANY_BLACK}; margin: 0 0 20px 0;">Hi <strong>{user.first_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Thank you for joining Niko Free - your gateway to amazing events in Kenya!</p>
+                
+                <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: {COMPANY_BLUE_DARK}; font-size: 18px;">✨ With Niko Free, you can:</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 8px;">Discover exciting events near you</li>
+                        <li style="margin-bottom: 8px;">Book tickets easily and securely</li>
+                        <li style="margin-bottom: 8px;">Save events to your bucketlist</li>
+                        <li style="margin-bottom: 8px;">Get digital tickets with QR codes</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/events" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, {COMPANY_BLUE} 0%, {COMPANY_BLUE_DARK} 100%); 
+                              color: {COMPANY_WHITE}; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                        Browse Events
+                    </a>
+                </div>
+                
                 <p style="margin-top: 30px; color: #666; font-size: 14px;">
-                    If you have any questions, feel free to contact us.
+                    If you have any questions, feel free to contact us at <a href="mailto:support@niko-free.com" style="color: {COMPANY_BLUE};">support@niko-free.com</a>.
                 </p>
             </div>
-        </body>
+            
+            {get_email_footer()}
+        </div>
+    </body>
     </html>
     """
     send_email(subject, user.email, html_body)
@@ -102,80 +413,242 @@ def send_booking_confirmation_email(booking, tickets):
     event = booking.event
     
     subject = f"Booking Confirmed: {event.title}"
+    frontend_url = current_app.config.get('FRONTEND_URL') or current_app.config.get('BASE_URL') or 'https://www.niko-free.com'
     
     tickets_html = ""
     for ticket in tickets:
         tickets_html += f"""
-        <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px;">
-            <p><strong>Ticket #{ticket.ticket_number}</strong></p>
-            <p>Type: {ticket.ticket_type.name}</p>
-            <img src="{ticket.qr_code}" alt="QR Code" style="max-width: 200px;">
+        <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; background-color: {COMPANY_WHITE};">
+            <p style="margin: 0 0 10px 0; color: {COMPANY_BLACK};"><strong>Ticket #{ticket.ticket_number}</strong></p>
+            <p style="margin: 0 0 10px 0; color: #555;">Type: {ticket.ticket_type.name}</p>
+            <img src="{ticket.qr_code}" alt="QR Code" style="max-width: 200px; display: block; margin: 10px auto;">
         </div>
         """
     
     html_body = f"""
+    <!DOCTYPE html>
     <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #4CAF50;">Booking Confirmed! 🎉</h2>
-                <p>Hi {user.first_name},</p>
-                <p>Your booking for <strong>{event.title}</strong> has been confirmed!</p>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: {COMPANY_BLACK}; margin: 0; padding: 0; background-color: {COMPANY_BG_LIGHT};">
+        <div style="max-width: 600px; margin: 0 auto; background-color: {COMPANY_WHITE}; padding: 0;">
+            {get_email_header("Booking Confirmed! 🎉", "Your Event Tickets Are Ready")}
+            
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: {COMPANY_BLACK}; margin: 0 0 20px 0;">Hi <strong>{user.first_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Your booking for <strong>{event.title}</strong> has been confirmed!</p>
                 
-                <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-                    <h3 style="margin-top: 0;">Event Details</h3>
-                    <p><strong>Event:</strong> {event.title}</p>
-                    <p><strong>Date:</strong> {event.start_date.strftime('%B %d, %Y at %I:%M %p')}</p>
-                    <p><strong>Venue:</strong> {event.venue_name or event.venue_address}</p>
-                    <p><strong>Booking Number:</strong> {booking.booking_number}</p>
-                    <p><strong>Total Amount:</strong> KES {booking.total_amount}</p>
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid {COMPANY_BLUE};">
+                    <h3 style="margin-top: 0; color: {COMPANY_BLUE_DARK};">Event Details</h3>
+                    <p style="margin: 5px 0; color: {COMPANY_BLACK};"><strong>Event:</strong> {event.title}</p>
+                    <p style="margin: 5px 0; color: {COMPANY_BLACK};"><strong>Date:</strong> {event.start_date.strftime('%B %d, %Y at %I:%M %p')}</p>
+                    <p style="margin: 5px 0; color: {COMPANY_BLACK};"><strong>Venue:</strong> {event.venue_name or event.venue_address}</p>
+                    <p style="margin: 5px 0; color: {COMPANY_BLACK};"><strong>Booking Number:</strong> {booking.booking_number}</p>
+                    <p style="margin: 5px 0; color: {COMPANY_BLACK};"><strong>Total Amount:</strong> KES {booking.total_amount}</p>
                 </div>
                 
-                <h3>Your Tickets</h3>
+                <h3 style="color: {COMPANY_BLUE_DARK}; margin: 30px 0 15px 0;">Your Tickets</h3>
                 {tickets_html}
                 
-                <p style="margin-top: 30px;">
+                <p style="margin-top: 30px; color: #555; font-size: 14px;">
                     Please present your QR code at the event entrance for check-in.
                 </p>
                 
-                <a href="{current_app.config.get('FRONTEND_URL')}/bookings/{booking.id}" 
-                   style="display: inline-block; padding: 12px 30px; background-color: #4CAF50; 
-                          color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">
-                    View Booking Details
-                </a>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/bookings/{booking.id}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, {COMPANY_BLUE} 0%, {COMPANY_BLUE_DARK} 100%); 
+                              color: {COMPANY_WHITE}; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                        View Booking Details
+                    </a>
+                </div>
             </div>
-        </body>
+            
+            {get_email_footer()}
+        </div>
+    </body>
     </html>
     """
     send_email(subject, user.email, html_body)
 
 
-def send_partner_approval_email(partner, approved=True):
+def send_partner_welcome_email(partner):
+    """Send welcome email to new partner when they submit application"""
+    subject = "Welcome to Niko Free - Application Received! 🎉"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: {COMPANY_BLACK}; margin: 0; padding: 0; background-color: {COMPANY_BG_LIGHT};">
+        <div style="max-width: 600px; margin: 0 auto; background-color: {COMPANY_WHITE}; padding: 0;">
+            {get_email_header("🎉 Welcome to Niko Free!", "Your Application Has Been Received")}
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Thank you for your interest in becoming a partner with Niko Free! We're excited to have you join our platform.</p>
+                
+                <div style="background-color: #e3f2fd; border-left: 4px solid {COMPANY_BLUE}; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: {COMPANY_BLUE_DARK}; font-size: 18px;">📋 Application Status</h3>
+                    <p style="margin: 0; color: {COMPANY_BLACK};">
+                        Your partner application has been received and is <strong>under review</strong>.
+                    </p>
+                    <p style="margin: 15px 0 0 0; color: {COMPANY_BLACK};">
+                        You will receive an email within 24 hours with your login credentials if approved.
+                    </p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; border-left: 4px solid #27aae2; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #27aae2; font-size: 18px;">⏱️ What Happens Next?</h3>
+                    <ol style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 10px;">Our team will review your application</li>
+                        <li style="margin-bottom: 10px;">You'll receive an email notification within 24 hours</li>
+                        <li style="margin-bottom: 10px;">If approved, you'll get login credentials to access your partner dashboard</li>
+                        <li style="margin-bottom: 10px;">Start creating events and reaching thousands of attendees!</li>
+                    </ol>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #1e8bb8; font-size: 18px;">✨ What You Can Do as a Partner</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 8px;">📈 Reach over 2 Million potential attendees</li>
+                        <li style="margin-bottom: 8px;">🔔 Get instant notifications on bookings and RSVPs</li>
+                        <li style="margin-bottom: 8px;">📊 Access real-time analytics and attendance tracking</li>
+                        <li style="margin-bottom: 8px;">🎫 Set attendee limits or unlimited tickets</li>
+                        <li style="margin-bottom: 8px;">💰 Easy earnings withdrawal via M-Pesa</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 14px; color: #999; margin: 0;">
+                        Questions? Contact us at <a href="mailto:support@niko-free.com" style="color: {COMPANY_BLUE};">support@niko-free.com</a>
+                    </p>
+                </div>
+            </div>
+            
+            {get_email_footer()}
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email(subject, partner.email, html_body)
+
+
+def send_partner_approval_email(partner, approved=True, temp_password=None, rejection_reason=None, internal_note=None):
     """Send partner approval/rejection email"""
     if approved:
         subject = "Your Partner Account Has Been Approved! 🎉"
+        
+        # Include credentials if provided
+        credentials_html = ""
+        if temp_password:
+            credentials_html = f"""
+            <div style="background-color: #e3f2fd; border: 1px solid {COMPANY_BLUE}; padding: 15px; 
+                        border-radius: 5px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: {COMPANY_BLUE_DARK};">Your Login Credentials</h3>
+                <p><strong>Email:</strong> {partner.email}</p>
+                <p><strong>Temporary Password:</strong></p>
+                <div style="background-color: #f8f9fa; border: 2px solid #dee2e6; padding: 15px; 
+                            border-radius: 5px; margin: 10px 0; font-family: 'Courier New', monospace; 
+                            font-size: 18px; font-weight: bold; letter-spacing: 2px; text-align: center;">
+                    {temp_password}
+                </div>
+                <p style="color: {COMPANY_BLACK}; font-size: 12px; margin-top: 10px;">
+                    <strong>⚠️ Important:</strong> Copy this password exactly as shown. Do not add or remove any spaces or characters.
+                </p>
+                <p style="color: {COMPANY_BLACK}; font-size: 14px; margin-top: 15px;">
+                    ⚠️ <strong>Important:</strong> Please change this password immediately after your first login for security. 
+                    You can change it in your Profile section after logging in.
+                </p>
+            </div>
+            """
+        
+        base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+        frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+        
         html_body = f"""
+        <!DOCTYPE html>
         <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #4CAF50;">Congratulations! Your Account is Approved</h2>
-                    <p>Hi {partner.business_name},</p>
-                    <p>Great news! Your partner account has been approved and you can now start creating events.</p>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); padding: 40px 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">🎉 Congratulations!</h1>
+                    <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your Partner Account is Approved</p>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 40px 30px;">
+                    <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                    <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Great news! Your partner account has been approved and you can now start creating events on Niko Free.</p>
                     
-                    <a href="{current_app.config.get('FRONTEND_URL')}/partner/dashboard" 
-                       style="display: inline-block; padding: 12px 30px; background-color: #4CAF50; 
-                              color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">
-                        Go to Dashboard
-                    </a>
+                    {credentials_html}
                     
-                    <p style="margin-top: 30px;">
-                        Start creating your first event and reach thousands of potential attendees!
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="https://niko-free.com" 
+                           style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                                  color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                            🚀 Login to Dashboard
+                        </a>
+                    </div>
+                    
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #27aae2; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                        <h3 style="margin: 0 0 15px 0; color: #27aae2; font-size: 18px;">📋 Next Steps:</h3>
+                        <ol style="margin: 0; padding-left: 20px; color: #555;">
+                            <li style="margin-bottom: 10px;">Login using the credentials above</li>
+                            <li style="margin-bottom: 10px;">Go to <strong>Profile</strong> section and change your password</li>
+                            <li style="margin-bottom: 10px;">Create your first event and start reaching thousands of attendees!</li>
+                        </ol>
+                    </div>
+                    
+                    <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                        <h3 style="margin: 0 0 15px 0; color: #1e8bb8; font-size: 18px;">✨ Benefits of Niko Free</h3>
+                        <ul style="margin: 0; padding-left: 20px; color: #555;">
+                            <li style="margin-bottom: 8px;">📈 Reach over 2 Million potential attendees</li>
+                            <li style="margin-bottom: 8px;">🔔 Instant notifications on bookings and RSVPs</li>
+                            <li style="margin-bottom: 8px;">📊 Real-time analytics and attendance tracking</li>
+                            <li style="margin-bottom: 8px;">🎫 Set attendee limits or unlimited tickets</li>
+                            <li style="margin-bottom: 8px;">💰 Easy earnings withdrawal via M-Pesa</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                        <p style="font-size: 14px; color: #999; margin: 0;">
+                            Need help? Contact us at <a href="mailto:support@niko-free.com" style="color: #27aae2;">support@niko-free.com</a>
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 12px; color: #999; margin: 0;">
+                        © {datetime.now().year} Niko Free. All rights reserved.
                     </p>
+                    </div>
                 </div>
             </body>
         </html>
         """
     else:
         subject = "Partner Application Update"
+        
+        # Get rejection reason text
+        reason_text = partner.rejection_reason or 'Application does not meet requirements'
+        if rejection_reason:
+            reason_text = rejection_reason.description
+        
         html_body = f"""
         <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -184,13 +657,102 @@ def send_partner_approval_email(partner, approved=True):
                     <p>Hi {partner.business_name},</p>
                     <p>Thank you for your interest in becoming a partner with Niko Free.</p>
                     <p>Unfortunately, we are unable to approve your application at this time.</p>
-                    <p><strong>Reason:</strong> {partner.rejection_reason}</p>
-                    <p>If you have any questions, please contact our support team.</p>
+                    
+                    <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; 
+                                padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0;"><strong>Reason:</strong></p>
+                        <p style="margin: 0;">{reason_text}</p>
+                    </div>
+                    
+                    <p>If you believe this is an error or have any questions, please contact our support team.</p>
+                    
+                    <p style="margin-top: 30px;">
+                        <strong>Email:</strong> support@niko-free.com<br>
+                        <strong>Phone:</strong> +254 700 000 000
+                    </p>
                 </div>
             </body>
         </html>
         """
     
+    send_email(subject, partner.email, html_body)
+
+
+def send_partner_unrejection_email(partner, reason):
+    """Send email to partner when their account is unrejected/reopened"""
+    subject = "Your Partner Account Has Been Reopened - Action Required"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">✅ New Opportunity</h1>
+                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your Email is Available for Partner Registration</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Good news! We've reviewed your application and would like to give you another opportunity to become a partner with Niko Free.</p>
+                
+                <div style="background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 18px;">📝 What We Need:</h3>
+                    <p style="margin: 0; color: #555; white-space: pre-wrap;">{reason}</p>
+                </div>
+                
+                <div style="background-color: #e3f2fd; border-left: 4px solid {COMPANY_BLUE}; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: {COMPANY_BLUE_DARK}; font-size: 18px;">⚠️ Important: Please Register Again</h3>
+                    <p style="margin: 0 0 15px 0; color: {COMPANY_BLACK}; font-weight: 600;">Your email is now available for a new partner application.</p>
+                    <p style="margin: 0; color: {COMPANY_BLACK};">Please complete a new registration and make sure to include your business bio/description this time.</p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; border-left: 4px solid #27aae2; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #27aae2; font-size: 18px;">📋 Registration Steps:</h3>
+                    <ol style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 10px;">Click the button below to go to the partner registration page</li>
+                        <li style="margin-bottom: 10px;"><strong>Add Your Bio</strong> - Include your complete business bio/description (this was missing before)</li>
+                        <li style="margin-bottom: 10px;">Fill out all required fields in the registration form</li>
+                        <li style="margin-bottom: 10px;">Submit your application</li>
+                        <li style="margin-bottom: 10px;">Our team will review your application and notify you of the decision</li>
+                    </ol>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/become-partner" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                        🚀 Register as Partner
+                    </a>
+                </div>
+                
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">We're here to help you succeed! If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+                
+                <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 14px; color: #999; margin: 0;">
+                        Need help? Contact us at <a href="mailto:support@niko-free.com" style="color: #27aae2;">support@niko-free.com</a>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
     send_email(subject, partner.email, html_body)
 
 
@@ -236,10 +798,903 @@ def send_event_approval_email(event, approved=True):
     send_email(subject, partner.email, html_body)
 
 
+def send_payment_confirmation_email(booking, payment, tickets):
+    """Send payment confirmation email to user"""
+    user = booking.user
+    event = booking.event
+    
+    subject = f"Payment Confirmed: {event.title}"
+    
+    tickets_html = ""
+    for ticket in tickets:
+        qr_url = ticket.qr_code if ticket.qr_code else ""
+        tickets_html += f"""
+        <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; background-color: #f9f9f9;">
+            <p><strong>Ticket #{ticket.ticket_number}</strong></p>
+            <p>Type: {ticket.ticket_type.name if ticket.ticket_type else 'General Admission'}</p>
+            {f'<img src="{qr_url}" alt="QR Code" style="max-width: 200px; margin-top: 10px;">' if qr_url else ''}
+        </div>
+        """
+    
+    html_body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #4CAF50;">Payment Confirmed! ✅</h2>
+                <p>Hi {user.first_name},</p>
+                <p>Your payment for <strong>{event.title}</strong> has been successfully processed!</p>
+                
+                <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="margin-top: 0;">Payment Details</h3>
+                    <p><strong>Transaction ID:</strong> {payment.transaction_id}</p>
+                    <p><strong>MPesa Receipt:</strong> {payment.mpesa_receipt_number or 'Processing...'}</p>
+                    <p><strong>Amount Paid:</strong> KES {payment.amount:,.2f}</p>
+                    <p><strong>Payment Date:</strong> {payment.completed_at.strftime('%B %d, %Y at %I:%M %p') if payment.completed_at else 'N/A'}</p>
+                </div>
+                
+                <div style="background-color: #e8f5e9; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="margin-top: 0;">Event Details</h3>
+                    <p><strong>Event:</strong> {event.title}</p>
+                    <p><strong>Date:</strong> {event.start_date.strftime('%B %d, %Y at %I:%M %p')}</p>
+                    <p><strong>Venue:</strong> {event.venue_name or event.venue_address or 'Online'}</p>
+                    <p><strong>Booking Number:</strong> {booking.booking_number}</p>
+                    <p><strong>Quantity:</strong> {booking.quantity} ticket(s)</p>
+                </div>
+                
+                <h3>Your Tickets</h3>
+                {tickets_html}
+                
+                <p style="margin-top: 30px;">
+                    <strong>📱 Important:</strong> Please present your QR code at the event entrance for check-in.
+                </p>
+                
+                <a href="{current_app.config.get('FRONTEND_URL', 'http://localhost:5173')}/bookings/{booking.id}" 
+                   style="display: inline-block; padding: 12px 30px; background-color: #4CAF50; 
+                          color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">
+                    View Booking Details
+                </a>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <p style="font-size: 14px; color: #666;">
+                        If you have any questions or concerns, please contact our support team.
+                    </p>
+                </div>
+                
+                <p style="margin-top: 30px; font-size: 12px; color: #999;">
+                    Best regards,<br>
+                    The Niko Free Team
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+    send_email(subject, user.email, html_body)
+
+
+def send_booking_cancellation_email(user, booking, event):
+    """Send booking cancellation email to user"""
+    subject = f"Booking Cancelled: {event.title}"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">📝 Booking Cancelled</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{user.first_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Your booking for <strong>{event.title}</strong> has been cancelled.</p>
+                
+                <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #e65100; font-size: 18px;">📋 Booking Details</h3>
+                    <p style="margin: 5px 0;"><strong>Booking Number:</strong> {booking.booking_number}</p>
+                    <p style="margin: 5px 0;"><strong>Event:</strong> {event.title}</p>
+                    <p style="margin: 5px 0;"><strong>Date:</strong> {event.start_date.strftime('%B %d, %Y at %I:%M %p') if event.start_date else 'N/A'}</p>
+                    <p style="margin: 5px 0;"><strong>Quantity:</strong> {booking.quantity} ticket(s)</p>
+                    <p style="margin: 5px 0;"><strong>Amount:</strong> KES {booking.total_amount:,.2f}</p>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #1e8bb8; font-size: 18px;">✨ Explore Other Events</h3>
+                    <p style="margin: 0; color: #555; font-size: 14px;">
+                        Don't miss out! Discover amazing events happening near you. Browse our collection of exciting experiences and find your next adventure.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                        Explore Events
+                    </a>
+                </div>
+                
+                <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 14px; color: #999; margin: 0;">
+                        Questions? Contact us at <a href="mailto:support@niko-free.com" style="color: #27aae2;">support@niko-free.com</a>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, user.email, html_body)
+
+
+def send_booking_cancellation_to_partner_email(partner, booking, event):
+    """Send booking cancellation email to partner"""
+    subject = f"Booking Cancelled: {event.title}"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">📝 Booking Cancelled</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">A booking for your event <strong>{event.title}</strong> has been cancelled.</p>
+                
+                <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #e65100; font-size: 18px;">📋 Booking Details</h3>
+                    <p style="margin: 5px 0;"><strong>Booking Number:</strong> {booking.booking_number}</p>
+                    <p style="margin: 5px 0;"><strong>Customer:</strong> {booking.user.first_name} {booking.user.last_name}</p>
+                    <p style="margin: 5px 0;"><strong>Email:</strong> {booking.user.email}</p>
+                    <p style="margin: 5px 0;"><strong>Quantity:</strong> {booking.quantity} ticket(s)</p>
+                    <p style="margin: 5px 0;"><strong>Amount:</strong> KES {booking.total_amount:,.2f}</p>
+                    <p style="margin: 5px 0;"><strong>Cancelled At:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/partner/dashboard" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        View Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, partner.email, html_body)
+
+
+def send_payment_failed_email(user, payment, event):
+    """Send payment failed email to user"""
+    subject = f"Payment Failed: {event.title}"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    error_message = payment.error_message or "Payment could not be processed"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">❌ Payment Failed</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{user.first_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Unfortunately, your payment for <strong>{event.title}</strong> could not be processed.</p>
+                
+                <div style="background-color: #ffebee; border-left: 4px solid #f44336; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #c62828; font-size: 18px;">⚠️ Payment Details</h3>
+                    <p style="margin: 5px 0;"><strong>Event:</strong> {event.title}</p>
+                    <p style="margin: 5px 0;"><strong>Amount:</strong> KES {payment.amount:,.2f}</p>
+                    <p style="margin: 5px 0;"><strong>Transaction ID:</strong> {payment.transaction_id}</p>
+                    <p style="margin: 5px 0;"><strong>Reason:</strong> {error_message}</p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">💡 What to do next:</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 8px;">Check that you have sufficient funds in your M-Pesa account</li>
+                        <li style="margin-bottom: 8px;">Ensure your phone number is correct and registered with M-Pesa</li>
+                        <li style="margin-bottom: 8px;">Try making the payment again</li>
+                        <li style="margin-bottom: 8px;">If the problem persists, contact our support team</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/events/{event.id}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        Try Again
+                    </a>
+                </div>
+                
+                <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 14px; color: #999; margin: 0;">
+                        Need help? Contact us at <a href="mailto:support@niko-free.com" style="color: #27aae2;">support@niko-free.com</a>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, user.email, html_body)
+
+
+def send_event_reminder_email(user, event):
+    """Send event reminder email to user"""
+    subject = f"Reminder: {event.title} is Tomorrow!"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">⏰ Event Reminder</h1>
+                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Don't miss out!</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{user.first_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">This is a friendly reminder that <strong>{event.title}</strong> is happening tomorrow!</p>
+                
+                <div style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #7b1fa2; font-size: 18px;">📅 Event Details</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>Event:</strong> {event.title}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Date:</strong> {event.start_date.strftime('%A, %B %d, %Y') if event.start_date else 'N/A'}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Time:</strong> {event.start_date.strftime('%I:%M %p') if event.start_date else 'N/A'}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Venue:</strong> {event.venue_name or event.venue_address or 'Online'}</p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📱 Don't forget:</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 8px;">Bring your ticket QR code (on your phone or printed)</li>
+                        <li style="margin-bottom: 8px;">Arrive early to avoid queues</li>
+                        <li style="margin-bottom: 8px;">Check your booking details for any special instructions</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/events/{event.id}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        View Event Details
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, user.email, html_body)
+
+
+def send_new_booking_to_partner_email(partner, booking, event):
+    """Send new booking notification email to partner"""
+    subject = f"New Booking: {event.title}"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">🎉 New Booking!</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">You have received a new booking for your event <strong>{event.title}</strong>!</p>
+                
+                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 18px;">📋 Booking Details</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>Booking Number:</strong> {booking.booking_number}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Customer:</strong> {booking.user.first_name} {booking.user.last_name}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Email:</strong> {booking.user.email}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Phone:</strong> {booking.user.phone_number or 'N/A'}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Quantity:</strong> {booking.quantity} ticket(s)</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Total Amount:</strong> KES {booking.total_amount:,.2f}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Payment Status:</strong> <span style="color: {'#4caf50' if booking.payment_status == 'paid' else '#ff9800'};">{booking.payment_status.upper()}</span></p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/partner/dashboard" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        View Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, partner.email, html_body)
+
+
+def send_payout_approval_email(partner, payout):
+    """Send payout approval email to partner"""
+    subject = f"Payout Approved: KES {payout.amount:,.2f}"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">💰 Payout Approved!</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Great news! Your payout request has been approved and is being processed.</p>
+                
+                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 18px;">💵 Payout Details</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>Reference Number:</strong> {payout.reference_number}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Amount:</strong> KES {payout.amount:,.2f}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Method:</strong> {payout.payout_method.replace('_', ' ').title()}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Account:</strong> {payout.account_number}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Status:</strong> <span style="color: #4caf50;">{payout.status.upper()}</span></p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Processed At:</strong> {payout.processed_at.strftime('%B %d, %Y at %I:%M %p') if payout.processed_at else 'Processing...'}</p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                    <p style="margin: 0; color: #666; font-size: 14px;">
+                        💡 <strong>Note:</strong> If you selected M-Pesa, the funds will be sent to your registered phone number within 24-48 hours. 
+                        For bank transfers, processing may take 3-5 business days.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/partner/dashboard" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        View Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, partner.email, html_body)
+
+
+def send_partner_suspension_email(partner, reason):
+    """Send partner suspension email"""
+    subject = "Account Suspension Notice"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">⚠️ Account Suspended</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">We regret to inform you that your partner account has been suspended.</p>
+                
+                <div style="background-color: #ffebee; border-left: 4px solid #f44336; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #c62828; font-size: 18px;">📋 Suspension Details</h3>
+                    <p style="margin: 5px 0;"><strong>Reason:</strong> {reason}</p>
+                    <p style="margin: 5px 0;"><strong>Date:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                    <p style="margin: 0; color: #666; font-size: 14px;">
+                        During the suspension period, you will not be able to create new events or receive new bookings. 
+                        If you believe this is an error or have questions, please contact our support team.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 14px; color: #999; margin: 0;">
+                        Contact us at <a href="mailto:support@niko-free.com" style="color: #27aae2;">support@niko-free.com</a>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, partner.email, html_body)
+
+
+def send_partner_activation_email(partner):
+    """Send partner activation email"""
+    subject = "Account Reactivated - Welcome Back!"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">✅ Account Reactivated</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Great news! Your partner account has been reactivated and you can now continue creating events.</p>
+                
+                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 18px;">🎉 You can now:</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 8px;">Create and manage events</li>
+                        <li style="margin-bottom: 8px;">Receive new bookings</li>
+                        <li style="margin-bottom: 8px;">Access your dashboard and analytics</li>
+                        <li style="margin-bottom: 8px;">Request payouts</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/partner/dashboard" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        Go to Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, partner.email, html_body)
+
+
+def send_event_edit_notification_to_admin(partner, event, changed_fields):
+    """Send email to admin when partner edits an event"""
+    from flask import current_app
+    admin_email = current_app.config.get('ADMIN_EMAIL')
+    
+    if not admin_email:
+        return
+    
+    subject = f"Event Edited: {event.title}"
+    
+    # Format changed fields list
+    if changed_fields:
+        fields_text = ", ".join(changed_fields)
+        changes_html = f"""
+        <div style="background-color: #e3f2fd; border: 1px solid {COMPANY_BLUE}; padding: 15px; 
+                    border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: {COMPANY_BLUE_DARK};">📝 Fields Changed:</h3>
+            <p style="color: {COMPANY_BLACK}; margin: 0;">{fields_text}</p>
+        </div>
+        """
+    else:
+        changes_html = """
+        <div style="background-color: #e3f2fd; border: 1px solid #2196f3; padding: 15px; 
+                    border-radius: 5px; margin: 20px 0;">
+            <p style="color: #1976d2; margin: 0;">Event was updated (no specific fields tracked)</p>
+        </div>
+        """
+    
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">✏️ Event Edited</h1>
+                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Partner has updated an event</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hello Admin,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">
+                    Partner <strong>{partner.business_name}</strong> has edited the event <strong>"{event.title}"</strong>.
+                </p>
+                
+                {changes_html}
+                
+                <div style="background-color: #f8f9fa; padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Event Information</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>Event ID:</strong> {event.id}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Event Title:</strong> {event.title}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Partner:</strong> {partner.business_name}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Partner Email:</strong> {partner.email}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Status:</strong> <span style="color: {'#4caf50' if event.status == 'approved' else '#ff9800' if event.status == 'pending' else '#f44336'};">{event.status.upper()}</span></p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Event Date:</strong> {event.start_date.strftime('%B %d, %Y at %I:%M %p') if event.start_date else 'TBA'}</p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/admin/events/{event.id}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        Review Event Details
+                    </a>
+                </div>
+                
+                <p style="font-size: 14px; color: #666; margin-top: 30px;">
+                    Please review the changes to ensure the event meets our platform standards.
+                </p>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free Admin Dashboard. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email(subject, admin_email, html_body)
+
+
+def send_admin_invitation_email(email, temp_password, inviter_name=None):
+    """Send admin invitation email with credentials"""
+    subject = "You've Been Invited to Join Niko Free Admin Dashboard"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    inviter_text = f" by {inviter_name}" if inviter_name else ""
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">🔐 Admin Access Granted</h1>
+                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Welcome to Niko Free Admin Dashboard</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hello,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">
+                    You have been invited{inviter_text} to join the Niko Free Admin Dashboard. Your admin account has been created and you can now access the platform.
+                </p>
+                
+                <div style="background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #2e7d32; font-size: 18px;">🔑 Your Login Credentials</h3>
+                    <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <p style="margin: 0 0 10px 0; color: #555;"><strong>Email:</strong></p>
+                        <p style="margin: 0 0 20px 0; font-size: 18px; font-weight: bold; color: #27aae2;">{email}</p>
+                        <p style="margin: 0 0 10px 0; color: #555;"><strong>Temporary Password:</strong></p>
+                        <p style="margin: 0; font-size: 18px; font-weight: bold; color: #27aae2; font-family: monospace; letter-spacing: 1px;">{temp_password}</p>
+                    </div>
+                    <p style="margin: 15px 0 0 0; color: {COMPANY_BLACK}; font-size: 14px;">
+                        ⚠️ <strong>Important:</strong> Please change your password after your first login for security.
+                    </p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; border-left: 4px solid #27aae2; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #27aae2; font-size: 18px;">📋 Next Steps:</h3>
+                    <ol style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 10px;">Click the button below to go to the Admin Dashboard login page</li>
+                        <li style="margin-bottom: 10px;">Log in using the email and temporary password provided above</li>
+                        <li style="margin-bottom: 10px;">Change your password immediately after logging in</li>
+                        <li style="margin-bottom: 10px;">Start managing the Niko Free platform!</li>
+                    </ol>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/admin/login" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                        🚀 Login to Admin Dashboard
+                    </a>
+                </div>
+                
+                <div style="background-color: #e3f2fd; border-left: 4px solid {COMPANY_BLUE}; padding: 15px; margin: 30px 0; border-radius: 4px;">
+                    <p style="margin: 0; color: {COMPANY_BLACK}; font-size: 14px;">
+                        <strong>Security Note:</strong> Keep your credentials secure and do not share them with anyone. If you did not expect this invitation, please contact support immediately.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 14px; color: #999; margin: 0;">
+                        Need help? Contact us at <a href="mailto:support@niko-free.com" style="color: #27aae2;">support@niko-free.com</a>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, email, html_body)
+
+
+def send_partner_account_deletion_email(partner):
+    """Send account deletion confirmation email to partner"""
+    subject = "We're Sorry to See You Go 😢"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">😢 We're Sorry to See You Go</h1>
+                <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your Account Has Been Deleted</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">
+                    We're sorry to see you go! Your partner account has been successfully deleted, along with all associated data including events, bookings, and settings.
+                </p>
+                
+                <div style="background-color: #f8f9fa; border-left: 4px solid #6c757d; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: #495057; font-size: 18px;">📋 What Happened:</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #555;">
+                        <li style="margin-bottom: 8px;">Your partner account has been permanently deleted</li>
+                        <li style="margin-bottom: 8px;">All your events and associated data have been removed</li>
+                        <li style="margin-bottom: 8px;">Your login credentials are no longer valid</li>
+                    </ul>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #1e8bb8; font-size: 18px;">💡 Want to Come Back?</h3>
+                    <p style="margin: 0 0 20px 0; color: #555;">
+                        We'd love to have you back! If you change your mind, you can always rejoin Niko Free and start creating amazing events again.
+                    </p>
+                    <div style="text-align: center;">
+                        <a href="{frontend_url}/become-partner" 
+                           style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                                  color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(39, 170, 226, 0.3);">
+                            🚀 Rejoin Niko Free
+                        </a>
+                    </div>
+                </div>
+                
+                <div style="background-color: #e3f2fd; border-left: 4px solid {COMPANY_BLUE}; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                    <h3 style="margin: 0 0 15px 0; color: {COMPANY_BLUE_DARK}; font-size: 18px;">⚠️ Important Note:</h3>
+                    <p style="margin: 0; color: {COMPANY_BLACK};">
+                        If you rejoin, you'll need to submit a new partner application. Your previous account data cannot be restored.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e5e5e5;">
+                    <p style="font-size: 14px; color: #999; margin: 0;">
+                        If you have any questions or feedback, please contact us at <a href="mailto:support@niko-free.com" style="color: #27aae2;">support@niko-free.com</a>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email(subject, partner.email, html_body)
+
+
+def send_promotion_payment_success_email(partner, event):
+    """Send promotion payment success email to partner"""
+    subject = f"Promotion Payment Successful: {event.title}"
+    base_url = current_app.config.get('BASE_URL', 'https://niko-free.com')
+    frontend_url = current_app.config.get('FRONTEND_URL', base_url)
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">⭐ Promotion Active!</h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+                <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Hi <strong>{partner.business_name}</strong>,</p>
+                <p style="font-size: 16px; color: #555; margin: 0 0 30px 0;">Your promotion payment for <strong>{event.title}</strong> has been successfully processed!</p>
+                
+                <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 25px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #e65100; font-size: 18px;">🎯 Your Event is Now Promoted</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>Event:</strong> {event.title}</p>
+                    <p style="margin: 8px 0; color: #555;"><strong>Status:</strong> <span style="color: #ff9800;">FEATURED IN "CAN'T MISS" SECTION</span></p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                    <p style="margin: 0; color: #666; font-size: 14px;">
+                        ✨ Your event will now appear in the "Can't Miss" section, giving it maximum visibility to thousands of potential attendees!
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/events/{event.id}" 
+                       style="display: inline-block; padding: 14px 35px; background: linear-gradient(135deg, #27aae2 0%, #1e8bb8 100%); 
+                              color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        View Event
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e5e5;">
+                <p style="font-size: 12px; color: #999; margin: 0;">
+                    © {datetime.now().year} Niko Free. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email(subject, partner.email, html_body)
+
+
 
 def send_staff_credentials_email(user, password, partner, role):
     """Send staff credentials email with login information"""
     from flask import current_app
+    import sys
+    
     current_app.logger.info(f"📧 [STAFF EMAIL] ===== ENTERING send_staff_credentials_email =====")
     current_app.logger.info(f"📧 [STAFF EMAIL] Preparing to send staff credentials email")
     current_app.logger.info(f"📧 [STAFF EMAIL] Recipient Email: {user.email}")
@@ -302,16 +1757,24 @@ def send_staff_credentials_email(user, password, partner, role):
         </body>
     </html>
     """
-    from flask import current_app
+    
     current_app.logger.info(f"📧 [STAFF EMAIL] Calling send_email function (SYNCHRONOUS)...")
     current_app.logger.info(f"📧 [STAFF EMAIL] Subject: {subject}")
     current_app.logger.info(f"📧 [STAFF EMAIL] Recipient: {user.email}")
+    print(f"📧 [STAFF EMAIL] Calling send_email function (SYNCHRONOUS)...", file=sys.stderr, flush=True)
+    print(f"📧 [STAFF EMAIL] Subject: {subject}", file=sys.stderr, flush=True)
+    print(f"📧 [STAFF EMAIL] Recipient: {user.email}", file=sys.stderr, flush=True)
+    
     try:
         # Send email synchronously for immediate delivery
         send_email(subject, user.email, html_body, sync=True)
         current_app.logger.info(f"✅ [STAFF EMAIL] Email sent successfully to {user.email}!")
+        print(f"✅ [STAFF EMAIL] Email sent successfully to {user.email}!", file=sys.stderr, flush=True)
     except Exception as e:
         current_app.logger.error(f"❌ [STAFF EMAIL] Failed to send email to {user.email}: {str(e)}")
         current_app.logger.exception("Full traceback:")
+        print(f"❌ [STAFF EMAIL] Failed to send email to {user.email}: {str(e)}", file=sys.stderr, flush=True)
+        import traceback
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
         raise
     current_app.logger.info(f"📧 [STAFF EMAIL] ===== EXITING send_staff_credentials_email =====")

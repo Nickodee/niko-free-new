@@ -24,6 +24,7 @@ import { toast } from 'react-toastify';
 import { createEvent, getEvent, updateEvent } from '../../services/partnerService';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
 import { getCategories } from '../../services/eventService';
+import { generateEventDescription } from '../../services/geminiService';
 
 interface CreateEventProps {
   isOpen: boolean;
@@ -114,6 +115,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [error, setError] = useState('');
   const [timeslotErrors, setTimeslotErrors] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<any[]>([]);
@@ -642,10 +644,45 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
     }
   };
 
-  const generateAIDescription = () => {
-    // Simulate AI generation
-    const aiDescription = `Join us for an unforgettable experience at ${formData.eventName}! This exciting ${formData.closedCategories.join(', ')} event promises to deliver amazing moments and connections. Whether you're looking to ${formData.openInterests.join(', ')}, this is the perfect opportunity for you. Don't miss out on this incredible gathering!`;
-    setFormData(prev => ({ ...prev, description: aiDescription }));
+  const generateAIDescription = async () => {
+    if (!formData.eventName) {
+      toast.error('Please enter an event name first');
+      return;
+    }
+
+    setIsGeneratingDescription(true);
+    try {
+      // Get category names from IDs
+      const categoryNames = formData.closedCategories
+        .map(catId => {
+          const category = categories.find(c => c.id === parseInt(catId));
+          return category ? category.name : null;
+        })
+        .filter(Boolean) as string[];
+
+      const description = await generateEventDescription({
+        eventName: formData.eventName,
+        categories: categoryNames,
+        interests: formData.openInterests,
+        locationType: formData.locationType,
+        locationName: formData.locationName,
+        startDate: formData.startDate,
+        startTime: formData.startTime,
+      });
+
+      if (description && description.trim()) {
+        setFormData(prev => ({ ...prev, description: description.trim() }));
+        toast.success('Event description generated successfully!');
+      } else {
+        throw new Error('Empty description received from AI');
+      }
+    } catch (error: any) {
+      console.error('Error generating description:', error);
+      const errorMessage = error?.message || 'Failed to generate description. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
 
   const addTicketType = () => {
@@ -1584,10 +1621,11 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                       </label>
                       <button
                         onClick={generateAIDescription}
-                        className="flex items-center gap-1 px-3 py-1 text-sm bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all"
+                        disabled={isGeneratingDescription}
+                        className="flex items-center gap-1 px-3 py-1 text-sm bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Sparkles className="w-4 h-4" />
-                        AI Generate
+                        <Sparkles className={`w-4 h-4 ${isGeneratingDescription ? 'animate-spin' : ''}`} />
+                        {isGeneratingDescription ? 'Generating...' : 'AI Generate'}
                       </button>
                     </div>
                     <textarea

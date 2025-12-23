@@ -23,6 +23,14 @@ class Partner(db.Model):
     contact_person = db.Column(db.String(200), nullable=True)
     address = db.Column(db.String(500), nullable=True)
     website = db.Column(db.String(200), nullable=True)
+    description = db.Column(db.Text, nullable=True)  # Business description
+    
+    # Application Information
+    location = db.Column(db.String(200), nullable=True)  # City/Location for application
+    interests = db.Column(db.Text, nullable=True)  # JSON string of additional interests
+    signature_name = db.Column(db.String(200), nullable=True)  # Name as signature
+    terms_accepted = db.Column(db.Boolean, default=False)
+    terms_accepted_at = db.Column(db.DateTime, nullable=True)
     
     # Legal
     contract_accepted = db.Column(db.Boolean, default=False)
@@ -32,7 +40,9 @@ class Partner(db.Model):
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected, suspended
     approved_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
-    rejection_reason = db.Column(db.Text, nullable=True)
+    rejection_reason = db.Column(db.Text, nullable=True)  # Legacy field - kept for backward compatibility
+    rejection_reason_id = db.Column(db.Integer, db.ForeignKey('rejection_reasons.id'), nullable=True)
+    internal_rejection_note = db.Column(db.Text, nullable=True)  # Internal admin note (not sent to partner)
     
     # Account Status
     is_active = db.Column(db.Boolean, default=True)
@@ -49,6 +59,10 @@ class Partner(db.Model):
     bank_account_name = db.Column(db.String(200), nullable=True)
     mpesa_number = db.Column(db.String(20), nullable=True)
     
+    # Password Reset
+    reset_token = db.Column(db.String(255), nullable=True)
+    reset_token_expires = db.Column(db.DateTime, nullable=True)
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -58,6 +72,9 @@ class Partner(db.Model):
     events = db.relationship('Event', backref='organizer', lazy='dynamic', cascade='all, delete-orphan')
     payouts = db.relationship('PartnerPayout', backref='partner', lazy='dynamic', cascade='all, delete-orphan')
     category = db.relationship('Category', backref='partners')
+    # New relationships
+    support_requests = db.relationship('PartnerSupportRequest', backref='partner', lazy='dynamic', cascade='all, delete-orphan')
+    team_members = db.relationship('PartnerTeamMember', backref='partner', lazy='dynamic', cascade='all, delete-orphan')
     
     def set_password(self, password):
         """Hash and set password"""
@@ -65,22 +82,47 @@ class Partner(db.Model):
     
     def check_password(self, password):
         """Check if password matches hash"""
+        if not self.password_hash:
+            return False
         return check_password_hash(self.password_hash, password)
     
     def to_dict(self, include_sensitive=False):
         """Convert partner to dictionary"""
+        import json as _json
+        
+        # Filter out base64 data URIs from logo (they shouldn't be in DB, but handle if they are)
+        logo = self.logo
+        if logo and logo.startswith('data:image'):
+            # If somehow a base64 string got stored, return None so frontend can handle it
+            logo = None
+        
+        # Parse interests from JSON string
+        interests_list = []
+        if self.interests:
+            try:
+                interests_list = _json.loads(self.interests)
+            except:
+                # Fallback if stored as comma-separated string
+                interests_list = [i.strip() for i in self.interests.split(',') if i.strip()]
+        
         data = {
             'id': self.id,
             'email': self.email,
             'phone_number': self.phone_number,
             'business_name': self.business_name,
-            'logo': self.logo,
+            'logo': logo,
             'category': self.category.to_dict() if self.category else None,
             'contact_person': self.contact_person,
+            'address': self.address,
             'website': self.website,
+            'location': self.location,
+            'description': self.description,
+            'interests': interests_list,
             'status': self.status,
             'is_active': self.is_active,
             'is_verified': self.is_verified,
+            'rejection_reason': self.rejection_reason,
+            'rejection_reason_id': self.rejection_reason_id,
             'created_at': self.created_at.isoformat(),
             'approved_at': self.approved_at.isoformat() if self.approved_at else None
         }
@@ -92,11 +134,73 @@ class Partner(db.Model):
             data['bank_name'] = self.bank_name
             data['bank_account_number'] = self.bank_account_number
             data['mpesa_number'] = self.mpesa_number
+            data['internal_rejection_note'] = self.internal_rejection_note
             
         return data
     
     def __repr__(self):
         return f'<Partner {self.business_name}>'
+
+
+class PartnerSupportRequest(db.Model):
+    """Support requests created by partners"""
+    __tablename__ = 'partner_support_requests'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False)
+    subject = db.Column(db.String(255), nullable=True)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='open')  # open, in_progress, resolved
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'partner_id': self.partner_id,
+            'subject': self.subject,
+            'message': self.message,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class PartnerTeamMember(db.Model):
+    """Team members / managers that help manage partner events"""
+    __tablename__ = 'partner_team_members'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(50), nullable=True)
+    role = db.Column(db.String(50), default='Manager')
+    permissions = db.Column(db.Text, nullable=True)  # JSON-encoded list of permissions
+    is_active = db.Column(db.Boolean, default=True)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        import json as _json
+        perms: list[str] = []
+        if self.permissions:
+            try:
+                perms = _json.loads(self.permissions)
+            except Exception:
+                # Fallback if stored as comma-separated string
+                perms = [p.strip() for p in self.permissions.split(',') if p.strip()]
+        
+        return {
+            'id': self.id,
+            'partner_id': self.partner_id,
+            'name': self.name,
+            'email': self.email,
+            'phone': self.phone,
+            'role': self.role,
+            'permissions': perms,
+            'is_active': self.is_active,
+            'added_at': self.added_at.isoformat() if self.added_at else None,
+        }
 
 
 class PartnerStaff(db.Model):
@@ -144,7 +248,8 @@ class PartnerStaff(db.Model):
             'permissions': self.permissions or [],
             'is_active': self.is_active,
             'added_at': self.added_at.isoformat() if self.added_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'user_details': self.user.to_dict() if self.user else None
         }
     
     def __repr__(self):

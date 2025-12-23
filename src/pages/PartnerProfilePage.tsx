@@ -1,11 +1,14 @@
-import { Calendar, MapPin, Globe, CheckCircle2, ChevronLeft, Star, Award, Users, UserPlus, UserCheck, Bell, UserMinus, Flag, ChevronDown } from 'lucide-react';
+import { Calendar, MapPin, Globe, CheckCircle2, ChevronLeft, Star, Award, Users, UserPlus, UserCheck, Bell, UserMinus, Flag, ChevronDown, MessageSquare, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
 import SEO from '../components/SEO';
-import { getImageUrl, API_BASE_URL } from '../config/api';
+import { getImageUrl, API_BASE_URL, API_ENDPOINTS } from '../config/api';
+import { useAuth } from '../contexts/AuthContext';
+import { getToken } from '../services/authService';
 
 interface PartnerProfilePageProps {
   partnerId: string;
@@ -68,6 +71,7 @@ interface Review {
 
 export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerProfilePageProps) {
   const [searchParams] = useSearchParams();
+  const { isAuthenticated, user } = useAuth();
   const [partnerData, setPartnerData] = useState<PartnerData | null>(null);
   const [currentEvents, setCurrentEvents] = useState<PartnerEvent[]>([]);
   const [pastEvents, setPastEvents] = useState<PartnerEvent[]>([]);
@@ -80,6 +84,17 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
   const [totalReviews, setTotalReviews] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showFollowDropdown, setShowFollowDropdown] = useState(false);
+  const [isFollowingLoading, setIsFollowingLoading] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [userReview, setUserReview] = useState<Review | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportType, setReportType] = useState<string>('spam');
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -172,11 +187,42 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
         setCurrentEvents(current);
         setPastEvents(past);
 
-        // For now, we'll skip reviews since there's no public endpoint
-        // You can add this later when the backend endpoint is available
-        setReviews([]);
-        setAverageRating(0);
-        setTotalReviews(0);
+        // Fetch partner reviews
+        try {
+          const reviewsResponse = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.reviews(parsedPartnerId)}`);
+          if (reviewsResponse.ok) {
+            const reviewsData = await reviewsResponse.json();
+            setReviews(reviewsData.reviews || []);
+            setAverageRating(reviewsData.average_rating || 0);
+            setTotalReviews(reviewsData.total_reviews || 0);
+          }
+        } catch (err) {
+          console.error('Error fetching reviews:', err);
+        }
+        
+        // Fetch follow status if authenticated
+        if (isAuthenticated) {
+          try {
+            const token = getToken();
+            const followStatusResponse = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.followStatus(parsedPartnerId)}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            if (followStatusResponse.ok) {
+              const followData = await followStatusResponse.json();
+              setIsFollowing(followData.is_following || false);
+              if (partnerData) {
+                setPartnerData({
+                  ...partnerData,
+                  followers_count: followData.follower_count || 0
+                });
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching follow status:', err);
+          }
+        }
       } catch (err: any) {
         console.error('Error fetching partner data:', err);
         setError(err.message || 'Failed to load partner details');
@@ -186,7 +232,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
     };
 
     fetchPartnerData();
-  }, [partnerId]);
+  }, [partnerId, isAuthenticated]);
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -229,35 +275,91 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
   };
 
   // Handle follow/unfollow
-  const handleFollowToggle = () => {
+  const handleFollowToggle = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please log in to follow partners', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+      return;
+    }
+    
     if (!isFollowing) {
-      setIsFollowing(true);
-      // Update follower count optimistically
-      if (partnerData) {
-        setPartnerData({
-          ...partnerData,
-          followers_count: (partnerData.followers_count || 0) + 1
-        });
-      }
-      // TODO: Call API to follow partner
-      console.log('Following partner:', partnerId);
+      await handleFollow();
     } else {
       setShowFollowDropdown(!showFollowDropdown);
     }
   };
 
-  const handleUnfollow = () => {
-    setIsFollowing(false);
-    setShowFollowDropdown(false);
-    // Update follower count optimistically
-    if (partnerData) {
-      setPartnerData({
-        ...partnerData,
-        followers_count: Math.max(0, (partnerData.followers_count || 0) - 1)
+  const handleFollow = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsFollowingLoading(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.follow(parseInt(partnerId))}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsFollowing(true);
+        if (partnerData) {
+          setPartnerData({
+            ...partnerData,
+            followers_count: data.follower_count || (partnerData.followers_count || 0) + 1
+          });
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to follow partner');
+      }
+    } catch (err) {
+      console.error('Error following partner:', err);
+      alert('Failed to follow partner');
+    } finally {
+      setIsFollowingLoading(false);
     }
-    // TODO: Call API to unfollow partner
-    console.log('Unfollowing partner:', partnerId);
+  };
+
+  const handleUnfollow = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsFollowingLoading(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.follow(parseInt(partnerId))}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsFollowing(false);
+        setShowFollowDropdown(false);
+        if (partnerData) {
+          setPartnerData({
+            ...partnerData,
+            followers_count: data.follower_count || Math.max(0, (partnerData.followers_count || 0) - 1)
+          });
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to unfollow partner');
+      }
+    } catch (err) {
+      console.error('Error unfollowing partner:', err);
+      alert('Failed to unfollow partner');
+    } finally {
+      setIsFollowingLoading(false);
+    }
   };
 
   const handleNotifications = () => {
@@ -268,9 +370,153 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
 
   const handleReport = () => {
     setShowFollowDropdown(false);
-    // TODO: Open report modal
-    console.log('Report partner:', partnerId);
+    if (!isAuthenticated) {
+      toast.info('Please log in to report a partner', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+      return;
+    }
+    setShowReportModal(true);
   };
+
+  const handleSubmitReport = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please log in to report a partner', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    if (!reportReason.trim()) {
+      toast.error('Please provide a reason for reporting', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.report(parseInt(partnerId))}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          report_type: reportType,
+          reason: reportReason,
+          description: reportDescription || undefined
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(data.message || 'Report submitted successfully. Our team will review it shortly.', {
+          position: 'top-right',
+          autoClose: 5000,
+        });
+        setShowReportModal(false);
+        setReportType('spam');
+        setReportReason('');
+        setReportDescription('');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to submit report', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      }
+    } catch (err) {
+      console.error('Error submitting report:', err);
+      toast.error('Failed to submit report. Please try again.', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  // Handle review submission
+  const handleSubmitReview = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please log in to write a review', {
+        position: 'top-right',
+        autoClose: 3000,
+      });
+      return;
+    }
+
+    if (!reviewRating || reviewRating < 1 || reviewRating > 5) {
+      alert('Please select a rating');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const token = getToken();
+      const url = userReview
+        ? `${API_BASE_URL}${API_ENDPOINTS.partner.review(parseInt(partnerId), userReview.id)}`
+        : `${API_BASE_URL}${API_ENDPOINTS.partner.reviews(parseInt(partnerId))}`;
+      
+      const method = userReview ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          rating: reviewRating,
+          comment: reviewComment
+        })
+      });
+
+      if (response.ok) {
+        // Refresh reviews
+        const reviewsResponse = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.reviews(parseInt(partnerId))}`);
+        if (reviewsResponse.ok) {
+          const reviewsData = await reviewsResponse.json();
+          setReviews(reviewsData.reviews || []);
+          setAverageRating(reviewsData.average_rating || 0);
+          setTotalReviews(reviewsData.total_reviews || 0);
+        }
+        
+        setShowReviewModal(false);
+        setReviewRating(0);
+        setReviewComment('');
+        setUserReview(null);
+        alert(userReview ? 'Review updated successfully!' : 'Review submitted successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Failed to submit review');
+      }
+    } catch (err) {
+      console.error('Error submitting review:', err);
+      alert('Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  // Check for user's review on load
+  useEffect(() => {
+    if (isAuthenticated && reviews.length > 0 && user) {
+      const existingReview = reviews.find(r => r.user?.id === user.id);
+      if (existingReview) {
+        setUserReview(existingReview);
+      } else {
+        setUserReview(null);
+      }
+    } else {
+      setUserReview(null);
+    }
+  }, [reviews, isAuthenticated, user]);
 
   // Loading state
   if (isLoading) {
@@ -658,10 +904,28 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
                   <Star className="w-6 h-6 text-[#27aae2]" />
                   Reviews & Ratings
                 </h2>
-                <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors flex items-center gap-2">
-                  <Star className="w-4 h-4" />
-                  Write a Review
-                </button>
+                {isAuthenticated && (
+                  <button 
+                    onClick={() => {
+                      // Check if user already has a review
+                      const existingReview = reviews.find(r => r.user?.id === user?.id);
+                      if (existingReview) {
+                        setUserReview(existingReview);
+                        setReviewRating(existingReview.rating);
+                        setReviewComment(existingReview.comment || '');
+                      } else {
+                        setUserReview(null);
+                        setReviewRating(0);
+                        setReviewComment('');
+                      }
+                      setShowReviewModal(true);
+                    }}
+                    className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors flex items-center gap-2"
+                  >
+                    <Star className="w-4 h-4" />
+                    {userReview ? 'Edit Review' : 'Write a Review'}
+                  </button>
+                )}
               </div>
 
               {/* Rating Summary */}
@@ -786,15 +1050,253 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
                   <p className="text-gray-600 dark:text-gray-400 mb-4">
                     Be the first to review {partnerData?.business_name}!
                   </p>
-                  <button className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors inline-flex items-center gap-2">
-                    <Star className="w-4 h-4" />
-                    Write the First Review
-                  </button>
+                  {isAuthenticated ? (
+                    <button 
+                      onClick={() => {
+                        setUserReview(null);
+                        setReviewRating(0);
+                        setReviewComment('');
+                        setShowReviewModal(true);
+                      }}
+                      className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors inline-flex items-center gap-2"
+                    >
+                      <Star className="w-4 h-4" />
+                      Write the First Review
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        toast.info('Please log in to write a review', {
+                          position: 'top-right',
+                          autoClose: 3000,
+                        });
+                      }}
+                      className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors inline-flex items-center gap-2"
+                    >
+                      <Star className="w-4 h-4" />
+                      Write the First Review
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        {/* Review Modal */}
+        {showReviewModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {userReview ? 'Edit Review' : 'Write a Review'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowReviewModal(false);
+                    setReviewRating(0);
+                    setReviewComment('');
+                    setUserReview(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Rating Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Rating <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        className="focus:outline-none"
+                      >
+                        <Star
+                          className={`w-10 h-10 transition-colors ${
+                            star <= reviewRating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'fill-gray-300 text-gray-300 dark:fill-gray-600 dark:text-gray-600'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Your Review
+                  </label>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    rows={6}
+                    placeholder="Share your experience with this partner..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => {
+                      setShowReviewModal(false);
+                      setReviewRating(0);
+                      setReviewComment('');
+                      setUserReview(null);
+                    }}
+                    className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmitReview}
+                    disabled={!reviewRating || isSubmittingReview}
+                    className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSubmittingReview ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Star className="w-4 h-4" />
+                        {userReview ? 'Update Review' : 'Submit Review'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Report Modal */}
+        {showReportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Report Partner
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowReportModal(false);
+                    setReportType('spam');
+                    setReportReason('');
+                    setReportDescription('');
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Help us keep the platform safe by reporting partners that violate our community guidelines.
+                </p>
+
+                {/* Report Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Report Type <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'spam', label: 'Spam or Misleading Content' },
+                      { value: 'inappropriate', label: 'Inappropriate Content' },
+                      { value: 'scam', label: 'Scam or Fraud' },
+                      { value: 'harassment', label: 'Harassment or Abuse' },
+                      { value: 'other', label: 'Other' }
+                    ].map((type) => (
+                      <label key={type.value} className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="reportType"
+                          value={type.value}
+                          checked={reportType === type.value}
+                          onChange={(e) => setReportType(e.target.value)}
+                          className="w-4 h-4 text-[#27aae2] focus:ring-[#27aae2]"
+                        />
+                        <span className="text-gray-700 dark:text-gray-300">{type.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Reason <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="Brief reason for reporting..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Additional Details (Optional)
+                  </label>
+                  <textarea
+                    value={reportDescription}
+                    onChange={(e) => setReportDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Provide any additional information that might help us review this report..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => {
+                      setShowReportModal(false);
+                      setReportType('spam');
+                      setReportReason('');
+                      setReportDescription('');
+                    }}
+                    className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmitReport}
+                    disabled={!reportReason.trim() || isSubmittingReport}
+                    className="px-6 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSubmittingReport ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Flag className="w-4 h-4" />
+                        Submit Report
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Footer onNavigate={onNavigate} />
       </div>

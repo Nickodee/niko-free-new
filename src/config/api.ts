@@ -88,6 +88,13 @@ export const API_ENDPOINTS = {
     analytics: '/api/partners/analytics',
     changePassword: '/api/partners/change-password',
     deleteAccount: '/api/partners/account',
+    generatePartnerDescription: '/api/partners/generate-partner-description',
+    generateEventDescription: '/api/partners/generate-event-description',
+    follow: (id: number) => `/api/partners/${id}/follow`,
+    followStatus: (id: number) => `/api/partners/${id}/follow/status`,
+    reviews: (id: number) => `/api/partners/${id}/reviews`,
+    review: (partnerId: number, reviewId: number) => `/api/partners/${partnerId}/reviews/${reviewId}`,
+    report: (id: number) => `/api/partners/${id}/report`,
   },
   
   // Events

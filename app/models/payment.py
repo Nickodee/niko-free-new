@@ -36,7 +36,7 @@ class Payment(db.Model):
     # Metadata
     description = db.Column(db.String(500), nullable=True)
     payment_type = db.Column(db.String(50), nullable=True)  # ticket, promotion, etc
-    metadata = db.Column(db.JSON, nullable=True)
+    payment_metadata = db.Column(db.JSON, nullable=True)
     
     # Provider Response
     provider_response = db.Column(db.JSON, nullable=True)
@@ -78,6 +78,7 @@ class PartnerPayout(db.Model):
     # Amount
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     currency = db.Column(db.String(3), default='KES')
+    withdrawal_fee = db.Column(db.Numeric(10, 2), default=0.00)  # Fee charged for withdrawal
     
     # Payout Method
     payout_method = db.Column(db.String(50), nullable=False)  # mpesa, bank_transfer
@@ -104,6 +105,7 @@ class PartnerPayout(db.Model):
             'reference_number': self.reference_number,
             'amount': float(self.amount),
             'currency': self.currency,
+            'withdrawal_fee': float(self.withdrawal_fee),
             'payout_method': self.payout_method,
             'status': self.status,
             'created_at': self.created_at.isoformat(),
