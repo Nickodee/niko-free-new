@@ -5,7 +5,7 @@ import { API_BASE_URL, getImageUrl } from '../../config/api';
 import { initiatePayment } from '../../services/paymentService';
 import { getToken } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 interface PendingBooking {
   id: number;
@@ -92,7 +92,7 @@ export default function PendingBookings() {
     try {
       setProcessingPayment(booking.id);
       
-      toast.loading('Redirecting to payment...', {
+      toast.info('Redirecting to payment...', {
         position: 'top-right',
         autoClose: 2000,
       });
@@ -122,8 +122,9 @@ export default function PendingBookings() {
       setCancellingBooking(bookingToCancel.id);
       setShowCancelModal(false);
       
-      const loadingToast = toast.loading('Cancelling booking...', {
+      const loadingToast = toast.info('Cancelling booking...', {
         position: 'top-right',
+        autoClose: false,
       });
       
       const token = getToken();
