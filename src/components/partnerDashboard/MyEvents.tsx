@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getPartnerEvents, deleteEvent, updatePromoCode, deletePromoCode } from '../../services/partnerService';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
+import { useEventUpdates } from '../../contexts/EventUpdateContext';
+import { usePolling } from '../../hooks/usePolling';
 import CreateEvent from './CreateEvent';
 import PromoteEventModal from './PromoteEventModal';
 
@@ -36,18 +38,8 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
     is_active: true,
   });
   
-  // Fetch events on mount and when filter changes
-  useEffect(() => {
-    fetchEvents();
-  }, [filter]);
-
-  // Expose refresh function via window for CreateEvent to call
-  useEffect(() => {
-    (window as any).refreshPartnerEvents = fetchEvents;
-    return () => {
-      delete (window as any).refreshPartnerEvents;
-    };
-  }, []);
+  // Real-time updates
+  const { onEventUpdate } = useEventUpdates();
 
   const fetchEvents = async () => {
     try {
@@ -97,6 +89,37 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
       setIsLoading(false);
     }
   };
+  
+  // Fetch events on mount and when filter changes
+  useEffect(() => {
+    fetchEvents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  // Listen for event updates from other components (e.g., CreateEvent)
+  useEffect(() => {
+    const unsubscribe = onEventUpdate(() => {
+      fetchEvents();
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onEventUpdate]);
+
+  // Auto-refresh every 30 seconds when tab is visible
+  usePolling({
+    enabled: true,
+    interval: 30000, // 30 seconds
+    onPoll: fetchEvents
+  });
+
+  // Expose refresh function via window for CreateEvent to call (legacy support)
+  useEffect(() => {
+    (window as any).refreshPartnerEvents = fetchEvents;
+    return () => {
+      delete (window as any).refreshPartnerEvents;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDeleteEvent = async (eventId: number) => {
     setDeleteConfirmEventId(eventId);

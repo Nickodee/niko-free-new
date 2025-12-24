@@ -1,7 +1,9 @@
 import React from 'react';
-import { CheckCircle, XCircle, Search, Sparkles, X, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Search, Sparkles, X, Loader2, Eye } from 'lucide-react';
 import { API_BASE_URL } from '../../config/api';
 import { toast } from 'react-toastify';
+import { useEventUpdates } from '../../contexts/EventUpdateContext';
+import { usePolling } from '../../hooks/usePolling';
 
 interface PendingEvent {
   id: string;
@@ -66,6 +68,9 @@ export default function EventsSection({ selectedEventId, onClearSelection }: Eve
   const [eventToApprove, setEventToApprove] = React.useState<any | null>(null);
   const [eventToReject, setEventToReject] = React.useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = React.useState('');
+
+  // Real-time updates
+  const { triggerEventRefresh, onEventUpdate } = useEventUpdates();
 
   // Fetch event stats
   React.useEffect(() => {
@@ -256,6 +261,10 @@ export default function EventsSection({ selectedEventId, onClearSelection }: Eve
         fetchEvents();
         setShowApprovalModal(false);
         setEventToApprove(null);
+        
+        // Trigger real-time update for partner dashboards
+        triggerEventRefresh();
+        
         toast.success('Event approved successfully! Email sent to partner.', {
           position: 'top-right',
           autoClose: 3000,
@@ -321,6 +330,10 @@ export default function EventsSection({ selectedEventId, onClearSelection }: Eve
         setShowRejectionModal(false);
         setEventToReject(null);
         setRejectionReason('');
+        
+        // Trigger real-time update for partner dashboards
+        triggerEventRefresh();
+        
         toast.info('Event rejected. Email sent to partner.', {
           position: 'top-right',
           autoClose: 3000,
@@ -696,6 +709,12 @@ export default function EventsSection({ selectedEventId, onClearSelection }: Eve
                         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                       </svg>
                       <span className="font-medium">{event.fullEvent?.bucketlist_count || 0}</span>
+                    </div>
+
+                    {/* Views */}
+                    <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                      <Eye className="w-4 h-4" />
+                      <span className="font-medium">{event.fullEvent?.view_count || 0}</span>
                     </div>
                   </div>
 

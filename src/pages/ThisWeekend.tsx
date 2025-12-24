@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Calendar, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import LoginModal from '../components/LoginModal';
 import EventCard from '../components/EventCard';
 import { getEvents } from '../services/eventService';
 
@@ -11,6 +12,7 @@ interface ThisWeekendProps {
 }
 
 export default function ThisWeekend({ onNavigate, onEventClick }: ThisWeekendProps) {
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState('Nairobi, Kenya');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDay, setSelectedDay] = useState('All');
@@ -325,7 +327,13 @@ export default function ThisWeekend({ onNavigate, onEventClick }: ThisWeekendPro
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} onOpenLoginModal={() => setShowLoginModal(true)} />
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onNavigate={onNavigate}
+      />
       </div>
     </div>
   );

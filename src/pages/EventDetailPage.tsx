@@ -1001,7 +1001,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                             You Already Have Tickets
                           </h4>
                           <p className="text-sm text-blue-800 dark:text-blue-300 mb-2">
-                            You have already booked tickets for this event. Would you like to buy more tickets?
+                            You have already booked tickets for this event.
                           </p>
                           {eventData.is_free && (
                             <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">
@@ -1010,28 +1010,15 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setShowBuyMorePrompt(false);
-                            setHasExistingBooking(false);
-                            // Trigger booking with current selection
-                            handleBuyTicket();
-                          }}
-                          className="flex-1 px-4 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors"
-                        >
-                          Yes, Buy More
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowBuyMorePrompt(false);
-                            onNavigate('user-dashboard');
-                          }}
-                          className="flex-1 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          View My Tickets
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          setShowBuyMorePrompt(false);
+                          onNavigate('user-dashboard');
+                        }}
+                        className="w-full px-4 py-2.5 bg-[#27aae2] text-white rounded-lg font-semibold hover:bg-[#1e8bb8] transition-colors"
+                      >
+                        View My Tickets
+                      </button>
                     </div>
                   )}
 

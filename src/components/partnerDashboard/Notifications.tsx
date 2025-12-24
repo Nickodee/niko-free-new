@@ -2,6 +2,8 @@ import { Bell, CheckCircle, X, Calendar, Users, DollarSign, Award, AlertCircle, 
 import { useState, useEffect } from 'react';
 import { getPartnerToken } from '../../services/partnerService';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
+import { useEventUpdates } from '../../contexts/EventUpdateContext';
+import { usePolling } from '../../hooks/usePolling';
 
 interface Notification {
   id: number;
@@ -25,9 +27,8 @@ export default function Notifications() {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all'); // Filter by notification type
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [filter]);
+  // Real-time updates
+  const { onNotificationUpdate } = useEventUpdates();
 
   const fetchNotifications = async () => {
     try {
@@ -60,6 +61,27 @@ export default function Notifications() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  // Listen for notification updates
+  useEffect(() => {
+    const unsubscribe = onNotificationUpdate(() => {
+      fetchNotifications();
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-refresh every 15 seconds (notifications are time-sensitive)
+  usePolling({
+    enabled: true,
+    interval: 15000, // 15 seconds
+    onPoll: fetchNotifications
+  });
 
   const markAsRead = async (notificationId: number) => {
     try {

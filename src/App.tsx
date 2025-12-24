@@ -18,6 +18,7 @@ import ContactUs from './pages/ContactUs';
 import Feedback from './pages/Feedback';
 import ResetPassword from './pages/ResetPassword';
 import AdminRoute from './components/AdminRoute';
+import { EventUpdateProvider } from './contexts/EventUpdateContext';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import { ToastContainer, toast } from 'react-toastify';
@@ -238,8 +239,10 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
-      <ToastContainer />
+      <EventUpdateProvider>
+        <AppContent />
+        <ToastContainer />
+      </EventUpdateProvider>
     </BrowserRouter>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import LoginModal from '../components/LoginModal';
 import EventCard from '../components/EventCard';
 import { getEvents } from '../services/eventService';
 
@@ -11,6 +12,7 @@ interface CalendarPageProps {
 }
 
 export default function CalendarPage({ onNavigate, onEventClick }: CalendarPageProps) {
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const eventsRef = useRef<HTMLDivElement>(null);
@@ -277,7 +279,13 @@ export default function CalendarPage({ onNavigate, onEventClick }: CalendarPageP
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} onOpenLoginModal={() => setShowLoginModal(true)} />
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onNavigate={onNavigate}
+      />
       </div>
     </div>
   );

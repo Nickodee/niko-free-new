@@ -323,30 +323,6 @@ export default function UsersPage({ selectedUserId, onClearSelection }: UsersPag
     }
   };
 
-  // Handle sorting
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      // Toggle sort order if clicking the same field
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new sort field and default to ascending
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
-
-  // Get sort icon for a field
-  const getSortIcon = (field: string) => {
-    if (sortField !== field) {
-      return null; // No icon if not sorting by this field
-    }
-    return sortOrder === 'asc' ? (
-      <ArrowUp className="w-3 h-3 inline-block ml-1" />
-    ) : (
-      <ArrowDown className="w-3 h-3 inline-block ml-1" />
-    );
-  };
-
   // Filter users based on search query and status filter
   const filteredUsers = userList.filter(user => {
     // Search filter

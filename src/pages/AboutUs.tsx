@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import LoginModal from '../components/LoginModal';
 import SEO from '../components/SEO';
-import { Sparkles, Target, Heart, Zap, Calendar, Shield, Users, TrendingUp, Clock, CheckCircle, Star, Ticket } from 'lucide-react';
+import { Sparkles, Target, Heart, Zap, Calendar, Shield, Users, TrendingUp, Clock, CheckCircle, Star, Ticket, Smartphone } from 'lucide-react';
 
 interface AboutUsProps {
   onNavigate: (page: string) => void;
 }
 
 export default function AboutUs({ onNavigate }: AboutUsProps) {
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
   return (
     <>
       <SEO
@@ -175,7 +178,7 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
               {/* Card 2 */}
               <div className="group bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-[#27aae2]/50 hover:-translate-y-2" data-aos="fade-up" data-aos-delay="100">
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-8 h-8 text-white" />
+                  <Smartphone className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                   2. Breaking the Doom-Scroll Cycle
@@ -427,7 +430,13 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
 
         </div>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} onOpenLoginModal={() => setShowLoginModal(true)} />
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onNavigate={onNavigate}
+      />
       </div>
     </div>
     </>
