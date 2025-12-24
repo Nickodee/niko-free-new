@@ -148,7 +148,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
 
         // Extract partner data from first event
         const partner = partnerEvents[0].partner;
-        setPartnerData({
+        const initialPartnerData = {
           id: partner.id,
           business_name: partner.business_name,
           email: partner.email,
@@ -164,8 +164,9 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
           total_attendees: partnerEvents.reduce((sum: number, event: any) => 
             sum + (event.attendee_count || 0), 0
           ),
-          followers_count: partner.followers_count || 0,
-        });
+          followers_count: 0, // Will be updated from API call below
+        };
+        setPartnerData(initialPartnerData);
 
         // Separate current and past events
         const now = new Date();
@@ -200,28 +201,35 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
           console.error('Error fetching reviews:', err);
         }
         
-        // Fetch follow status if authenticated
-        if (isAuthenticated) {
-          try {
-            const token = getToken();
-            const followStatusResponse = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.followStatus(parsedPartnerId)}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            if (followStatusResponse.ok) {
-              const followData = await followStatusResponse.json();
-              setIsFollowing(followData.is_following || false);
-              if (partnerData) {
-                setPartnerData({
-                  ...partnerData,
-                  followers_count: followData.follower_count || 0
-                });
-              }
-            }
-          } catch (err) {
-            console.error('Error fetching follow status:', err);
+        // Fetch follow status and followers count (always fetch, even if not authenticated)
+        try {
+          const token = getToken();
+          const headers: HeadersInit = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
           }
+          
+          const followStatusResponse = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.followStatus(parsedPartnerId)}`, {
+            headers
+          });
+          if (followStatusResponse.ok) {
+            const followData = await followStatusResponse.json();
+            setIsFollowing(followData.is_following || false);
+            // Always update followers count (public information)
+            setPartnerData((prev: any) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                followers_count: followData.follower_count || 0
+              };
+            });
+          } else {
+            // If API call fails, still try to get followers count
+            // Fallback: fetch followers count separately if needed
+            console.warn('Failed to fetch follow status, followers count may be incorrect');
+          }
+        } catch (err) {
+          console.error('Error fetching follow status:', err);
         }
       } catch (err: any) {
         console.error('Error fetching partner data:', err);
