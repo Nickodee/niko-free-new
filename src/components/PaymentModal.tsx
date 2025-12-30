@@ -85,7 +85,7 @@ export default function PaymentModal({
       } catch (err: any) {
         console.error('Error checking payment status:', err);
       }
-    }, 5000); // Check every 5 seconds (increased from 3 to give more time)
+    }, 2000); // Check every 2 seconds for faster payment confirmation
 
     // Stop polling after 10 minutes (increased from 5 to allow more time for payment)
     const timeout = setTimeout(() => {

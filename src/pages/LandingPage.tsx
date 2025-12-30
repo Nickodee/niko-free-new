@@ -1475,7 +1475,7 @@ export default function LandingPage({
                 <div className="flex gap-3 sm:gap-4 md:gap-6 pb-4">
                   {cantMissEvents.map((event) => (
                     <div
-                      key={event.id}
+                      key={`cant-miss-${event.id}`}
                       className="flex-shrink-0 snap-start snap-always w-[calc(75vw)] sm:w-[280px] md:w-[300px] lg:w-[calc(25%-18px)] cursor-pointer group"
                       onClick={() => onEventClick(event.id)}
                     >
@@ -1850,7 +1850,7 @@ export default function LandingPage({
                     {(selectedCategory ? categoryEvents : upcomingEvents).map(
                       (event) => (
                         <EventCard
-                          key={event.id}
+                          key={`${selectedCategory ? 'category' : 'upcoming'}-${event.id}`}
                           {...event}
                           onClick={onEventClick}
                           attendeeImages={eventAttendees[parseInt(event.id)] || []}
@@ -1952,7 +1952,7 @@ export default function LandingPage({
                   {(selectedCategory ? categoryEvents : upcomingEvents).map(
                     (event) => (
                       <div
-                        key={event.id}
+                        key={`${selectedCategory ? 'category' : 'upcoming'}-desktop-${event.id}`}
                         className="bg-white dark:bg-gray-800 rounded-xl p-6 transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         <EventCard 

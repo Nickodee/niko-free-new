@@ -136,7 +136,7 @@ export default function PromoteEventModal({
       } catch (err: any) {
         console.error('Error checking payment status:', err);
       }
-    }, 3000); // Poll every 3 seconds
+    }, 2000); // Poll every 2 seconds for faster payment confirmation
 
     return () => clearInterval(pollInterval);
   }, [paymentInitiated, paymentId, onSuccess, onClose]);
