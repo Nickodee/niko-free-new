@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { getPartnerEvents, getPartnerToken } from '../../services/partnerService';
 import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
 import { createPortal } from 'react-dom';
+import { toast } from 'react-toastify';
 
 interface OverviewProps {
   onWithdrawClick?: () => void;
@@ -47,6 +48,8 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
     currentBalance: 0,
     promoCodeValue: 0
   });
+  const [isExporting, setIsExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const eventsPerPage = 5;
 
   // Fetch data on mount
@@ -235,6 +238,162 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
     return `Ksh ${Math.round(amount).toLocaleString()}`;
   };
 
+  // Export all transactions to Excel
+  const handleExportTransactions = async (period: 'week' | 'month' | 'all' = 'all') => {
+    try {
+      setIsExporting(true);
+      setShowExportModal(false);
+      const token = getPartnerToken();
+      if (!token) {
+        toast.error('Please log in to export transactions');
+        return;
+      }
+
+      // Fetch transactions with period filter
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.partner.transactions}?period=${period}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
+
+      const data = await response.json();
+      const transactions = data.transactions || [];
+
+      if (transactions.length === 0) {
+        toast.info('No transactions to export');
+        setIsExporting(false);
+        return;
+      }
+
+      // Dynamically import xlsx
+      const xlsxModule = await import('xlsx');
+      const XLSX = xlsxModule.default || xlsxModule;
+
+      // Prepare data for Excel
+      const excelData = transactions.map((txn: any) => {
+        const date = txn.date ? new Date(txn.date).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : '';
+        
+        return {
+          'Date': date,
+          'Type': txn.type || '',
+          'Category': txn.category || '',
+          'Description': txn.description || '',
+          'Event': txn.event || 'N/A',
+          'Booking Number': txn.booking_number || 'N/A',
+          'Quantity': txn.quantity || 'N/A',
+          'Gross Amount (KES)': txn.gross_amount || 0,
+          'Platform Fee (KES)': txn.platform_fee || 0,
+          'Discount (KES)': txn.discount_amount || 0,
+          'Net Amount (KES)': txn.net_amount || 0,
+          'Payment Method': txn.payment_method || 'N/A',
+          'Receipt/Reference': txn.mpesa_receipt || txn.transaction_reference || 'N/A',
+          'Status': txn.status || '',
+          'Payment Status': txn.payment_status || ''
+        };
+      });
+
+      // Create workbook with multiple sheets
+      const workbook = XLSX.utils.book_new();
+
+      // Sheet 1: All Transactions
+      const allTransactionsSheet = XLSX.utils.json_to_sheet(excelData);
+      XLSX.utils.book_append_sheet(workbook, allTransactionsSheet, 'All Transactions');
+
+      // Sheet 2: Summary by Type
+      const moneyIn = transactions.filter((t: any) => t.type === 'Money In');
+      const moneyOut = transactions.filter((t: any) => t.type === 'Money Out');
+      
+      const totalMoneyIn = moneyIn.reduce((sum: number, t: any) => sum + (t.net_amount || 0), 0);
+      const totalMoneyOut = Math.abs(moneyOut.reduce((sum: number, t: any) => sum + (t.net_amount || 0), 0));
+      const totalPlatformFees = transactions.reduce((sum: number, t: any) => sum + (t.platform_fee || 0), 0);
+      const totalDiscounts = transactions.reduce((sum: number, t: any) => sum + (t.discount_amount || 0), 0);
+      const netBalance = totalMoneyIn - totalMoneyOut;
+
+      const summaryData = [
+        { 'Metric': 'Total Money In', 'Amount (KES)': totalMoneyIn, 'Count': moneyIn.length },
+        { 'Metric': 'Total Money Out', 'Amount (KES)': totalMoneyOut, 'Count': moneyOut.length },
+        { 'Metric': 'Total Platform Fees', 'Amount (KES)': totalPlatformFees, 'Count': '' },
+        { 'Metric': 'Total Discounts Given', 'Amount (KES)': totalDiscounts, 'Count': '' },
+        { 'Metric': 'Net Balance', 'Amount (KES)': netBalance, 'Count': '' },
+      ];
+
+      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+      // Sheet 3: Money In Only
+      if (moneyIn.length > 0) {
+        const moneyInData = moneyIn.map((txn: any) => ({
+          'Date': txn.date ? new Date(txn.date).toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+          }) : '',
+          'Event': txn.event || 'N/A',
+          'Booking Number': txn.booking_number || 'N/A',
+          'Quantity': txn.quantity || 'N/A',
+          'Gross Amount (KES)': txn.gross_amount || 0,
+          'Platform Fee (KES)': txn.platform_fee || 0,
+          'Discount (KES)': txn.discount_amount || 0,
+          'Net Amount (KES)': txn.net_amount || 0,
+          'Payment Method': txn.payment_method || 'N/A',
+          'Receipt Number': txn.mpesa_receipt || 'N/A',
+          'Status': txn.status || ''
+        }));
+        const moneyInSheet = XLSX.utils.json_to_sheet(moneyInData);
+        XLSX.utils.book_append_sheet(workbook, moneyInSheet, 'Money In');
+      }
+
+      // Sheet 4: Money Out Only
+      if (moneyOut.length > 0) {
+        const moneyOutData = moneyOut.map((txn: any) => ({
+          'Date': txn.date ? new Date(txn.date).toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+          }) : '',
+          'Reference Number': txn.booking_number || 'N/A',
+          'Amount (KES)': Math.abs(txn.net_amount) || 0,
+          'Withdrawal Fee (KES)': txn.platform_fee || 0,
+          'Payment Method': txn.payment_method || 'N/A',
+          'Transaction Reference': txn.mpesa_receipt || 'N/A',
+          'Status': txn.status || ''
+        }));
+        const moneyOutSheet = XLSX.utils.json_to_sheet(moneyOutData);
+        XLSX.utils.book_append_sheet(workbook, moneyOutSheet, 'Money Out');
+      }
+
+      // Set column widths for better readability
+      const setColumnWidths = (sheet: any, widths: number[]) => {
+        sheet['!cols'] = widths.map((w) => ({ wch: w }));
+      };
+
+      setColumnWidths(allTransactionsSheet, [20, 12, 15, 40, 30, 18, 10, 15, 15, 12, 15, 18, 20, 12, 15]);
+      setColumnWidths(summarySheet, [25, 20, 10]);
+
+      // Generate filename with timestamp and period
+      const timestamp = new Date().toISOString().split('T')[0];
+      const periodLabel = period === 'week' ? 'LastWeek' : period === 'month' ? 'LastMonth' : 'AllTime';
+      const filename = `Partner_Transactions_${periodLabel}_${timestamp}.xlsx`;
+
+      // Write and download
+      XLSX.writeFile(workbook, filename);
+      
+      toast.success(`Exported ${transactions.length} transactions to Excel`);
+    } catch (err: any) {
+      console.error('Error exporting transactions:', err);
+      toast.error(err.message || 'Failed to export transactions');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Financial Stats - Pulled from API
   const financialStats = [
     {
@@ -321,11 +480,17 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
           </div>
         </button>
         
-        <button className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm hover:shadow-lg hover:border-[#27aae2] transition-all group">
+        <button 
+          onClick={() => setShowExportModal(true)}
+          disabled={isExporting}
+          className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm hover:shadow-lg hover:border-[#27aae2] transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <div className="flex items-center justify-between">
             <div className="text-left">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Download Statement</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">PDF or Excel format</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                {isExporting ? 'Exporting...' : 'Download Statement'}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">All transactions in Excel</p>
             </div>
             <Download className="w-8 h-8 text-gray-700 dark:text-gray-300 group-hover:translate-y-1 transition-transform" />
           </div>
@@ -835,6 +1000,73 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
                 </div>
               </div>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Export Period Selection Modal */}
+      {showExportModal && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Export Transactions</h2>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Select the time period for your transaction export:
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => handleExportTransactions('week')}
+                disabled={isExporting}
+                className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg p-4 hover:from-blue-600 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between group"
+              >
+                <div className="text-left">
+                  <div className="font-semibold text-lg">Last Week</div>
+                  <div className="text-sm text-blue-100">Transactions from the past 7 days</div>
+                </div>
+                <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
+              </button>
+
+              <button
+                onClick={() => handleExportTransactions('month')}
+                disabled={isExporting}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg p-4 hover:from-purple-600 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between group"
+              >
+                <div className="text-left">
+                  <div className="font-semibold text-lg">Last Month</div>
+                  <div className="text-sm text-purple-100">Transactions from the past 30 days</div>
+                </div>
+                <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
+              </button>
+
+              <button
+                onClick={() => handleExportTransactions('all')}
+                disabled={isExporting}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg p-4 hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between group"
+              >
+                <div className="text-left">
+                  <div className="font-semibold text-lg">All Time</div>
+                  <div className="text-sm text-green-100">All transactions from the beginning</div>
+                </div>
+                <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowExportModal(false)}
+              className="mt-6 w-full px-4 py-2 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>,
         document.body

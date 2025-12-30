@@ -514,6 +514,16 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       }
     } catch (err: any) {
       console.error('Booking error:', err);
+      // Handle 401 Unauthorized - session expired
+      if (err.message && (err.message.includes('session has expired') || err.message.includes('expired') || err.message.includes('log in again'))) {
+        // Show login modal
+        if (setShowLoginModal) {
+          setShowLoginModal(true);
+        }
+        setError('Your session has expired. Please log in again to continue booking.');
+        setIsBooking(false);
+        return;
+      }
       // Handle duplicate booking error - allow user to buy more tickets
       if (err.message && (err.message.includes('already booked') || err.message.includes('pending booking'))) {
         setHasExistingBooking(true);
