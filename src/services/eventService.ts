@@ -166,3 +166,30 @@ export const getEventDetails = async (eventId: number): Promise<any> => {
   }
 };
 
+/**
+ * Get event attendees with profile pictures
+ */
+export const getEventAttendees = async (eventId: number, limit: number = 10): Promise<any> => {
+  try {
+    const url = `${API_BASE_URL}${API_ENDPOINTS.events.attendees(eventId, limit)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to fetch attendees' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    // Handle network errors gracefully - return empty array if fetch fails
+    console.error('Error fetching attendees:', error);
+    return { attendees: [], count: 0, total_attendees: 0 };
+  }
+};
+

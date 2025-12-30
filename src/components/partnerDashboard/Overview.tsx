@@ -27,7 +27,9 @@ interface EventDetails {
   total_tickets_sold: number;
   view_count: number;
   revenue?: number;
+  promo_code_value?: number;
   status: string;
+  rawEvent?: any;
 }
 
 export default function Overview({ onWithdrawClick, dashboardData }: OverviewProps) {
@@ -43,7 +45,7 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
     netEarnings: 0,
     amountWithdrawn: 0,
     currentBalance: 0,
-    grossRevenue: 0
+    promoCodeValue: 0
   });
   const eventsPerPage = 5;
 
@@ -59,13 +61,13 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
       const totalEarnings = parseFloat(stats.total_earnings || 0);
       const withdrawnEarnings = parseFloat(stats.withdrawn_earnings || 0);
       const pendingEarnings = parseFloat(stats.pending_earnings || 0);
-      const grossRevenue = totalEarnings > 0 ? totalEarnings / 0.93 : 0;
+      const promoCodeValue = parseFloat(stats.total_promo_code_value || 0);
       
       setFinancialData({
         netEarnings: totalEarnings,
         amountWithdrawn: withdrawnEarnings,
         currentBalance: pendingEarnings,
-        grossRevenue: grossRevenue
+        promoCodeValue: promoCodeValue
       });
     }
   }, [dashboardData]);
@@ -91,15 +93,13 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
         const totalEarnings = parseFloat(stats.total_earnings || 0); // Net earnings (after 7% deduction)
         const withdrawnEarnings = parseFloat(stats.withdrawn_earnings || 0);
         const pendingEarnings = parseFloat(stats.pending_earnings || 0); // Available to withdraw
-        
-        // Gross revenue = net earnings / 0.93 (since 7% is deducted: net = gross * 0.93)
-        const grossRevenue = totalEarnings > 0 ? totalEarnings / 0.93 : 0;
+        const promoCodeValue = parseFloat(stats.total_promo_code_value || 0); // Total promo code discount value
 
         setFinancialData({
           netEarnings: totalEarnings,
           amountWithdrawn: withdrawnEarnings,
           currentBalance: pendingEarnings,
-          grossRevenue: grossRevenue
+          promoCodeValue: promoCodeValue
         });
       }
     } catch (err) {
@@ -151,6 +151,9 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
         const ticketsSold = event.total_tickets_sold || 0;
         const attendeeCount = event.attendee_count || 0;
         
+        // Calculate promo code value (total discount amount from bookings)
+        const promoCodeValue = event.promo_code_value || 0;
+        
         return {
           id: event.id,
           title: event.title,
@@ -161,7 +164,7 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
           attendees: `${attendeeCount}${totalTickets > 0 ? `/${totalTickets}` : ''}`,
           ticketsSold: ticketsSold,
           totalTickets: totalTickets || ticketsSold || 1, // Use 1 as fallback to avoid division by zero
-          grossRevenue: `Ksh ${((event.revenue || 0) / 0.93).toLocaleString()}`,
+          promoCodeValue: `Ksh ${promoCodeValue.toLocaleString()}`,
           netEarnings: `Ksh ${(event.revenue || 0).toLocaleString()}`,
           views: (event.view_count || 0).toLocaleString(),
           status: 'active',
@@ -180,20 +183,25 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
       setPastEventsCount(pastEventsTotal);
       
       // Format past events
-      const formattedPast = pastEvents.map((event: any) => ({
-        id: event.id,
-        title: event.title,
-        image: event.poster_image 
-          ? (event.poster_image.startsWith('http') ? event.poster_image : `${API_BASE_URL}/${event.poster_image.replace(/^\/+/, '')}`)
-          : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop',
-        date: new Date(event.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        attendees: `${event.attendee_count || 0}`,
-        grossRevenue: `Ksh ${((event.revenue || 0) / 0.93).toLocaleString()}`,
-        netEarnings: `Ksh ${(event.revenue || 0).toLocaleString()}`,
-        views: (event.view_count || 0).toLocaleString(),
-        status: 'completed',
-        rawEvent: event
-      }));
+      const formattedPast = pastEvents.map((event: any) => {
+        // Calculate promo code value (total discount amount from bookings)
+        const promoCodeValue = event.promo_code_value || 0;
+        
+        return {
+          id: event.id,
+          title: event.title,
+          image: event.poster_image 
+            ? (event.poster_image.startsWith('http') ? event.poster_image : `${API_BASE_URL}/${event.poster_image.replace(/^\/+/, '')}`)
+            : 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=300&fit=crop',
+          date: new Date(event.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          attendees: `${event.attendee_count || 0}`,
+          promoCodeValue: `Ksh ${promoCodeValue.toLocaleString()}`,
+          netEarnings: `Ksh ${(event.revenue || 0).toLocaleString()}`,
+          views: (event.view_count || 0).toLocaleString(),
+          status: 'completed',
+          rawEvent: event
+        };
+      });
       
       setEventHistory(formattedPast);
     } catch (err) {
@@ -238,6 +246,13 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
       // No change percentage for all-time earnings
     },
     {
+      label: 'Promo Codes Value',
+      value: formatCurrency(financialData.promoCodeValue),
+      subtext: 'Total discounts given',
+      icon: Tag,
+      color: 'from-orange-500 to-red-600',
+    },
+    {
       label: 'Amount Withdrawn',
       value: formatCurrency(financialData.amountWithdrawn),
       subtext: 'Total withdrawals',
@@ -251,13 +266,7 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
       icon: Wallet,
       color: 'from-purple-500 to-pink-600',
     },
-    {
-      label: 'Gross Revenue',
-      value: formatCurrency(financialData.grossRevenue),
-      subtext: 'Before deductions',
-      icon: DollarSign,
-      color: 'from-orange-500 to-red-600',
-    }
+
   ];
 
   // Recent Withdrawals (empty for now)
@@ -438,8 +447,11 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
                     <span className="font-bold text-green-600 dark:text-green-400">{event.netEarnings}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600 dark:text-gray-400">Gross Revenue</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{event.grossRevenue}</span>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Tag className="w-3 h-3 mr-1" />
+                      <span>Promo Codes Value</span>
+                    </div>
+                    <span className="font-semibold text-gray-900 dark:text-white">{event.promoCodeValue}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center text-gray-600 dark:text-gray-400">
@@ -566,8 +578,11 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
                     <span className="font-bold text-green-600 dark:text-green-400">{event.netEarnings}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600 dark:text-gray-400">Gross Revenue</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{event.grossRevenue}</span>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Tag className="w-3 h-3 mr-1" />
+                      <span>Promo Code Value</span>
+                    </div>
+                    <span className="font-semibold text-gray-900 dark:text-white">{event.promoCodeValue}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center text-gray-600 dark:text-gray-400">
@@ -803,9 +818,12 @@ export default function Overview({ onWithdrawClick, dashboardData }: OverviewPro
                 {/* Revenue Stats */}
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Gross Revenue</p>
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <Tag className="w-4 h-4 mr-1" />
+                      <span>Promo Codes Value</span>
+                    </div>
                     <p className="text-xl font-bold text-gray-900 dark:text-white">
-                      Ksh {((selectedEvent.revenue || 0) / 0.93).toLocaleString()}
+                      Ksh {((selectedEvent.promo_code_value || selectedEvent.rawEvent?.promo_code_value || 0)).toLocaleString()}
                     </p>
                   </div>
                   <div>

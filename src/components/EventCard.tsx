@@ -2,6 +2,7 @@ import { Calendar, MapPin, Heart, Share2, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { addToBucketlist, removeFromBucketlist } from '../services/userService';
+import { API_BASE_URL } from '../config/api';
 
 interface EventCardProps {
   id: string;
@@ -15,6 +16,7 @@ interface EventCardProps {
   price: string;
   onClick: (id: string) => void;
   inBucketlist?: boolean; // Optional prop to indicate if already in bucketlist
+  attendeeImages?: Array<{ id: number; profile_picture?: string; full_name?: string }>; // Optional attendee images
 }
 
 export default function EventCard({
@@ -28,7 +30,8 @@ export default function EventCard({
   category,
   price,
   onClick,
-  inBucketlist: initialInBucketlist = false
+  inBucketlist: initialInBucketlist = false,
+  attendeeImages = []
 }: EventCardProps) {
   const { isAuthenticated } = useAuth();
   const [isFavorited, setIsFavorited] = useState(initialInBucketlist);
@@ -129,10 +132,41 @@ export default function EventCard({
             <span className="line-clamp-1 text-[8px] sm:text-xs md:text-sm">{location}</span>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-1.5 md:space-x-2">
-            <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 flex-shrink-0" style={{ color: '#27aae2' }} />
-            <span className="text-[8px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 font-medium">
-              {attendees} {attendees === 1 ? 'attendee' : 'attendees'}
-            </span>
+            {attendeeImages.length > 0 ? (
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <div className="flex -space-x-1.5 sm:-space-x-2">
+                  {attendeeImages.slice(0, 3).map((attendee, idx) => {
+                    const avatarUrl = attendee.profile_picture
+                      ? (attendee.profile_picture.startsWith('http') 
+                          ? attendee.profile_picture 
+                          : `${API_BASE_URL}/${attendee.profile_picture.replace(/^\//, '')}`)
+                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
+                    
+                    return (
+                      <img
+                        key={attendee.id || idx}
+                        src={avatarUrl}
+                        alt={attendee.full_name || 'Attendee'}
+                        className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <span className="text-[8px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  {attendees > attendeeImages.length ? `+${attendees - attendeeImages.length} attending` : `${attendees} attending`}
+                </span>
+              </div>
+            ) : (
+              <>
+                <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 flex-shrink-0" style={{ color: '#27aae2' }} />
+                <span className="text-[8px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  {attendees} {attendees === 1 ? 'attendee' : 'attendees'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

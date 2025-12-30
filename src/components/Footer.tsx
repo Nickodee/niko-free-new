@@ -1,4 +1,5 @@
 import { Calendar, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import Logo from '../images/VERTICAL TRANSPARENT 1.png';
 
 interface FooterProps {
   onNavigate?: (page: string) => void;
@@ -13,11 +14,9 @@ export default function Footer({ onNavigate, onOpenLoginModal }: FooterProps) {
           {/* Logo and Social Section */}
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold">Niko Free</span>
+              <img src={Logo} alt="Niko Free Logo" className="w-50 h-40" />
             </div>
+
             <p className="text-gray-300 text-sm leading-relaxed">
               Discover amazing events and connect with your community. Join us in creating unforgettable experiences.
             </p>

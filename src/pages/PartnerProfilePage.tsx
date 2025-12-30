@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
+import LoginModal from '../components/LoginModal';
 import SEO from '../components/SEO';
 import { getImageUrl, API_BASE_URL, API_ENDPOINTS } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -95,6 +96,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -285,10 +287,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
   // Handle follow/unfollow
   const handleFollowToggle = async () => {
     if (!isAuthenticated) {
-      toast.info('Please log in to follow partners', {
-        position: 'top-right',
-        autoClose: 3000,
-      });
+      setShowLoginModal(true);
       return;
     }
     
@@ -379,10 +378,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
   const handleReport = () => {
     setShowFollowDropdown(false);
     if (!isAuthenticated) {
-      toast.info('Please log in to report a partner', {
-        position: 'top-right',
-        autoClose: 3000,
-      });
+      setShowLoginModal(true);
       return;
     }
     setShowReportModal(true);
@@ -390,10 +386,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
 
   const handleSubmitReport = async () => {
     if (!isAuthenticated) {
-      toast.info('Please log in to report a partner', {
-        position: 'top-right',
-        autoClose: 3000,
-      });
+      setShowLoginModal(true);
       return;
     }
 
@@ -452,10 +445,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
   // Handle review submission
   const handleSubmitReview = async () => {
     if (!isAuthenticated) {
-      toast.info('Please log in to write a review', {
-        position: 'top-right',
-        autoClose: 3000,
-      });
+      setShowLoginModal(true);
       return;
     }
 
@@ -1080,12 +1070,7 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
                     </button>
                   ) : (
                     <button 
-                      onClick={() => {
-                        toast.info('Please log in to write a review', {
-                          position: 'top-right',
-                          autoClose: 3000,
-                        });
-                      }}
+                      onClick={() => setShowLoginModal(true)}
                       className="px-6 py-2.5 bg-[#27aae2] text-white rounded-lg font-medium hover:bg-[#1e8bb8] transition-colors inline-flex items-center gap-2"
                     >
                       <Star className="w-4 h-4" />
@@ -1314,6 +1299,13 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
         )}
 
         <Footer onNavigate={onNavigate} />
+
+        {/* Login Modal */}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onNavigate={onNavigate}
+        />
       </div>
     </>
   );

@@ -206,13 +206,13 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
             {/* Sidebar Header */}
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-">
                   <img 
-                    src="/src/images/TRANSPARENT 3.png" 
+                    src="/src/images/TRANSPARENT 2.png" 
                     alt="Niko Free Logo" 
-                    className="w-10 h-10 object-contain"
+                    className="w-20 h-10 "
                   />
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Partner Dashboard</h2>
+                  <h2 className="text-xl font-bold ml-4 text-gray-900 dark:text-white">Partner Dashboard</h2>
                 </div>
                 <button
                   onClick={() => setSidebarOpen(false)}

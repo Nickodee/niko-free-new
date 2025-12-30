@@ -38,6 +38,7 @@ import {
   getPromotedEvents,
   getEvents,
   getCategories,
+  getEventAttendees,
 } from "../services/eventService";
 import { API_BASE_URL } from "../config/api";
 
@@ -126,6 +127,7 @@ export default function LandingPage({
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isLoadingCategoryEvents, setIsLoadingCategoryEvents] = useState(false);
+  const [eventAttendees, setEventAttendees] = useState<Record<number, any[]>>({}); // Store attendees by event ID
 
   // Ad Configuration (This would come from admin panel in production)
   const adConfig = {
@@ -246,7 +248,7 @@ export default function LandingPage({
 
   // Typing effect for hero heading
   React.useEffect(() => {
-    const fullText = "Wellness is the New Luxury";
+    const fullText = "Discover Amazing Things To Do";
     let charIndex = 0;
     let isDeleting = false;
 
@@ -406,6 +408,21 @@ export default function LandingPage({
 
           const events = (response.events || []).map(mapEventData);
           setCategoryEvents(events);
+          
+          // Fetch attendees for category events
+          const attendeesMap: Record<number, any[]> = {};
+          await Promise.all(
+            events.map(async (event: any) => {
+              try {
+                const attendeesData = await getEventAttendees(parseInt(event.id), 3);
+                attendeesMap[parseInt(event.id)] = attendeesData.attendees || [];
+              } catch (err) {
+                console.error(`Error fetching attendees for event ${event.id}:`, err);
+                attendeesMap[parseInt(event.id)] = [];
+              }
+            })
+          );
+          setEventAttendees((prev) => ({ ...prev, ...attendeesMap }));
         } catch (err) {
           console.error("Error fetching category events:", err);
           setCategoryEvents([]);
@@ -515,6 +532,21 @@ export default function LandingPage({
         // Shuffle events array for random display order on each page load
         const shuffledEvents = [...events].sort(() => Math.random() - 0.5);
         setCantMissEvents(shuffledEvents);
+        
+        // Fetch attendees for "Can't Miss" events
+        const attendeesMap: Record<number, any[]> = {};
+        await Promise.all(
+          shuffledEvents.map(async (event: any) => {
+            try {
+              const attendeesData = await getEventAttendees(parseInt(event.id), 3);
+              attendeesMap[parseInt(event.id)] = attendeesData.attendees || [];
+            } catch (err) {
+              console.error(`Error fetching attendees for event ${event.id}:`, err);
+              attendeesMap[parseInt(event.id)] = [];
+            }
+          })
+        );
+        setEventAttendees((prev) => ({ ...prev, ...attendeesMap }));
       } catch (err) {
         console.error("Error fetching promoted events:", err);
         // Keep empty array on error
@@ -593,6 +625,21 @@ export default function LandingPage({
         // Shuffle events array for random display order on each page load
         const shuffledEvents = [...events].sort(() => Math.random() - 0.5);
         setUpcomingEvents(shuffledEvents);
+        
+        // Fetch attendees for upcoming events
+        const attendeesMap: Record<number, any[]> = {};
+        await Promise.all(
+          shuffledEvents.map(async (event) => {
+            try {
+              const attendeesData = await getEventAttendees(parseInt(event.id), 3);
+              attendeesMap[parseInt(event.id)] = attendeesData.attendees || [];
+            } catch (err) {
+              console.error(`Error fetching attendees for event ${event.id}:`, err);
+              attendeesMap[parseInt(event.id)] = [];
+            }
+          })
+        );
+        setEventAttendees((prev) => ({ ...prev, ...attendeesMap }));
       } catch (err) {
         console.error("Error fetching upcoming events:", err);
         setUpcomingEvents([]);
@@ -1226,15 +1273,7 @@ export default function LandingPage({
                     className="w-full flex flex-col items-center justify-center text-center"
                     data-aos="fade-up"
                   >
-                    <div
-                      className="inline-flex items-center space-x-2 backdrop-blur-sm px-3 py-1.5 rounded-full mb-2 mx-auto"
-                      style={{ backgroundColor: "rgba(39, 170, 226, 0.3)" }}
-                    >
-                      <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-300" />
-                      <span className="font-semibold text-[10px] sm:text-xs text-white">
-                        Niko Free
-                      </span>
-                    </div>
+                    
                     <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-2 sm:mb-3 md:mb-4 leading-tight">
                       {heroText}
                     </h1>
@@ -1242,7 +1281,7 @@ export default function LandingPage({
                       Explore events, activities and experiences designed to elevate your mind, energy, and lifestyle.
                     </p>
                     <p className="text-sm text-[#3290cf] sm:text-base md:text-sm lg:text-lg leading-relaxed mb-3 sm:mb-4 md:mb-6">
-                      Niko Free - redefine how you go out.
+                      Skip The Algorithm. Skip The FOMO.
                     </p>
 
                     {/* Stats */}
@@ -1521,36 +1560,58 @@ export default function LandingPage({
                             </div>
                             <div className="flex items-center space-x-2">
                               <div className="flex -space-x-2">
-                                <img
-                                  src={`https://i.pravatar.cc/150?img=${
-                                    (parseInt(event.id) * 3) % 70
-                                  }`}
-                                  loading="lazy"
-                                  decoding="async"
-                                  alt="Attendee"
-                                  className="w-6 h-6 rounded-full border-2 border-white"
-                                />
-                                <img
-                                  src={`https://i.pravatar.cc/150?img=${
-                                    (parseInt(event.id) * 3 + 1) % 70
-                                  }`}
-                                  alt="Attendee"
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-6 h-6 rounded-full border-2 border-white"
-                                />
-                                <img
-                                  src={`https://i.pravatar.cc/150?img=${
-                                    (parseInt(event.id) * 3 + 2) % 70
-                                  }`}
-                                  loading="lazy"
-                                  decoding="async"
-                                  alt="Attendee"
-                                  className="w-6 h-6 rounded-full border-2 border-white"
-                                />
+                                {(() => {
+                                  const attendees = eventAttendees[parseInt(event.id)] || [];
+                                  const displayCount = Math.min(3, attendees.length);
+                                  const remaining = Math.max(0, event.attendees - displayCount);
+                                  
+                                  return (
+                                    <>
+                                      {attendees.slice(0, displayCount).map((attendee: any, idx: number) => {
+                                        const avatarUrl = attendee.profile_picture
+                                          ? (attendee.profile_picture.startsWith('http') 
+                                              ? attendee.profile_picture 
+                                              : `${API_BASE_URL}/${attendee.profile_picture.replace(/^\//, '')}`)
+                                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
+                                        
+                                        return (
+                                          <img
+                                            key={attendee.id || idx}
+                                            src={avatarUrl}
+                                            alt={attendee.full_name || 'Attendee'}
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="w-6 h-6 rounded-full border-2 border-white"
+                                            onError={(e) => {
+                                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
+                                            }}
+                                          />
+                                        );
+                                      })}
+                                      {displayCount === 0 && (
+                                        <>
+                                          <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center">
+                                            <Users className="w-3 h-3 text-gray-600" />
+                                          </div>
+                                          <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center">
+                                            <Users className="w-3 h-3 text-gray-600" />
+                                          </div>
+                                          <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center">
+                                            <Users className="w-3 h-3 text-gray-600" />
+                                          </div>
+                                        </>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                               <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-500 truncate">
-                                +{event.attendees - 3} attending
+                                {(() => {
+                                  const attendees = eventAttendees[event.id] || [];
+                                  const displayCount = Math.min(3, attendees.length);
+                                  const remaining = Math.max(0, event.attendees - displayCount);
+                                  return remaining > 0 ? `+${remaining} attending` : `${event.attendees} attending`;
+                                })()}
                               </span>
                             </div>
                           </div>
@@ -1792,6 +1853,7 @@ export default function LandingPage({
                           key={event.id}
                           {...event}
                           onClick={onEventClick}
+                          attendeeImages={eventAttendees[parseInt(event.id)] || []}
                         />
                       )
                     )}
@@ -1893,7 +1955,11 @@ export default function LandingPage({
                         key={event.id}
                         className="bg-white dark:bg-gray-800 rounded-xl p-6 transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
-                        <EventCard {...event} onClick={onEventClick} />
+                        <EventCard 
+                          {...event} 
+                          onClick={onEventClick}
+                          attendeeImages={eventAttendees[parseInt(event.id)] || []}
+                        />
                       </div>
                     )
                   )}
