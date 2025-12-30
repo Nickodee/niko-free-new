@@ -1,4 +1,4 @@
-import { Camera, MapPin, Calendar, Mail, Phone, Edit2, Save, X } from 'lucide-react';
+import { Camera, MapPin, Calendar, Mail, Phone, Edit2, Save, X, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserProfile, updateUserProfile, uploadProfilePicture, getUserBookings, getBucketlist } from '../../services/userService';
 import { API_BASE_URL, getImageUrl } from '../../config/api';
@@ -17,7 +17,8 @@ export default function MyProfile() {
     joinDate: '',
     avatar: '',
     dateOfBirth: '',
-    age: null as number | null
+    age: null as number | null,
+    gender: ''
   });
 
   const [editedProfile, setEditedProfile] = useState(profile);
@@ -61,7 +62,8 @@ export default function MyProfile() {
         joinDate: user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
         avatar: user.profile_picture ? getImageUrl(user.profile_picture) : '',
         dateOfBirth: dateOfBirth,
-        age: age
+        age: age,
+        gender: user.gender || ''
       };
       
       setProfile(profileData);
@@ -93,6 +95,10 @@ export default function MyProfile() {
         updateData.date_of_birth = editedProfile.dateOfBirth;
       }
       
+      if (editedProfile.gender) {
+        updateData.gender = editedProfile.gender;
+      }
+      
       const response = await updateUserProfile(updateData);
       
       // Refresh profile from API response to get the actual updated values
@@ -109,7 +115,8 @@ export default function MyProfile() {
         joinDate: updatedUser.created_at ? new Date(updatedUser.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
         avatar: updatedUser.profile_picture ? getImageUrl(updatedUser.profile_picture) : profile.avatar,
         dateOfBirth: dateOfBirth,
-        age: age
+        age: age,
+        gender: updatedUser.gender || ''
       };
       
       setProfile(updatedProfile);
@@ -378,6 +385,27 @@ export default function MyProfile() {
                     </p>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Gender
+              </label>
+              {isEditing ? (
+                <select
+                  value={editedProfile.gender}
+                  onChange={(e) => setEditedProfile({ ...editedProfile, gender: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27aae2] focus:border-transparent"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              ) : (
+                <p className="text-gray-700 dark:text-gray-300">{profile.gender || 'Not provided'}</p>
               )}
             </div>
           </div>

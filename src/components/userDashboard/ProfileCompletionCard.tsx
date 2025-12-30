@@ -1,4 +1,4 @@
-import { AlertCircle, Phone, Calendar } from 'lucide-react';
+import { AlertCircle, Phone, Calendar, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
 import { toast } from 'react-toastify';
@@ -10,6 +10,7 @@ export default function ProfileCompletionCard() {
   const [showForm, setShowForm] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState('');
   const [missingFields, setMissingFields] = useState<string[]>([]);
 
   useEffect(() => {
@@ -29,11 +30,15 @@ export default function ProfileCompletionCard() {
       if (!userData.date_of_birth) {
         missing.push('date_of_birth');
       }
+      if (!userData.gender) {
+        missing.push('gender');
+      }
       
       setMissingFields(missing);
       setIsMissingInfo(missing.length > 0);
       setPhoneNumber(userData.phone_number || '');
       setDateOfBirth(userData.date_of_birth || '');
+      setGender(userData.gender || '');
     } catch (err: any) {
       console.error('Error checking profile:', err);
     } finally {
@@ -44,7 +49,7 @@ export default function ProfileCompletionCard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!phoneNumber.trim() && !dateOfBirth.trim()) {
+    if (!phoneNumber.trim() && !dateOfBirth.trim() && !gender.trim()) {
       toast.error('Please fill in at least one field', {
         position: 'top-right',
         autoClose: 3000,
@@ -61,6 +66,9 @@ export default function ProfileCompletionCard() {
       }
       if (dateOfBirth.trim()) {
         updateData.date_of_birth = dateOfBirth.trim();
+      }
+      if (gender.trim()) {
+        updateData.gender = gender.trim();
       }
 
       await updateUserProfile(updateData);
@@ -101,11 +109,16 @@ export default function ProfileCompletionCard() {
             Complete Your Profile
           </h3>
           <p className="text-sm text-blue-800 dark:text-blue-300">
-            Please add your {missingFields.includes('phone_number') && missingFields.includes('date_of_birth') 
-              ? 'phone number and date of birth' 
-              : missingFields.includes('phone_number') 
-              ? 'phone number' 
-              : 'date of birth'} to complete your profile.
+            Please add your {(() => {
+              const fields = [];
+              if (missingFields.includes('phone_number')) fields.push('phone number');
+              if (missingFields.includes('date_of_birth')) fields.push('date of birth');
+              if (missingFields.includes('gender')) fields.push('gender');
+              if (fields.length === 0) return 'missing information';
+              if (fields.length === 1) return fields[0];
+              if (fields.length === 2) return `${fields[0]} and ${fields[1]}`;
+              return `${fields.slice(0, -1).join(', ')}, and ${fields[fields.length - 1]}`;
+            })()} to complete your profile.
           </p>
         </div>
         {!showForm && (
@@ -149,8 +162,27 @@ export default function ProfileCompletionCard() {
                 onChange={(e) => setDateOfBirth(e.target.value)}
                 max={new Date().toISOString().split('T')[0]}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required={missingFields.includes('date_of_birth') && !phoneNumber.trim()}
+                required={missingFields.includes('date_of_birth') && !phoneNumber.trim() && !gender.trim()}
               />
+            </div>
+          )}
+
+          {missingFields.includes('gender') && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Gender
+              </label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required={missingFields.includes('gender') && !phoneNumber.trim() && !dateOfBirth.trim()}
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
             </div>
           )}
 

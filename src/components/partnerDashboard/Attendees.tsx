@@ -31,12 +31,30 @@ export default function Attendees() {
   const [showEventDetailsModal, setShowEventDetailsModal] = useState(false);
   const [selectedEventDetails, setSelectedEventDetails] = useState<any>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch attendees and dashboard stats on mount
   useEffect(() => {
     fetchAttendees();
     fetchDashboardStats();
   }, []);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+
+    if (exportMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [exportMenuOpen]);
 
   const fetchAttendees = async () => {
     try {
@@ -222,7 +240,8 @@ export default function Attendees() {
       }
 
       // Create Excel file
-      const { default: XLSX } = await import('xlsx');
+      const xlsxModule = await import('xlsx');
+      const XLSX = xlsxModule.default || xlsxModule;
       
       // Prepare data for Excel
       const excelData = dataToExport.map((item: any) => ({
@@ -232,7 +251,6 @@ export default function Attendees() {
         'Phone': item.phone || '',
         'Age': item.age || '',
         'Gender': item.gender || '',
-        'Location': item.location || '',
         'Ticket Type': item.ticketType || '',
         'Event': item.event || '',
         'Event Date': item.eventDate ? new Date(item.eventDate).toLocaleDateString() : '',
@@ -253,7 +271,6 @@ export default function Attendees() {
         { wch: 15 }, // Phone
         { wch: 8 },  // Age
         { wch: 10 }, // Gender
-        { wch: 20 }, // Location
         { wch: 15 }, // Ticket Type
         { wch: 30 }, // Event
         { wch: 12 }, // Event Date

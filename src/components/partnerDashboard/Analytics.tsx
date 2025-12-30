@@ -129,7 +129,8 @@ export default function Analytics({ onNavigate }: AnalyticsProps) {
 			setExportMenuOpen(false);
 
 			// Import xlsx library
-			const { default: XLSX } = await import('xlsx');
+			const xlsxModule = await import('xlsx');
+			const XLSX = xlsxModule.default || xlsxModule;
 
 			// Prepare data for Excel
 			const excelData = data.chart_data.map((item) => ({
