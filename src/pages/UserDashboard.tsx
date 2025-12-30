@@ -12,6 +12,7 @@ import EventsBooked from '../components/userDashboard/EventsBooked';
 import BucketList from '../components/userDashboard/BucketList';
 import PendingBookings from '../components/userDashboard/PendingBookings';
 import EventHistory from '../components/userDashboard/EventHistory';
+import ProfileCompletionCard from '../components/userDashboard/ProfileCompletionCard';
 import { getUserProfile, getUserBookings, getBucketlist, getUserNotifications } from '../services/userService';
 import { API_BASE_URL, getImageUrl } from '../config/api';
 
@@ -492,6 +493,11 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           <main className="lg:col-span-9">
           {activeView === 'dashboard' ? (
             <>
+          {/* Profile Completion Card */}
+          <section className="mb-12">
+            <ProfileCompletionCard />
+          </section>
+
           {/* Pending Bookings Section */}
           <section className="mb-12">
             <div className="flex items-center justify-between mb-6">
@@ -758,7 +764,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           ) : activeView === 'bucketList' ? (
             <BucketList onEventClick={handleEventClick} onBack={handleBackToDashboard} />
           ) : activeView === 'eventHistory' ? (
-            <EventHistory onEventClick={handleEventClick} onBack={handleBackToDashboard} />
+            <EventHistory onEventClick={handleEventClick} onBack={handleBackToDashboard} onNavigate={onNavigate} />
           ) : (
             <Messages />
           )}

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Clock, Calendar, TrendingUp } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Clock, Calendar, TrendingUp, Download, FileSpreadsheet } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getPartnerAnalytics } from '../../services/partnerService';
 
@@ -42,6 +42,9 @@ export default function Analytics({ onNavigate }: AnalyticsProps) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [timePeriod, setTimePeriod] = useState<TimePeriod>('30_days');
+	const [exportMenuOpen, setExportMenuOpen] = useState(false);
+	const [isExporting, setIsExporting] = useState(false);
+	const exportMenuRef = useRef<HTMLDivElement>(null);
 
 	const timePeriodOptions = [
 		{ value: 'today', label: 'Today' },
@@ -96,6 +99,103 @@ export default function Analytics({ onNavigate }: AnalyticsProps) {
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString);
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	};
+
+	// Close export menu when clicking outside
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+				setExportMenuOpen(false);
+			}
+		};
+
+		if (exportMenuOpen) {
+			document.addEventListener('mousedown', handleClickOutside);
+		}
+
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside);
+		};
+	}, [exportMenuOpen]);
+
+	const handleExport = async () => {
+		if (!data?.chart_data || data.chart_data.length === 0) {
+			alert('No data available to export');
+			return;
+		}
+
+		try {
+			setIsExporting(true);
+			setExportMenuOpen(false);
+
+			// Import xlsx library
+			const { default: XLSX } = await import('xlsx');
+
+			// Prepare data for Excel
+			const excelData = data.chart_data.map((item) => ({
+				'Date': formatDate(item.date),
+				'Active Events': item.active_events || 0,
+				'Total Events': item.total_events || 0,
+				'Bookings': item.bookings || 0,
+				'Cumulative Bookings': item.cumulative_bookings || 0,
+				'Revenue (KES)': item.revenue || 0,
+				'Cumulative Revenue (KES)': item.cumulative_revenue || 0
+			}));
+
+			// Add summary sheet
+			const summaryData = [
+				{ 'Metric': 'Total Bookings', 'Value': data.summary.total_bookings || 0 },
+				{ 'Metric': 'Total Events', 'Value': data.summary.total_events || 0 },
+				{ 'Metric': 'Active Events', 'Value': data.summary.active_events || 0 },
+				{ 'Metric': 'Total Revenue (KES)', 'Value': data.summary.total_revenue || 0 },
+				{ 'Metric': 'Last 7 Days Bookings', 'Value': data.last_7_days.bookings || 0 },
+				{ 'Metric': 'Last 7 Days Revenue (KES)', 'Value': data.last_7_days.revenue || 0 },
+				{ 'Metric': 'Last 24 Hours Bookings', 'Value': data.last_24_hours.bookings || 0 },
+				{ 'Metric': 'Last 24 Hours Revenue (KES)', 'Value': data.last_24_hours.revenue || 0 }
+			];
+
+			// Create workbook with multiple sheets
+			const workbook = XLSX.utils.book_new();
+			
+			// Add summary sheet
+			const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+			XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+			// Add chart data sheet
+			const chartSheet = XLSX.utils.json_to_sheet(excelData);
+			XLSX.utils.book_append_sheet(workbook, chartSheet, 'Analytics Data');
+
+			// Set column widths for chart data
+			chartSheet['!cols'] = [
+				{ wch: 15 }, // Date
+				{ wch: 15 }, // Active Events
+				{ wch: 15 }, // Total Events
+				{ wch: 12 }, // Bookings
+				{ wch: 20 }, // Cumulative Bookings
+				{ wch: 15 }, // Revenue
+				{ wch: 25 }  // Cumulative Revenue
+			];
+
+			// Set column widths for summary
+			summarySheet['!cols'] = [
+				{ wch: 25 }, // Metric
+				{ wch: 20 }  // Value
+			];
+
+			// Generate filename with current date
+			const date = new Date().toISOString().split('T')[0];
+			const periodLabel = timePeriodOptions.find(opt => opt.value === timePeriod)?.label || 'Analytics';
+			const filename = `analytics_${periodLabel.replace(/\s+/g, '_')}_${date}.xlsx`;
+
+			// Download file
+			XLSX.writeFile(workbook, filename);
+			
+			setIsExporting(false);
+		} catch (err: any) {
+			console.error('Error exporting to Excel:', err);
+			alert('Failed to export data. Please try again.');
+			setIsExporting(false);
+		}
 	};
 
 	const CustomTooltip = ({ active, payload, label }: any) => {
@@ -153,7 +253,33 @@ export default function Analytics({ onNavigate }: AnalyticsProps) {
 
 	return (
 		<div className="p-6">
-			<h2 className="text-2xl font-bold mb-4 text-[#27aae2]">Analytics</h2>
+			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+				<h2 className="text-2xl font-bold text-[#27aae2]">Analytics</h2>
+				
+				{/* Export Button */}
+				<div className="relative" ref={exportMenuRef}>
+					<button 
+						onClick={() => setExportMenuOpen(!exportMenuOpen)}
+						disabled={isExporting || !data?.chart_data || data.chart_data.length === 0}
+						className="flex items-center space-x-2 bg-[#27aae2] text-white px-6 py-3 rounded-xl font-medium hover:bg-[#1e8bc3] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						<Download className="w-5 h-5" />
+						<span>{isExporting ? 'Exporting...' : 'Export Data'}</span>
+					</button>
+					
+					{exportMenuOpen && (
+						<div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-10">
+							<button
+								onClick={handleExport}
+								className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3"
+							>
+								<FileSpreadsheet className="w-4 h-4 text-green-600" />
+								<span>Export to Excel</span>
+							</button>
+						</div>
+					)}
+				</div>
+			</div>
 
 			{/* Top summary cards */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -346,7 +472,12 @@ export default function Analytics({ onNavigate }: AnalyticsProps) {
 								orientation="right"
 								tick={{ fill: '#6b7280', fontSize: 12 }}
 								stroke="#9ca3af"
-								tickFormatter={(value) => `KES ${(value / 1000).toFixed(0)}k`}
+								tickFormatter={(value) => {
+									if (value >= 1000) {
+										return `KES ${(value / 1000).toFixed(0)}k`;
+									}
+									return `KES ${value.toFixed(0)}`;
+								}}
 							/>
 							<Tooltip content={<CustomTooltip />} />
 							<Legend

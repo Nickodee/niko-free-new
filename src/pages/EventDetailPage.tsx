@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, ExternalLink, ChevronLeft, Heart, CheckCircle2, AlertCircle, CreditCard, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -44,6 +44,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const [averageRating, setAverageRating] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [partnerRating, setPartnerRating] = useState<number | null>(null);
+  const [partnerTotalReviews, setPartnerTotalReviews] = useState<number>(0);
   const [pendingBookingId, setPendingBookingId] = useState<number | null>(null);
   const [hasExistingBooking, setHasExistingBooking] = useState(false);
   const [showBuyMorePrompt, setShowBuyMorePrompt] = useState(false);
@@ -56,6 +58,9 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     }
 
     if (!isAuthenticated) {
+      // Store current page URL for redirect after login
+      const currentUrl = window.location.href;
+      sessionStorage.setItem('login_redirect_url', currentUrl);
       setShowLoginModal(true);
       return;
     }
@@ -168,10 +173,13 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const fetchReviews = async (parsedEventId: number) => {
     try {
       setIsLoadingReviews(true);
-      const response = await getEventReviews(parsedEventId);
-      setReviews(response.reviews || []);
-      setAverageRating(response.average_rating || 0);
-      setTotalReviews(response.total_reviews || 0);
+      const response = await fetch(`${API_BASE_URL}/api/events/${parsedEventId}/reviews`);
+      if (response.ok) {
+        const data = await response.json();
+        setReviews(data.reviews || []);
+        setAverageRating(data.average_rating || 0);
+        setTotalReviews(data.total_reviews || 0);
+      }
     } catch (err: any) {
       console.error('Error fetching reviews:', err);
       // Silently fail - reviews are not critical
@@ -182,6 +190,30 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       setIsLoadingReviews(false);
     }
   };
+
+  // Fetch partner reviews/rating
+  const fetchPartnerReviews = async (partnerId: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/partners/${partnerId}/reviews`);
+      if (response.ok) {
+        const data = await response.json();
+        setPartnerRating(data.average_rating || null);
+        setPartnerTotalReviews(data.total_reviews || 0);
+      }
+    } catch (err: any) {
+      console.error('Error fetching partner reviews:', err);
+      // Silently fail - partner rating is not critical
+      setPartnerRating(null);
+      setPartnerTotalReviews(0);
+    }
+  };
+
+  // Fetch partner reviews when partner data is available
+  useEffect(() => {
+    if (eventData?.partner?.id) {
+      fetchPartnerReviews(eventData.partner.id);
+    }
+  }, [eventData?.partner?.id]);
   // Handle query parameters for pending booking payment
   useEffect(() => {
     const bookingParam = searchParams.get('booking');
@@ -351,6 +383,9 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const handleBuyTicket = async (ticketId?: string, quantity: number = 1) => {
     // Check if user is authenticated
     if (!isAuthenticated) {
+      // Store current page URL for redirect after login
+      const currentUrl = window.location.href;
+      sessionStorage.setItem('login_redirect_url', currentUrl);
       setShowLoginModal(true);
       return;
     }
@@ -722,6 +757,9 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                       onClick={async (e) => {
                         e.stopPropagation();
                         if (!isAuthenticated) {
+                          // Store current page URL for redirect after login
+                          const currentUrl = window.location.href;
+                          sessionStorage.setItem('login_redirect_url', currentUrl);
                           setShowLoginModal(true);
                           return;
                         }
@@ -838,9 +876,11 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                   {eventData.partner && (
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-8 mt-8">
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Hosted By</h3>
-                      <div 
+                      <a
+                        href={`/partner/${eventData.partner.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => onNavigate('partner-profile', { partnerId: eventData.partner.id })}
                       >
                         <div className="relative flex-shrink-0">
                           {eventData.partner.logo ? (
@@ -875,11 +915,29 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                               </span>
                             )}
                           </div>
-                          <p className="text-gray-600 dark:text-gray-400">
-                            {eventData.partner.category?.name || 'Event Organizer'}
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
+                            <p className="text-gray-600 dark:text-gray-400">
+                              {eventData.partner.category?.name || 'Event Organizer'}
+                            </p>
+                            {partnerRating !== null && (
+                              <>
+                                <span className="text-gray-400 dark:text-gray-500">•</span>
+                                <div className="flex items-center gap-1">
+                                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {partnerRating.toFixed(1)}
+                                  </span>
+                                  {partnerTotalReviews > 0 && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      ({partnerTotalReviews})
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </a>
                     </div>
                   )}
                 </div>

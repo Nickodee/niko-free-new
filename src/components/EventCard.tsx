@@ -2,7 +2,7 @@ import { Calendar, MapPin, Heart, Share2, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { addToBucketlist, removeFromBucketlist } from '../services/userService';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, getImageUrl } from '../config/api';
 
 interface EventCardProps {
   id: string;
@@ -137,9 +137,7 @@ export default function EventCard({
                 <div className="flex -space-x-1.5 sm:-space-x-2">
                   {attendeeImages.slice(0, 3).map((attendee, idx) => {
                     const avatarUrl = attendee.profile_picture
-                      ? (attendee.profile_picture.startsWith('http') 
-                          ? attendee.profile_picture 
-                          : `${API_BASE_URL}/${attendee.profile_picture.replace(/^\//, '')}`)
+                      ? getImageUrl(attendee.profile_picture)
                       : `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
                     
                     return (

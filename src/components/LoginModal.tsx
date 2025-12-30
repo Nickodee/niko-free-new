@@ -72,6 +72,10 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
       setIsLoading(true);
       setError('');
 
+      // Get redirect URL before login
+      const redirectUrl = sessionStorage.getItem('login_redirect_url');
+      sessionStorage.removeItem('login_redirect_url');
+
       // Call backend with the credential token
       const loginResponse = await googleLogin(response.credential);
 
@@ -86,6 +90,18 @@ export default function LoginModal({ isOpen, onClose, onNavigate }: LoginModalPr
         position: 'top-right',
         autoClose: 3000,
       });
+      
+      // Navigate to redirect URL if available
+      if (redirectUrl) {
+        // If it's a full URL, extract the pathname
+        try {
+          const url = new URL(redirectUrl);
+          window.location.href = redirectUrl; // Use full URL to preserve hash/query params
+        } catch {
+          // If it's already a path, use it directly
+          window.location.href = redirectUrl.startsWith('/') ? redirectUrl : `/${redirectUrl}`;
+        }
+      }
     } catch (err) {
       console.error('Google login error:', err);
       setError((err as Error).message || 'Google login failed. Please try again.');

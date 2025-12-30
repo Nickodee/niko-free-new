@@ -40,7 +40,7 @@ import {
   getCategories,
   getEventAttendees,
 } from "../services/eventService";
-import { API_BASE_URL } from "../config/api";
+import { API_BASE_URL, getImageUrl } from "../config/api";
 
 interface LandingPageProps {
   onNavigate: (page: string) => void;
@@ -1565,13 +1565,21 @@ export default function LandingPage({
                                   const displayCount = Math.min(3, attendees.length);
                                   const remaining = Math.max(0, event.attendees - displayCount);
                                   
+                                  // If no attendees, show only 1 icon
+                                  if (displayCount === 0) {
+                                    return (
+                                      <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                        <Users className="w-3 h-3 text-gray-600 dark:text-gray-300" />
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // If we have attendees, show all of them (up to 3)
                                   return (
                                     <>
                                       {attendees.slice(0, displayCount).map((attendee: any, idx: number) => {
                                         const avatarUrl = attendee.profile_picture
-                                          ? (attendee.profile_picture.startsWith('http') 
-                                              ? attendee.profile_picture 
-                                              : `${API_BASE_URL}/${attendee.profile_picture.replace(/^\//, '')}`)
+                                          ? getImageUrl(attendee.profile_picture)
                                           : `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
                                         
                                         return (
@@ -1588,26 +1596,13 @@ export default function LandingPage({
                                           />
                                         );
                                       })}
-                                      {displayCount === 0 && (
-                                        <>
-                                          <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center">
-                                            <Users className="w-3 h-3 text-gray-600" />
-                                          </div>
-                                          <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center">
-                                            <Users className="w-3 h-3 text-gray-600" />
-                                          </div>
-                                          <div className="w-6 h-6 rounded-full border-2 border-white bg-gray-300 flex items-center justify-center">
-                                            <Users className="w-3 h-3 text-gray-600" />
-                                          </div>
-                                        </>
-                                      )}
                                     </>
                                   );
                                 })()}
                               </div>
                               <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-500 truncate">
                                 {(() => {
-                                  const attendees = eventAttendees[event.id] || [];
+                                  const attendees = eventAttendees[parseInt(event.id)] || [];
                                   const displayCount = Math.min(3, attendees.length);
                                   const remaining = Math.max(0, event.attendees - displayCount);
                                   return remaining > 0 ? `+${remaining} attending` : `${event.attendees} attending`;
@@ -1979,11 +1974,13 @@ export default function LandingPage({
         <div className="py-20 bg-[#27aae2]" data-aos="fade-up">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Host Your Own Event?
+            Free to List events!
+            </h2>
+            <h2 className="text-xl  text-white mb-6">
+            Ready to host your event?
             </h2>
             <p className="text-xl text-gray-100 mb-8 leading-relaxed">
-              Join thousands of organizers using Niko Free to create memorable
-              experiences. Start for free and reach your community today.
+            Join organizers using Niko Free to create memorable experiences.
             </p>
             <div className="flex flex-wrap justify-center gap-4 mt-4">
               <button
