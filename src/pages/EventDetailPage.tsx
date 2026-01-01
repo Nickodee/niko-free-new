@@ -440,8 +440,14 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
       if (selectedTicket && selectedTicket.is_active !== false && selectedTicket.is_available !== false) {
         ticketTypeId = ticketIdNum;
       } else {
-        setError('Selected ticket is no longer available');
-        return;
+        // For free events, allow booking even if ticket type doesn't exist (backend will create default)
+        // For paid events, ticket type must exist and be available
+        if (!eventData.is_free) {
+          setError('Selected ticket is no longer available');
+          return;
+        }
+        // For free events, proceed without ticket_type_id - backend will create default
+        ticketTypeId = null;
       }
     }
 
