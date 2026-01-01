@@ -1,7 +1,7 @@
 import { Calendar, MapPin, Star as StarIcon, Search, SlidersHorizontal, Grid3x3, List, ArrowLeft, Star, MessageSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserBookings } from '../../services/userService';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getImageUrl } from '../../config/api';
 
 interface Event {
   id: number;
@@ -47,9 +47,7 @@ export default function EventHistory({ onEventClick, onBack, onNavigate }: Event
         return {
           id: booking.id || event.id,
           title: event.title || 'Event',
-          image: event.poster_image 
-            ? `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`
-            : 'https://images.pexels.com/photos/1481308/pexels-photo-1481308.jpeg?auto=compress&cs=tinysrgb&w=400',
+          image: getImageUrl(event.poster_image),
           date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           location: event.venue_name || event.venue_address || 'Location TBA',
           rating: 5, // TODO: Get actual rating from reviews

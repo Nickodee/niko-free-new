@@ -1,7 +1,7 @@
 import { Calendar, QrCode, MapPin, Clock, Search, SlidersHorizontal, Grid3x3, List, ArrowLeft, Download, Eye } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserBookings, getTicketDetails, downloadTicket } from '../../services/userService';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getImageUrl } from '../../config/api';
 
 interface Event {
   id: number;
@@ -72,7 +72,7 @@ export default function EventsBooked({ onEventClick, onBack }: EventsBookedProps
         return {
           id: booking.id,
           title: event.title || 'Event',
-          image: event.poster_image ? `${API_BASE_URL}/uploads/${event.poster_image}` : '',
+          image: getImageUrl(event.poster_image),
           date: dateStr,
           time: timeStr,
           location: event.venue_name || event.venue_address || 'Online',
