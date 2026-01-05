@@ -1,5 +1,5 @@
 import { Search, Download, Users, Mail, Phone, Calendar, FileSpreadsheet, FileText, X, Ticket } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getPartnerAttendees } from '../../services/partnerService';
 
 interface Attendee {
@@ -23,12 +23,15 @@ export default function Attendees() {
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [rawAttendeesData, setRawAttendeesData] = useState<any[]>([]); // Store raw data for export
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [pastEventsCount, setPastEventsCount] = useState(0);
   const [currentEventsCount, setCurrentEventsCount] = useState(0);
   const [showEventDetailsModal, setShowEventDetailsModal] = useState(false);
   const [selectedEventDetails, setSelectedEventDetails] = useState<any>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch attendees and dashboard stats on mount
   useEffect(() => {
@@ -36,14 +39,35 @@ export default function Attendees() {
     fetchDashboardStats();
   }, []);
 
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+
+    if (exportMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [exportMenuOpen]);
+
   const fetchAttendees = async () => {
     try {
       setIsLoading(true);
       setError('');
       const response = await getPartnerAttendees();
+      const allAttendees = response.attendees || [];
       
-      // Transform API data to component format
-      const formattedAttendees: Attendee[] = (response.attendees || []).map((item: any) => ({
+      // Store raw data for export
+      setRawAttendeesData(allAttendees);
+      
+      // Transform API data to component format (masked for display)
+      const formattedAttendees: Attendee[] = allAttendees.map((item: any) => ({
         id: item.id,
         name: item.name,
         email: item.email ? `${item.email.split('@')[0].slice(0, 4)}***@${item.email.split('@')[1]}` : '',
@@ -174,10 +198,100 @@ export default function Attendees() {
     // }
   ];
 
-  const handleExport = (format: 'excel' | 'pdf') => {
-    // In production, this would trigger actual file download
-    alert(`Exporting ${filteredAttendees.length} attendees to ${format.toUpperCase()}...`);
-    setExportMenuOpen(false);
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    if (format === 'pdf') {
+      alert('PDF export coming soon!');
+      setExportMenuOpen(false);
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      setExportMenuOpen(false);
+
+      // Fetch all attendees for export (not just current page)
+      let allAttendeesForExport = rawAttendeesData;
+      if (allAttendeesForExport.length === 0) {
+        // Fetch all attendees if we don't have raw data
+        let page = 1;
+        let hasMore = true;
+        allAttendeesForExport = [];
+        while (hasMore) {
+          const response = await getPartnerAttendees(undefined, page, 1000);
+          const pageAttendees = response.attendees || [];
+          allAttendeesForExport = [...allAttendeesForExport, ...pageAttendees];
+          hasMore = pageAttendees.length === 1000;
+          page++;
+        }
+      }
+
+      // Filter attendees based on current filters
+      let dataToExport = allAttendeesForExport;
+      if (selectedEvent !== 'all') {
+        dataToExport = dataToExport.filter((item: any) => item.event === selectedEvent);
+      }
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        dataToExport = dataToExport.filter((item: any) => 
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.email?.toLowerCase().includes(searchLower) ||
+          item.event?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Create Excel file
+      const xlsxModule = await import('xlsx');
+      const XLSX = xlsxModule.default || xlsxModule;
+      
+      // Prepare data for Excel
+      const excelData = dataToExport.map((item: any) => ({
+        'First Name': item.name?.split(' ')[0] || '',
+        'Last Name': item.name?.split(' ').slice(1).join(' ') || '',
+        'Email': item.email || '',
+        'Phone': item.phone || '',
+        'Age': item.age || '',
+        'Gender': item.gender || '',
+        'Ticket Type': item.ticketType || '',
+        'Event': item.event || '',
+        'Event Date': item.eventDate ? new Date(item.eventDate).toLocaleDateString() : '',
+        'Booking Date': item.bookingDate ? new Date(item.bookingDate).toLocaleDateString() : '',
+        'Status': item.status || ''
+      }));
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendees');
+
+      // Set column widths
+      const columnWidths = [
+        { wch: 15 }, // First Name
+        { wch: 15 }, // Last Name
+        { wch: 25 }, // Email
+        { wch: 15 }, // Phone
+        { wch: 8 },  // Age
+        { wch: 10 }, // Gender
+        { wch: 15 }, // Ticket Type
+        { wch: 30 }, // Event
+        { wch: 12 }, // Event Date
+        { wch: 12 }, // Booking Date
+        { wch: 12 }  // Status
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Generate filename with current date
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `attendees_export_${date}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(workbook, filename);
+      
+      setIsExporting(false);
+    } catch (err: any) {
+      console.error('Error exporting to Excel:', err);
+      alert('Failed to export data. Please try again.');
+      setIsExporting(false);
+    }
   };
 
   const handleEventFilter = (event: string) => {
@@ -330,13 +444,14 @@ export default function Attendees() {
         </div>
         
         {/* Export Dropdown */}
-        <div className="relative">
+        <div className="relative" ref={exportMenuRef}>
           <button 
             onClick={() => setExportMenuOpen(!exportMenuOpen)}
-            className="flex items-center space-x-2 bg-[#27aae2] text-white px-6 py-3 rounded-xl font-medium hover:bg-[#1e8bc3] transition-all shadow-lg"
+            disabled={isExporting}
+            className="flex items-center space-x-2 bg-[#27aae2] text-white px-6 py-3 rounded-xl font-medium hover:bg-[#1e8bc3] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-5 h-5" />
-            <span>Export Data</span>
+            <span>{isExporting ? 'Exporting...' : 'Export Data'}</span>
           </button>
           
           {exportMenuOpen && (

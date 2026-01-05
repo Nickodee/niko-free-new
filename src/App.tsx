@@ -73,7 +73,11 @@ function AppContent() {
           // Verify nonce if stored
           const storedNonce = sessionStorage.getItem('google_oauth_nonce');
           sessionStorage.removeItem('google_oauth_nonce');
+          
+          // Get redirect URL before removing it
+          const redirectUrl = sessionStorage.getItem('google_oauth_redirect') || sessionStorage.getItem('login_redirect_url');
           sessionStorage.removeItem('google_oauth_redirect');
+          sessionStorage.removeItem('login_redirect_url');
 
           // Send token to backend
           const loginResponse = await googleLogin(idToken);
@@ -85,8 +89,25 @@ function AppContent() {
               position: 'top-right',
               autoClose: 3000,
             });
-            // Navigate to home page
-            navigate('/');
+            // Navigate to redirect URL if available, otherwise home
+            if (redirectUrl) {
+              // Use window.location.href for full URL redirect to preserve hash/query params
+              try {
+                const url = new URL(redirectUrl);
+                // If it's a full URL on the same origin, redirect to it
+                if (url.origin === window.location.origin) {
+                  window.location.href = redirectUrl;
+                } else {
+                  // If different origin, just use the pathname
+                  navigate(url.pathname + url.search + url.hash);
+                }
+              } catch {
+                // If it's already a path, use navigate
+                navigate(redirectUrl.startsWith('/') ? redirectUrl : `/${redirectUrl}`);
+              }
+            } else {
+              navigate('/');
+            }
           }
 
           // Clean up URL

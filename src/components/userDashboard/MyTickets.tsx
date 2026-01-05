@@ -1,7 +1,7 @@
 import { Calendar, MapPin, Download, QrCode, Share2, Ticket, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserBookings, getTicketQRCode, downloadTicket } from '../../services/userService';
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, getImageUrl } from '../../config/api';
 
 interface TicketData {
   id: number;
@@ -70,7 +70,7 @@ export default function MyTickets() {
           id: firstTicket.id || booking.id,
           bookingId: booking.id,
           eventTitle: event.title || 'Event',
-          eventImage: event.poster_image ? `${API_BASE_URL}/uploads/${event.poster_image}` : '',
+          eventImage: getImageUrl(event.poster_image),
           date: dateStr,
           time: time,
           location: event.venue_name || event.venue_address || 'Online',

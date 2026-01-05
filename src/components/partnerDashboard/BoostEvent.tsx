@@ -106,23 +106,7 @@ export default function BoostEvent() {
     {
       id: 'cant-miss',
       name: "Can't Miss!",
-      price: 0, // Free for testing
-      duration: 'per day',
-      description: 'Featured at the top of the homepage',
-      features: [
-        'Top homepage placement',
-        'Priority in search results',
-        'Highlighted in category listings',
-        'Social media promotion',
-        'Newsletter feature'
-      ],
-      badge: 'Free Test',
-      color: 'from-purple-600 to-pink-600',
-      isFree: true
-    },
-    {
-      id: 'cant-miss-paid',
-      name: "Can't Miss! (Paid)",
+      originalPrice: 1000,
       price: 400,
       duration: 'per day',
       description: 'Featured at the top of the homepage',
@@ -134,8 +118,49 @@ export default function BoostEvent() {
         'Newsletter feature'
       ],
       badge: 'Most Popular',
-      color: 'from-blue-600 to-cyan-600',
-      isFree: false
+      badgeColor: 'bg-pink-500',
+      color: 'from-purple-600 to-pink-600',
+      isFree: false,
+      isSelectable: true
+    },
+    {
+      id: 'category-featured',
+      name: 'Category Featured',
+      originalPrice: 500,
+      price: 200,
+      duration: 'per day',
+      description: 'Featured within your event category',
+      features: [
+        'Category page prominence',
+        'Enhanced search visibility',
+        'Category newsletter inclusion',
+        'Social media mentions'
+      ],
+      badge: 'Best Value',
+      badgeColor: 'bg-blue-400',
+      color: 'from-blue-600 to-teal-600',
+      isFree: false,
+      isSelectable: false
+    },
+    {
+      id: 'homepage-banner',
+      name: 'Homepage Banner',
+      price: 50000,
+      duration: 'per week',
+      description: 'Exclusive homepage banner placement',
+      features: [
+        'Full-width banner on homepage',
+        'Maximum visibility',
+        'Priority support',
+        'Dedicated account manager',
+        'Custom creative design',
+        'Performance analytics'
+      ],
+      badge: 'Premium',
+      badgeColor: 'bg-red-700',
+      color: 'from-orange-600 to-red-600',
+      isFree: false,
+      isSelectable: false
     }
   ];
 
@@ -221,7 +246,9 @@ export default function BoostEvent() {
 
   const selectedTierData = boostTiers.find(t => t.id === selectedTier);
   const totalCost = selectedTierData 
-    ? (selectedTierData.price * durationCount) 
+    ? (selectedTierData.duration === 'per week' 
+        ? selectedTierData.price * Math.ceil(durationCount / 7)
+        : selectedTierData.price * durationCount)
     : 0;
 
   const calculateEndDate = () => {
@@ -288,11 +315,11 @@ export default function BoostEvent() {
       </div>
 
       {/* Boost Tiers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {boostTiers.map((tier) => (
           <div
             key={tier.id}
-            className={`bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all ${
+            className={`bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all relative ${
               selectedTier === tier.id ? 'ring-2 ring-[#27aae2]' : ''
             }`}
           >
@@ -300,7 +327,7 @@ export default function BoostEvent() {
             <div className={`bg-gradient-to-r ${tier.color} p-6 text-white relative`}>
               {tier.badge && (
                 <div className="absolute top-4 right-4">
-                  <span className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold">
+                  <span className={`${tier.badgeColor} text-white px-3 py-1 rounded-full text-xs font-semibold`}>
                     {tier.badge}
                   </span>
                 </div>
@@ -310,17 +337,31 @@ export default function BoostEvent() {
               <p className="text-white/90 text-sm">{tier.description}</p>
             </div>
 
-            <div className="p-6">
+            <div className={`p-6 ${!tier.isSelectable ? 'blur-sm' : ''}`}>
               {/* Price */}
               <div className="mb-6">
+                {tier.originalPrice && (
+                  <div className="mb-2">
+                    <span className="text-gray-400 dark:text-gray-500 line-through text-lg">
+                      Ksh {tier.originalPrice.toLocaleString()}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-baseline space-x-2 mt-1">
                   <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                    KES {tier.price.toLocaleString()}
+                    Ksh {tier.price.toLocaleString()}
                   </span>
                   <span className="text-gray-600 dark:text-gray-400">
                     {tier.duration}
                   </span>
                 </div>
+                {tier.originalPrice && (
+                  <div className="mt-2">
+                    <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full text-xs font-semibold">
+                      Save {Math.round(((tier.originalPrice - tier.price) / tier.originalPrice) * 100)}%
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Features */}
@@ -337,10 +378,17 @@ export default function BoostEvent() {
 
               {/* Select Button */}
               <button
-                onClick={() => { setSelectedTier(tier.id); setDurationCount(1); }}
-                disabled={!selectedEvent}
+                onClick={() => { 
+                  if (tier.isSelectable) {
+                    setSelectedTier(tier.id); 
+                    setDurationCount(1); 
+                  }
+                }}
+                disabled={!selectedEvent || !tier.isSelectable}
                 className={`w-full py-3 rounded-xl font-semibold transition-all ${
-                  selectedTier === tier.id
+                  !tier.isSelectable
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed blur-sm'
+                    : selectedTier === tier.id
                     ? 'bg-[#27aae2] text-white'
                     : selectedEvent
                     ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'

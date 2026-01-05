@@ -4,23 +4,7 @@
  */
 
 import { API_BASE_URL, API_ENDPOINTS } from '../config/api';
-import { getToken } from './authService';
-
-/**
- * Get auth headers
- */
-const getAuthHeaders = () => {
-  const token = getToken();
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  return headers;
-};
+import { getAuthHeaders as getAuthHeadersFromAuth, removeToken } from './authService';
 
 /**
  * Book tickets for an event
@@ -33,14 +17,22 @@ export const bookTicket = async (data: {
 }): Promise<any> => {
   const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.tickets.book}`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: getAuthHeadersFromAuth(),
     body: JSON.stringify(data),
   });
+
+  // Handle 401 Unauthorized - token expired or invalid
+  if (response.status === 401) {
+    // Clear invalid token
+    removeToken();
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.msg || result.error || 'Your session has expired. Please log in again to continue booking.');
+  }
 
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.error || 'Failed to book ticket');
+    throw new Error(result.error || result.msg || 'Failed to book ticket');
   }
 
   return result;
@@ -55,14 +47,21 @@ export const initiatePayment = async (data: {
 }): Promise<any> => {
   const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.payments.initiate}`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: getAuthHeadersFromAuth(),
     body: JSON.stringify(data),
   });
+
+  // Handle 401 Unauthorized - token expired or invalid
+  if (response.status === 401) {
+    removeToken();
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.msg || result.error || 'Your session has expired. Please log in again.');
+  }
 
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.error || 'Failed to initiate payment');
+    throw new Error(result.error || result.msg || 'Failed to initiate payment');
   }
 
   return result;
@@ -74,13 +73,20 @@ export const initiatePayment = async (data: {
 export const checkPaymentStatus = async (paymentId: number): Promise<any> => {
   const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.payments.status(paymentId)}`, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: getAuthHeadersFromAuth(),
   });
+
+  // Handle 401 Unauthorized - token expired or invalid
+  if (response.status === 401) {
+    removeToken();
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.msg || result.error || 'Your session has expired. Please log in again.');
+  }
 
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.error || 'Failed to check payment status');
+    throw new Error(result.error || result.msg || 'Failed to check payment status');
   }
 
   return result;
@@ -92,13 +98,20 @@ export const checkPaymentStatus = async (paymentId: number): Promise<any> => {
 export const getPaymentHistory = async (): Promise<any> => {
   const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.payments.history}`, {
     method: 'GET',
-    headers: getAuthHeaders(),
+    headers: getAuthHeadersFromAuth(),
   });
+
+  // Handle 401 Unauthorized - token expired or invalid
+  if (response.status === 401) {
+    removeToken();
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.msg || result.error || 'Your session has expired. Please log in again.');
+  }
 
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.error || 'Failed to fetch payment history');
+    throw new Error(result.error || result.msg || 'Failed to fetch payment history');
   }
 
   return result;

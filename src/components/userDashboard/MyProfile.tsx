@@ -1,4 +1,4 @@
-import { Camera, MapPin, Calendar, Mail, Phone, Edit2, Save, X } from 'lucide-react';
+import { Camera, MapPin, Calendar, Mail, Phone, Edit2, Save, X, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserProfile, updateUserProfile, uploadProfilePicture, getUserBookings, getBucketlist } from '../../services/userService';
 import { API_BASE_URL, getImageUrl } from '../../config/api';
@@ -15,7 +15,10 @@ export default function MyProfile() {
     location: '',
     bio: '',
     joinDate: '',
-    avatar: ''
+    avatar: '',
+    dateOfBirth: '',
+    age: null as number | null,
+    gender: ''
   });
 
   const [editedProfile, setEditedProfile] = useState(profile);
@@ -24,6 +27,22 @@ export default function MyProfile() {
     fetchProfile();
   }, []);
 
+  const calculateAge = (dateOfBirth: string | null): number | null => {
+    if (!dateOfBirth) return null;
+    try {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    } catch {
+      return null;
+    }
+  };
+
   const fetchProfile = async () => {
     try {
       setIsLoading(true);
@@ -31,24 +50,24 @@ export default function MyProfile() {
       const data = await getUserProfile();
       
       const user = data.user || data;
-      setProfile({
+      const dateOfBirth = user.date_of_birth || '';
+      const age = calculateAge(dateOfBirth);
+      
+      const profileData = {
         name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User',
         email: user.email || '',
         phone: user.phone_number || '',
         location: user.location || '',
         bio: user.bio || '',
         joinDate: user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
-        avatar: user.profile_picture ? getImageUrl(user.profile_picture) : ''
-      });
-      setEditedProfile({
-        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User',
-        email: user.email || '',
-        phone: user.phone_number || '',
-        location: user.location || '',
-        bio: user.bio || '',
-        joinDate: user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
-        avatar: user.profile_picture ? getImageUrl(user.profile_picture) : ''
-      });
+        avatar: user.profile_picture ? getImageUrl(user.profile_picture) : '',
+        dateOfBirth: dateOfBirth,
+        age: age,
+        gender: user.gender || ''
+      };
+      
+      setProfile(profileData);
+      setEditedProfile(profileData);
     } catch (err: any) {
       console.error('Error fetching profile:', err);
       setError(err.message || 'Failed to load profile');
@@ -65,15 +84,28 @@ export default function MyProfile() {
       const [firstName, ...lastNameParts] = editedProfile.name.split(' ');
       const lastName = lastNameParts.join(' ') || '';
       
-      const response = await updateUserProfile({
+      const updateData: any = {
         first_name: firstName,
         last_name: lastName,
         phone_number: editedProfile.phone || null,
         location: editedProfile.location || null
-      });
+      };
+      
+      if (editedProfile.dateOfBirth) {
+        updateData.date_of_birth = editedProfile.dateOfBirth;
+      }
+      
+      if (editedProfile.gender) {
+        updateData.gender = editedProfile.gender;
+      }
+      
+      const response = await updateUserProfile(updateData);
       
       // Refresh profile from API response to get the actual updated values
       const updatedUser = response.user || response;
+      const dateOfBirth = updatedUser.date_of_birth || '';
+      const age = calculateAge(dateOfBirth);
+      
       const updatedProfile = {
         name: `${updatedUser.first_name || ''} ${updatedUser.last_name || ''}`.trim() || 'User',
         email: updatedUser.email || '',
@@ -81,7 +113,10 @@ export default function MyProfile() {
         location: updatedUser.location || '',
         bio: updatedUser.bio || '',
         joinDate: updatedUser.created_at ? new Date(updatedUser.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '',
-        avatar: updatedUser.profile_picture ? getImageUrl(updatedUser.profile_picture) : profile.avatar
+        avatar: updatedUser.profile_picture ? getImageUrl(updatedUser.profile_picture) : profile.avatar,
+        dateOfBirth: dateOfBirth,
+        age: age,
+        gender: updatedUser.gender || ''
       };
       
       setProfile(updatedProfile);
@@ -316,6 +351,61 @@ export default function MyProfile() {
                 />
               ) : (
                 <p className="text-gray-700 dark:text-gray-300">{profile.location || 'Not provided'}</p>
+              )}
+            </div>
+
+            {/* Date of Birth and Age */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <Calendar className="w-4 h-4 inline mr-2" />
+                Date of Birth {profile.age !== null && `(${profile.age} years old)`}
+              </label>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={editedProfile.dateOfBirth}
+                  onChange={(e) => {
+                    const newDateOfBirth = e.target.value;
+                    const newAge = calculateAge(newDateOfBirth);
+                    setEditedProfile({ ...editedProfile, dateOfBirth: newDateOfBirth, age: newAge });
+                  }}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27aae2] focus:border-transparent"
+                />
+              ) : (
+                <div>
+                  <p className="text-gray-700 dark:text-gray-300">
+                    {profile.dateOfBirth 
+                      ? new Date(profile.dateOfBirth).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                      : 'Not provided'}
+                  </p>
+                  {profile.age !== null && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Age: {profile.age} {profile.age === 1 ? 'year' : 'years'} old
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Gender
+              </label>
+              {isEditing ? (
+                <select
+                  value={editedProfile.gender}
+                  onChange={(e) => setEditedProfile({ ...editedProfile, gender: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27aae2] focus:border-transparent"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              ) : (
+                <p className="text-gray-700 dark:text-gray-300">{profile.gender || 'Not provided'}</p>
               )}
             </div>
           </div>

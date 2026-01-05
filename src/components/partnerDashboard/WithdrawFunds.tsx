@@ -93,11 +93,11 @@ export default function WithdrawFunds({ isOpen, onClose, availableBalance }: Wit
       }
       
       // Call the payout API
-      await requestPayout(
-        withdrawAmount,
-        withdrawMethod === 'mpesa' ? 'mpesa' : 'bank_transfer',
-        withdrawMethod === 'mpesa' ? phoneForPayout : undefined
-      );
+      await requestPayout({
+        amount: withdrawAmount,
+        payout_method: withdrawMethod === 'mpesa' ? 'mpesa' : 'bank_transfer',
+        phone_number: withdrawMethod === 'mpesa' ? phoneForPayout : undefined
+      });
       
       setStep('success');
       

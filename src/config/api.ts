@@ -95,6 +95,7 @@ export const API_ENDPOINTS = {
     reviews: (id: number) => `/api/partners/${id}/reviews`,
     review: (partnerId: number, reviewId: number) => `/api/partners/${partnerId}/reviews/${reviewId}`,
     report: (id: number) => `/api/partners/${id}/report`,
+    transactions: '/api/partners/transactions',
   },
   
   // Events

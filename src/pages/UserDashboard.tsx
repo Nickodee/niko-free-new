@@ -12,6 +12,7 @@ import EventsBooked from '../components/userDashboard/EventsBooked';
 import BucketList from '../components/userDashboard/BucketList';
 import PendingBookings from '../components/userDashboard/PendingBookings';
 import EventHistory from '../components/userDashboard/EventHistory';
+import ProfileCompletionCard from '../components/userDashboard/ProfileCompletionCard';
 import { getUserProfile, getUserBookings, getBucketlist, getUserNotifications } from '../services/userService';
 import { API_BASE_URL, getImageUrl } from '../config/api';
 import nikoFreeLogo from '../images/TRANSPARENT 5.png';
@@ -93,9 +94,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           id: booking.id?.toString() || event.id?.toString() || '',
           bookingId: booking.id, // Keep booking ID for ticket operations
           title: event.title || 'Event',
-          image: event.poster_image 
-            ? `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`
-            : 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=400',
+          image: getImageUrl(event.poster_image),
           date: startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
           time: startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
           location: event.venue_name || event.venue_address || 'Location TBA',
@@ -114,11 +113,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
         return {
           id: event.id?.toString() || '',
           title: event.title || 'Event',
-          image: event.poster_image 
-            ? (event.poster_image.startsWith('http') 
-                ? event.poster_image 
-                : `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`)
-            : 'https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=400',
+          image: getImageUrl(event.poster_image),
           date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           location: event.venue_name || event.venue_address || 'Location TBA',
           price: event.is_free ? 'Free' : `KES ${event.ticket_types?.[0]?.price ? parseFloat(event.ticket_types[0].price).toLocaleString() : 0}`,
@@ -139,9 +134,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
         return {
           id: booking.id?.toString() || event.id?.toString() || '',
           title: event.title || 'Event',
-          image: event.poster_image 
-            ? `${API_BASE_URL}${event.poster_image.startsWith('/') ? '' : '/'}${event.poster_image}`
-            : 'https://images.pexels.com/photos/1481308/pexels-photo-1481308.jpeg?auto=compress&cs=tinysrgb&w=400',
+          image: getImageUrl(event.poster_image),
           date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           location: event.venue_name || event.venue_address || 'Location TBA',
           rating: 5, // TODO: Get actual rating from reviews
@@ -497,6 +490,11 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           <main className="lg:col-span-9">
           {activeView === 'dashboard' ? (
             <>
+          {/* Profile Completion Card */}
+          <section className="mb-12">
+            <ProfileCompletionCard />
+          </section>
+
           {/* Pending Bookings Section */}
           <section className="mb-12">
             <div className="flex items-center justify-between mb-6">
@@ -763,7 +761,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
           ) : activeView === 'bucketList' ? (
             <BucketList onEventClick={handleEventClick} onBack={handleBackToDashboard} />
           ) : activeView === 'eventHistory' ? (
-            <EventHistory onEventClick={handleEventClick} onBack={handleBackToDashboard} />
+            <EventHistory onEventClick={handleEventClick} onBack={handleBackToDashboard} onNavigate={onNavigate} />
           ) : (
             <Messages />
           )}
