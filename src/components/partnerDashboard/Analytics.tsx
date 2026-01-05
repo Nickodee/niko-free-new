@@ -346,7 +346,7 @@ export default function Analytics({ onNavigate }: AnalyticsProps) {
 								orientation="right"
 								tick={{ fill: '#6b7280', fontSize: 12 }}
 								stroke="#9ca3af"
-								tickFormatter={(value) => `KES ${(value / 1000).toFixed(0)}k`}
+								tickFormatter={(value) => `KES ${value.toLocaleString()}`}
 							/>
 							<Tooltip content={<CustomTooltip />} />
 							<Legend

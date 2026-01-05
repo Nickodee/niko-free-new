@@ -11,7 +11,6 @@ import {
   Dog,
   Car,
   Sparkles,
-  Brain,
   Gamepad2,
   ShoppingBag,
   Church,
@@ -41,6 +40,8 @@ import {
   getEventAttendees,
 } from "../services/eventService";
 import { API_BASE_URL } from "../config/api";
+import dancingIcon from "../images/dancing.png";
+import technologyIcon from "../images/technology.png";
 
 interface LandingPageProps {
   onNavigate: (page: string) => void;
@@ -666,14 +667,14 @@ export default function LandingPage({
             Religious: Church,
             Autofest: Car,
             "Health & Wellbeing": Heart,
-            "Music & Dance": Music,
+            "Music & Dance": "dancing-image", // Special marker for image icon
             "Music & Culture": Music,
             Culture: Theater,
             Dance: PartyPopper,
             "Pets & Animals": Dog,
             "Coaching & Support": Target,
             "Business & Networking": Briefcase,
-            Technology: Brain,
+            Technology: "technology-image", // Special marker for image icon
             "Live Plays": Theater,
             "Art & Photography": Camera,
             Shopping: ShoppingBag,
@@ -787,7 +788,7 @@ export default function LandingPage({
         count: 0,
         iconColor: "#EC4899",
       },
-      { name: "Music & Dance", icon: Music, count: 0, iconColor: "#EF4444" },
+      { name: "Music & Dance", icon: "dancing-image", count: 0, iconColor: "#EF4444" },
       { name: "Culture", icon: Theater, count: 0, iconColor: "#F59E0B" },
       { name: "Pets & Animals", icon: Dog, count: 0, iconColor: "#F97316" },
       {
@@ -802,7 +803,7 @@ export default function LandingPage({
         count: 0,
         iconColor: "#475569",
       },
-      { name: "Technology", icon: Brain, count: 0, iconColor: "#8B5CF6" },
+      { name: "Technology", icon: "technology-image", count: 0, iconColor: "#8B5CF6" },
       { name: "Live Plays", icon: Theater, count: 0, iconColor: "#E11D48" },
       {
         name: "Art & Photography",
@@ -1731,143 +1732,110 @@ export default function LandingPage({
             </p>
           </div>
 
-          {/* Mobile Layout: Side-by-side */}
-          <div className="md:hidden flex gap-2 h-[500px]">
-            {/* Categories Sidebar - Left */}
-            <div className="w-20 flex-shrink-0 flex flex-col">
-              {/* All Category - Fixed at top */}
-              {(() => {
-                const allCategory = rotatedCategories[0];
-                const Icon = allCategory.icon;
-                const isSelected = selectedCategory === null;
-                return (
-                  <button
-                    onClick={() => setSelectedCategory(null)}
-                    className={`w-full flex flex-col items-center rounded-lg px-1 py-2 mb-1.5 transition-all duration-200 ${
-                      isSelected
-                        ? "bg-white dark:bg-gray-800"
-                        : "bg-gray-50 dark:bg-gray-800/50"
-                    }`}
-                  >
-                    <div
-                      className={`flex items-center justify-center w-7 h-7 rounded-full mb-1 transition-transform ${
-                        isSelected ? "scale-110" : ""
-                      }`}
-                      style={{
-                        backgroundColor: isSelected ? "#27aae2" : "transparent",
-                      }}
-                    >
-                      <Icon
-                        className="w-4 h-4"
-                        style={{
-                          color: isSelected ? "#ffffff" : allCategory.iconColor,
-                        }}
-                      />
-                    </div>
-                    <span
-                      className={`text-[8px] text-center leading-tight ${
-                        isSelected
-                          ? "font-bold text-gray-900 dark:text-white"
-                          : "font-medium text-gray-600 dark:text-gray-400"
-                      }`}
-                    >
-                      {allCategory.name}
-                    </span>
-                    <span className="text-[7px] text-gray-500 dark:text-gray-500 mt-0.5">
-                      {allCategory.count}
-                    </span>
-                  </button>
-                );
-              })()}
-
-              {/* Other Categories - Scrollable */}
-              <div className="flex-1 overflow-y-auto hide-scrollbar space-y-1.5 pr-0.5">
-                  {rotatedCategories.slice(1).map((category, idx) => {
+          {/* Mobile Layout: Horizontal categories at top, events grid below */}
+          <div className="md:hidden">
+            {/* Categories - Horizontal Scroll */}
+            <div className="relative">
+              <div className="overflow-x-auto hide-scrollbar">
+                <div className="flex gap-3 pb-1 mb-2">
+                  {rotatedCategories.map((category, idx) => {
                     const Icon = category.icon;
+                    const isImageIcon = Icon === "dancing-image" || Icon === "technology-image";
                     // Match by name, displayName, or slug
                     const isSelected =
                       selectedCategory === category.name ||
                       selectedCategory === category.displayName ||
-                      selectedCategory === category.slug;
+                      selectedCategory === category.slug ||
+                      (!selectedCategory && idx === 0);
                     return (
                       <button
                         key={`${category.name}-${categoryRotation}-${idx}`}
                         onClick={() =>
                           setSelectedCategory(
-                            category.name === "All" ? null : category.name
+                            idx === 0 ? null : category.name
                           )
                         }
-                        className={`w-full flex flex-col items-center rounded-lg px-1 py-2 transition-all duration-200 ${
+                        className={`flex-none flex flex-col items-center rounded-lg px-3 py-2 min-w-[70px] transition-all duration-200 ${
                           isSelected
-                            ? "bg-white dark:bg-gray-800"
+                            ? "bg-white dark:bg-gray-800 shadow-md"
                             : "bg-gray-50 dark:bg-gray-800/50"
                         }`}
                       >
-                      <div
-                        className={`flex items-center justify-center w-7 h-7 rounded-full mb-1 transition-transform ${
-                          isSelected ? "scale-110" : ""
-                        }`}
-                        style={{
-                          backgroundColor: isSelected
-                            ? "#27aae2"
-                            : "transparent",
-                        }}
-                      >
-                        <Icon
-                          className="w-4 h-4"
+                        <div
+                          className={`flex items-center justify-center w-10 h-10 rounded-full mb-1.5 transition-transform ${
+                            isSelected ? "scale-110" : ""
+                          }`}
                           style={{
-                            color: isSelected ? "#ffffff" : category.iconColor,
+                            backgroundColor: isSelected
+                              ? "#27aae2"
+                              : "transparent",
                           }}
-                        />
-                      </div>
-                      <span
-                        className={`text-[8px] text-center leading-tight ${
-                          isSelected
-                            ? "font-bold text-gray-900 dark:text-white"
-                            : "font-medium text-gray-600 dark:text-gray-400"
-                        }`}
-                      >
-                        {category.displayName || category.name}
-                      </span>
-                      <span className="text-[7px] text-gray-500 dark:text-gray-500 mt-0.5">
-                        {category.count}
-                      </span>
-                    </button>
-                  );
-                })}
+                        >
+                          {isImageIcon ? (
+                            <img 
+                              src={Icon === "dancing-image" ? dancingIcon : technologyIcon}
+                              alt={Icon === "dancing-image" ? "Dancing" : "Technology"} 
+                              className="w-5 h-5 object-contain"
+                              style={{
+                                filter: isSelected ? "brightness(0) invert(1)" : "none"
+                              }}
+                            />
+                          ) : (
+                            <Icon
+                              className="w-5 h-5"
+                              style={{
+                                color: isSelected ? "#ffffff" : category.iconColor,
+                              }}
+                            />
+                          )}
+                        </div>
+                        <span
+                          className={`text-[10px] text-center leading-tight mb-0.5 ${
+                            isSelected
+                              ? "font-bold text-gray-900 dark:text-white"
+                              : "font-medium text-gray-600 dark:text-gray-400"
+                          }`}
+                        >
+                          {category.displayName || category.name}
+                        </span>
+                        <span className="text-[9px] text-gray-500 dark:text-gray-500">
+                          {category.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Events Grid - Right */}
-            <div className="flex-1 overflow-y-auto hide-scrollbar">
-              {isLoadingCategoryEvents ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#27aae2]"></div>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(selectedCategory ? categoryEvents : upcomingEvents).map(
-                      (event) => (
-                        <EventCard
-                          key={`${selectedCategory ? 'category' : 'upcoming'}-${event.id}`}
-                          {...event}
-                          onClick={onEventClick}
-                          attendeeImages={eventAttendees[parseInt(event.id)] || []}
-                        />
-                      )
-                    )}
-                  </div>
-                  {selectedCategory && categoryEvents.length === 0 && (
-                    <div className="text-center py-12">
-                      <p className="text-gray-600 dark:text-gray-400 text-sm transition-colors duration-200">
-                        No events found in this category
-                      </p>
-                    </div>
+            {/* Events Grid - 2 columns, scrollable */}
+            {isLoadingCategoryEvents ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#27aae2]"></div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {(selectedCategory ? categoryEvents : upcomingEvents).map(
+                    (event) => (
+                      <EventCard
+                        key={`${selectedCategory ? 'category' : 'upcoming'}-mobile-${event.id}`}
+                        {...event}
+                        onClick={onEventClick}
+                        attendeeImages={eventAttendees[parseInt(event.id)] || []}
+                      />
+                    )
                   )}
-                </>
-              )}
-            </div>
+                </div>
+                {selectedCategory && categoryEvents.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600 dark:text-gray-400 text-sm transition-colors duration-200">
+                      No events found in this category
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Desktop Layout: Original horizontal scroll */}
@@ -1880,6 +1848,7 @@ export default function LandingPage({
                 >
                   {rotatedCategories.map((category, index) => {
                     const Icon = category.icon;
+                    const isImageIcon = Icon === "dancing-image" || Icon === "technology-image";
                     const isSelected =
                       selectedCategory === category.name ||
                       (!selectedCategory && index === 0);
@@ -1894,10 +1863,18 @@ export default function LandingPage({
                         className={`flex-none snap-start group flex flex-col items-center rounded-xl px-4 py-4 transition-all duration-200 relative`}
                       >
                         <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 mb-2 group-hover:scale-110 transition-transform">
-                          <Icon
-                            className="w-7 h-7"
-                            style={{ color: category.iconColor }}
-                          />
+                          {isImageIcon ? (
+                            <img 
+                              src={Icon === "dancing-image" ? dancingIcon : technologyIcon}
+                              alt={Icon === "dancing-image" ? "Dancing" : "Technology"} 
+                              className="w-7 h-7 object-contain"
+                            />
+                          ) : (
+                            <Icon
+                              className="w-7 h-7"
+                              style={{ color: category.iconColor }}
+                            />
+                          )}
                         </div>
                         <span
                           className={`text-sm mb-1 text-center whitespace-nowrap ${
@@ -1985,10 +1962,10 @@ export default function LandingPage({
               Join thousands of organizers using Niko Free to create memorable
               experiences. Start for free and reach your community today.
             </p>
-            <div className="flex flex-wrap justify-center gap-4 mt-4">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mt-4">
               <button
                 onClick={() => onNavigate("become-partner")}
-                className="px-10 py-4 bg-white rounded-xl font-bold text-lg transform hover:scale-105 transition-all shadow-xl"
+                className="w-full sm:w-auto px-10 py-4 bg-white rounded-xl font-bold text-lg transform hover:scale-105 transition-all shadow-xl"
                 style={{ color: "#27aae2" }}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.backgroundColor = "#f0f9ff")
@@ -2002,7 +1979,7 @@ export default function LandingPage({
 
               <button
                 onClick={() => setShowPartnerLoginModal(true)}
-                className="px-10 py-4 bg-white rounded-xl font-bold text-lg transform hover:scale-105 transition-all shadow-xl"
+                className="w-full sm:w-auto px-10 py-4 bg-white rounded-xl font-bold text-lg transform hover:scale-105 transition-all shadow-xl"
                 style={{ color: "#27aae2" }}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.backgroundColor = "#f0f9ff")

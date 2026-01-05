@@ -14,6 +14,7 @@ import PendingBookings from '../components/userDashboard/PendingBookings';
 import EventHistory from '../components/userDashboard/EventHistory';
 import { getUserProfile, getUserBookings, getBucketlist, getUserNotifications } from '../services/userService';
 import { API_BASE_URL, getImageUrl } from '../config/api';
+import nikoFreeLogo from '../images/TRANSPARENT 5.png';
 
 interface UserDashboardProps {
   onNavigate: (page: string) => void;
@@ -223,13 +224,17 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             {/* Left - Logo */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <button
-                className="text-xl font-bold text-gray-900 dark:text-white focus:outline-none hover:text-[#27aae2] transition-colors"
+                className="flex items-center space-x-3 focus:outline-none hover:opacity-80 transition-opacity group"
                 onClick={() => onNavigate('landing')}
                 aria-label="Go to Landing Page"
               >
-                Niko Free
+                <img 
+                  src={nikoFreeLogo} 
+                  alt="Niko Free Logo" 
+                  className="h-10 w-auto"
+                />
               </button>
             </div>
 
