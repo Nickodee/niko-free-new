@@ -667,10 +667,10 @@ export default function LandingPage({
             Religious: Church,
             Autofest: Car,
             "Health & Wellbeing": Heart,
-            "Music & Dance": "dancing-image", // Special marker for image icon
+            "Music & Dance": Music,
             "Music & Culture": Music,
             Culture: Theater,
-            Dance: PartyPopper,
+            Dance: "dancing-image", // Special marker for image icon
             "Pets & Animals": Dog,
             "Coaching & Support": Target,
             "Business & Networking": Briefcase,
@@ -788,7 +788,7 @@ export default function LandingPage({
         count: 0,
         iconColor: "#EC4899",
       },
-      { name: "Music & Dance", icon: "dancing-image", count: 0, iconColor: "#EF4444" },
+      { name: "Dance", icon: "dancing-image", count: 0, iconColor: "#EF4444" },
       { name: "Culture", icon: Theater, count: 0, iconColor: "#F59E0B" },
       { name: "Pets & Animals", icon: Dog, count: 0, iconColor: "#F97316" },
       {
