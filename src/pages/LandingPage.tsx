@@ -39,7 +39,7 @@ import {
   getCategories,
   getEventAttendees,
 } from "../services/eventService";
-import { API_BASE_URL } from "../config/api";
+import { API_BASE_URL, getImageUrl } from "../config/api";
 import dancingIcon from "../images/dancing.png";
 import technologyIcon from "../images/technology.png";
 

@@ -15,7 +15,7 @@ import EventHistory from '../components/userDashboard/EventHistory';
 import ProfileCompletionCard from '../components/userDashboard/ProfileCompletionCard';
 import { getUserProfile, getUserBookings, getBucketlist, getUserNotifications } from '../services/userService';
 import { API_BASE_URL, getImageUrl } from '../config/api';
-import nikoFreeLogo from '../images/TRANSPARENT 5.png';
+import nikoFreeLogo from '../images/TRANSPARENT 3.png';
 
 interface UserDashboardProps {
   onNavigate: (page: string) => void;
