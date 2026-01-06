@@ -591,13 +591,13 @@ export default function PartnerProfilePage({ partnerId, onNavigate }: PartnerPro
         <div className="relative z-10">
           <Navbar onNavigate={onNavigate} currentPage="partner-profile" />
 
-          <button
+          {/* <button
             onClick={() => window.history.back()}
             className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-[#27aae2] transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
             <span className="font-medium">Back</span>
-          </button>
+          </button> */}
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Partner Header */}

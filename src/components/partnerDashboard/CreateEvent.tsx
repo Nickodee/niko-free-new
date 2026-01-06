@@ -185,8 +185,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
   };
 
   // Time state for dropdowns - initialize with default times
-  const [startTimeState, setStartTimeState] = useState(() => parseTime('09:00'));
-  const [endTimeState, setEndTimeState] = useState(() => parseTime('17:00'));
+  const [startTimeState, setStartTimeState] = useState(() => parseTime('00:00'));
+  const [endTimeState, setEndTimeState] = useState(() => parseTime('12:00'));
 
   // Update formData when time state changes (user interaction)
   useEffect(() => {
@@ -268,8 +268,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
           hosts: []
         });
         // Reset time states
-        setStartTimeState(() => parseTime('09:00'));
-        setEndTimeState(() => parseTime('17:00'));
+        setStartTimeState(() => parseTime('00:00'));
+        setEndTimeState(() => parseTime('12:00'));
         // Reset one-day event toggle
         setIsOneDayEvent(true);
         // Clear any errors

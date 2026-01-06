@@ -114,7 +114,7 @@ export default function BucketList({ onEventClick, onBack }: BucketListProps) {
           className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-[#27aae2] transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Back to Events</span>
+          <span>Back</span>
         </button>
       )}
 

@@ -707,7 +707,7 @@ export default function LandingPage({
 
           return {
             name: cat.name, // Store original name for matching
-            displayName: cat.name === "Travel" ? "Explore- 🇰🇪" : cat.name, // Display name for UI
+            displayName: cat.name === "Travel" ? "Travel- 🇰🇪" : cat.name, // Display name for UI
             slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, "-"), // Store slug for API calls
             icon: iconMap[cat.name] || Users,
             count: cat.event_count || 0, // Use count from API

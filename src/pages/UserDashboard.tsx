@@ -470,7 +470,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                       : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
-                  Browse Events
+                  Home
                 </button>
                 <button 
                   onClick={() => setActiveView('tickets')}
