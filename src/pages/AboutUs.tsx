@@ -51,10 +51,10 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
           
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-24" data-aos="fade-down">
             <div className="text-center">
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full mb-8 border border-white/20">
+              {/* <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full mb-8 border border-white/20">
                 <Sparkles className="w-5 h-5" />
                 <span className="text-sm font-semibold tracking-wide">ABOUT NIKO FREE</span>
-              </div>
+              </div> */}
               <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
                 Wellness Is the<br />New Luxury
               </h1>

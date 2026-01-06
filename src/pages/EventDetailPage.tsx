@@ -8,7 +8,7 @@ import TicketSelector from '../components/TicketSelector';
 import EventActions from '../components/EventActions';
 import PaymentModal from '../components/PaymentModal';
 import SEO from '../components/SEO';
-import { getEventDetails } from '../services/eventService';
+import { getEventDetails, getEventAttendees } from '../services/eventService';
 import { bookTicket, initiatePayment } from '../services/paymentService';
 import { addToBucketlist, removeFromBucketlist } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,6 +49,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
   const [pendingBookingId, setPendingBookingId] = useState<number | null>(null);
   const [hasExistingBooking, setHasExistingBooking] = useState(false);
   const [showBuyMorePrompt, setShowBuyMorePrompt] = useState(false);
+  const [attendeeImages, setAttendeeImages] = useState<Array<{ id: number; profile_picture?: string; full_name?: string }>>([]);
 
   // Validate promo code
   const handleValidatePromo = async () => {
@@ -119,6 +120,20 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
     }
   };
 
+  // Fetch attendee images
+  const fetchAttendeeImages = async (parsedEventId: number) => {
+    try {
+      const data = await getEventAttendees(parsedEventId, 3); // Fetch first 3 attendees
+      if (data && data.attendees) {
+        setAttendeeImages(data.attendees);
+      }
+    } catch (err: any) {
+      console.error('Error fetching attendees:', err);
+      // Silently fail - attendee images are not critical
+      setAttendeeImages([]);
+    }
+  };
+
   // Fetch event details from API
   useEffect(() => {
     const fetchEvent = async () => {
@@ -144,6 +159,8 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
           setEventData(data);
           // Check if event is in bucketlist
           setInBucketlist(data.in_bucketlist || false);
+          // Fetch attendee images
+          fetchAttendeeImages(parsedEventId);
         } else {
           setError('Event not found or invalid response from server');
         }
@@ -852,11 +869,40 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
                       <div className="w-10 h-10 bg-[#27aae2]/10 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Users className="w-5 h-5 text-[#27aae2]" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Attendees</p>
-                        <p className="font-semibold text-gray-900 dark:text-white">
-                          {eventData.attendee_count || 0} attending
-                        </p>
+                        {attendeeImages.length > 0 ? (
+                          <div className="flex items-center space-x-2 mt-1">
+                            <div className="flex -space-x-2">
+                              {attendeeImages.map((attendee, idx) => {
+                                const avatarUrl = attendee.profile_picture
+                                  ? getImageUrl(attendee.profile_picture)
+                                  : `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
+                                
+                                return (
+                                  <img
+                                    key={attendee.id || idx}
+                                    src={avatarUrl}
+                                    alt={attendee.full_name || 'Attendee'}
+                                    className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(attendee.full_name || 'User')}&background=27aae2&color=fff&size=64`;
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                              {(eventData.attendee_count || 0) > attendeeImages.length 
+                                ? `+${(eventData.attendee_count || 0) - attendeeImages.length} attending`
+                                : `${eventData.attendee_count || 0} attending`}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="font-semibold text-gray-900 dark:text-white mt-1">
+                            {eventData.attendee_count || 0} attending
+                          </p>
+                        )}
                         {eventData.tickets_left !== null && eventData.tickets_left !== undefined && !eventData.is_unlimited && !eventData.ticket_types?.some((tt) => tt.quantity_total === null || tt.quantity_total === undefined) && (
                           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                             {eventData.tickets_left} tickets left
