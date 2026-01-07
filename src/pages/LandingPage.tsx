@@ -931,20 +931,32 @@ export default function LandingPage({
 
     let isPaused = false;
     let pauseTimeout: NodeJS.Timeout;
+    let isAutoScrolling = false;
+    let userInteracting = false;
 
     const autoScroll = () => {
-      if (isPaused) return;
+      if (isPaused || userInteracting) return;
 
       const maxScroll = element.scrollWidth - element.clientWidth;
       const currentScroll = element.scrollLeft;
 
-      if (currentScroll >= maxScroll) {
+      // Only auto-scroll if there's content to scroll
+      if (maxScroll <= 10) return;
+
+      isAutoScrolling = true;
+      
+      if (currentScroll >= maxScroll - 10) {
         // Reset to start when reaching the end
         element.scrollTo({ left: 0, behavior: "smooth" });
       } else {
         // Scroll to the next event card (approximately 300px)
         element.scrollBy({ left: 300, behavior: "smooth" });
       }
+      
+      // Reset flag after scroll animation completes
+      setTimeout(() => {
+        isAutoScrolling = false;
+      }, 500);
     };
 
     // Start auto-scrolling every 3 seconds
@@ -952,15 +964,18 @@ export default function LandingPage({
 
     // Pause auto-scroll when user hovers over the section
     const handleMouseEnter = () => {
-      isPaused = true;
+      userInteracting = true;
     };
 
     const handleMouseLeave = () => {
-      isPaused = false;
+      userInteracting = false;
     };
 
-    // Pause auto-scroll when user manually scrolls
-    const handleUserScroll = () => {
+    // Pause auto-scroll when user manually scrolls or touches
+    const handleUserInteraction = () => {
+      // Ignore scroll events triggered by auto-scroll
+      if (isAutoScrolling) return;
+      
       isPaused = true;
       clearTimeout(pauseTimeout);
       // Resume auto-scroll after 5 seconds of inactivity
@@ -969,18 +984,34 @@ export default function LandingPage({
       }, 5000);
     };
 
+    // Touch events for mobile
+    const handleTouchStart = () => {
+      userInteracting = true;
+    };
+
+    const handleTouchEnd = () => {
+      userInteracting = false;
+      handleUserInteraction();
+    };
+
     element.addEventListener("mouseenter", handleMouseEnter);
     element.addEventListener("mouseleave", handleMouseLeave);
-    element.addEventListener("scroll", handleUserScroll);
+    element.addEventListener("scroll", handleUserInteraction, { passive: true });
+    element.addEventListener("touchstart", handleTouchStart, { passive: true });
+    element.addEventListener("touchend", handleTouchEnd, { passive: true });
+    element.addEventListener("wheel", handleUserInteraction, { passive: true });
 
     return () => {
       clearInterval(scrollInterval);
       clearTimeout(pauseTimeout);
       element.removeEventListener("mouseenter", handleMouseEnter);
       element.removeEventListener("mouseleave", handleMouseLeave);
-      element.removeEventListener("scroll", handleUserScroll);
+      element.removeEventListener("scroll", handleUserInteraction);
+      element.removeEventListener("touchstart", handleTouchStart);
+      element.removeEventListener("touchend", handleTouchEnd);
+      element.removeEventListener("wheel", handleUserInteraction);
     };
-  }, [cantMissEvents.length]);
+  }, [cantMissEvents]);
 
   React.useEffect(() => {
     // Close search on click outside

@@ -35,7 +35,7 @@ export default function AskSupport({ onSent }: AskSupportProps) {
       <div className="mb-4 text-left">
         <div className="mb-2">
           <span className="font-semibold text-gray-900 dark:text-white">Support Phone:</span>
-          <a href="tel:+254700123456" className="ml-2 text-[#27aae2] hover:underline">+254 700 123 456</a>
+          <a href="tel:+254700123456" className="ml-2 text-[#27aae2] hover:underline">+254768938999</a>
         </div>
         <div>
           <span className="font-semibold text-gray-900 dark:text-white">Support Email:</span>
@@ -68,7 +68,7 @@ export default function AskSupport({ onSent }: AskSupportProps) {
           
           {/* WhatsApp */}
           <a
-            href="https://wa.me/254700123456"
+            href="https://wa.me/254768938999"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-6 hover:shadow-lg hover:scale-105 transition-all duration-300 group"
@@ -85,7 +85,7 @@ export default function AskSupport({ onSent }: AskSupportProps) {
 
           {/* Call Us */}
           <a
-            href="tel:+254700123456"
+            href="tel:+254768938999"
             className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-6 hover:shadow-lg hover:scale-105 transition-all duration-300 group"
           >
             <div className="flex flex-col items-center text-center space-y-3">
@@ -93,7 +93,7 @@ export default function AskSupport({ onSent }: AskSupportProps) {
                 <Phone className="w-8 h-8 text-white" />
               </div>
               <h4 className="text-xl font-bold text-blue-700 dark:text-blue-400">Call Us</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">+254 700 123 456</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">+254 768 938 999</p>
               <p className="text-xs text-gray-500 dark:text-gray-500">Available 7:00am - 5:00pm</p>
             </div>
           </a>

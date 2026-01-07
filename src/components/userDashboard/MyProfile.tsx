@@ -1,13 +1,16 @@
 import { Camera, MapPin, Calendar, Mail, Phone, Edit2, Save, X, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserProfile, updateUserProfile, uploadProfilePicture, getUserBookings, getBucketlist } from '../../services/userService';
-import { API_BASE_URL, getImageUrl } from '../../config/api';
+import { getImageUrl } from '../../config/api';
+import ImageCropper from '../partnerDashboard/ImageCropper';
 
 export default function MyProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showCropper, setShowCropper] = useState(false);
+  const [tempImageForCropping, setTempImageForCropping] = useState<string>('');
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -140,19 +143,45 @@ export default function MyProfile() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size must be less than 5MB');
+      return;
+    }
+
+    // Open cropper
+    const imageUrl = URL.createObjectURL(file);
+    setTempImageForCropping(imageUrl);
+    setShowCropper(true);
+  };
+
+  const handleCropComplete = async (croppedImage: File) => {
     try {
       setIsSaving(true);
-      const response = await uploadProfilePicture(file);
+      const response = await uploadProfilePicture(croppedImage);
       const newAvatar = response.profile_picture ? getImageUrl(response.profile_picture) : profile.avatar;
       
       setProfile({ ...profile, avatar: newAvatar });
       setEditedProfile({ ...editedProfile, avatar: newAvatar });
+      setShowCropper(false);
+      setTempImageForCropping('');
     } catch (err: any) {
       console.error('Error uploading image:', err);
       alert(err.message || 'Failed to upload image');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setTempImageForCropping('');
   };
 
   // Calculate stats from bookings
@@ -205,7 +234,19 @@ export default function MyProfile() {
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      {/* Image Cropper Modal */}
+      {showCropper && tempImageForCropping && (
+        <ImageCropper
+          image={tempImageForCropping}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          aspectRatio={1}
+          cropShape="round"
+        />
+      )}
+
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -432,5 +473,6 @@ export default function MyProfile() {
         </div>
       </div>
     </div>
+    </>
   );
 }

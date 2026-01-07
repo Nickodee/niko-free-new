@@ -6,6 +6,7 @@ import { initiatePayment } from '../../services/paymentService';
 import { getToken } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { generateEventSlug } from '../../utils/slugify';
 
 interface PendingBooking {
   id: number;
@@ -98,7 +99,8 @@ export default function PendingBookings() {
       });
       
       // Navigate to event detail page where they can complete payment
-      navigate(`/event-detail/${booking.event.id}?booking=${booking.id}&pay=true`);
+      const eventSlug = generateEventSlug(booking.event.title, booking.event.id);
+      navigate(`/event-detail/${eventSlug}?booking=${booking.id}&pay=true`);
     } catch (err: any) {
       console.error('Error initiating payment:', err);
       toast.error('Failed to initiate payment: ' + (err.message || 'Unknown error'), {

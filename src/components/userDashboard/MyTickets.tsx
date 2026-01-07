@@ -1,7 +1,7 @@
 import { Calendar, MapPin, Download, QrCode, Share2, Ticket, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getUserBookings, getTicketQRCode, downloadTicket } from '../../services/userService';
-import { API_BASE_URL, getImageUrl } from '../../config/api';
+import { getImageUrl } from '../../config/api';
 
 interface TicketData {
   id: number;
@@ -26,6 +26,7 @@ export default function MyTickets() {
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isLoadingQR, setIsLoadingQR] = useState(false);
 
   useEffect(() => {
     fetchTickets();
@@ -126,19 +127,31 @@ export default function MyTickets() {
   };
 
   const handleViewQR = async (ticket: TicketData) => {
+    setIsLoadingQR(true);
     try {
       const qrData = await getTicketQRCode(ticket.bookingId);
+      console.log('QR Code data received:', qrData);
+      
+      // Use the QR code URL from API, or generate one as fallback
+      const qrCodeUrl = qrData.qr_code_url || 
+        `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticket.ticketId)}`;
+      
       setSelectedTicket({
         ...ticket,
-        qrCode: qrData.qr_code_url || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${ticket.ticketId}`
+        qrCode: qrCodeUrl
       });
     } catch (err: any) {
       console.error('Error fetching QR code:', err);
-      // Fallback to generated QR
+      // Fallback to generated QR with properly encoded data
+      const fallbackQR = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(ticket.ticketId)}`;
+      console.log('Using fallback QR:', fallbackQR);
+      
       setSelectedTicket({
         ...ticket,
-        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${ticket.ticketId}`
+        qrCode: fallbackQR
       });
+    } finally {
+      setIsLoadingQR(false);
     }
   };
 
@@ -360,12 +373,27 @@ export default function MyTickets() {
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-3 sm:mb-6">{selectedTicket.date}</p>
 
               {/* QR Code */}
-              <div className="bg-white p-3 sm:p-6 rounded-xl sm:rounded-2xl mb-3 sm:mb-6 inline-block">
-                <img
-                  src={selectedTicket.qrCode}
-                  alt="QR Code"
-                  className="w-40 h-40 sm:w-56 sm:h-56 mx-auto"
-                />
+              <div className="bg-white p-3 sm:p-6 rounded-xl sm:rounded-2xl mb-3 sm:mb-6 inline-block relative">
+                {isLoadingQR ? (
+                  <div className="w-40 h-40 sm:w-56 sm:h-56 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#27aae2]"></div>
+                  </div>
+                ) : (
+                  <img
+                    src={selectedTicket.qrCode}
+                    alt="QR Code"
+                    className="w-40 h-40 sm:w-56 sm:h-56 mx-auto"
+                    onError={(e) => {
+                      console.error('QR code image failed to load:', selectedTicket.qrCode);
+                      // Generate a new fallback QR code
+                      const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(selectedTicket.ticketId)}`;
+                      e.currentTarget.src = fallbackUrl;
+                    }}
+                    onLoad={() => {
+                      console.log('QR code loaded successfully:', selectedTicket.qrCode);
+                    }}
+                  />
+                )}
               </div>
 
               {/* Ticket ID */}

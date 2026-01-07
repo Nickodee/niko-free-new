@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Heart, Download, QrCode, Bell, Users, Check, Moon, Sun } from 'lucide-react';
+import { Calendar, Heart, Download, QrCode, Bell, Users, Check, Moon, Sun, ArrowLeft } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import MyTickets from '../components/userDashboard/MyTickets';
@@ -223,11 +223,13 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                 onClick={() => onNavigate('landing')}
                 aria-label="Go to Landing Page"
               >
+
                 <img 
                   src={nikoFreeLogo} 
                   alt="Niko Free Logo" 
                   className="h-10 w-auto"
                 />
+                 <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300 group-hover:text-[#27aae2] transition-colors" />
               </button>
             </div>
 
@@ -470,7 +472,7 @@ export default function UserDashboard({ onNavigate }: UserDashboardProps) {
                       : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                   }`}
                 >
-                  Home
+                  My Events
                 </button>
                 <button 
                   onClick={() => setActiveView('tickets')}

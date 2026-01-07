@@ -110,7 +110,7 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
               </div>
               <div className="order-1 lg:order-2 space-y-6">
                 <div className="inline-flex items-center gap-2 bg-[#27aae2]/10 dark:bg-[#27aae2]/20 px-4 py-2 rounded-full">
-                  <Star className="w-4 h-4 text-[#27aae2]" />
+                  {/* <Star className="w-4 h-4 text-[#27aae2]" /> */}
                   <span className="text-sm font-semibold text-[#27aae2]">OUR STORY</span>
                 </div>
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white leading-tight">
@@ -150,7 +150,7 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
           <div className="py-5 md:py-10" data-aos="fade-up">
             <div className="text-center mb-16">
               <div className="inline-flex items-center gap-2 bg-[#27aae2]/10 dark:bg-[#27aae2]/20 px-4 py-2 rounded-full mb-4">
-                <Zap className="w-4 h-4 text-[#27aae2]" />
+                {/* <Zap className="w-4 h-4 text-[#27aae2]" /> */}
                 <span className="text-sm font-semibold text-[#27aae2]">OUR PURPOSE</span>
               </div>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
@@ -207,7 +207,7 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
           <div className="py-8 md:py-12" data-aos="fade-up">
             <div className="text-center mb-12 md:mb-16">
               <div className="inline-flex items-center gap-2 bg-[#27aae2]/10 dark:bg-[#27aae2]/20 px-4 py-2 rounded-full mb-4">
-                <CheckCircle className="w-4 h-4 text-[#27aae2]" />
+                {/* <CheckCircle className="w-4 h-4 text-[#27aae2]" /> */}
                 <span className="text-sm font-semibold text-[#27aae2]">FOR EVENT SEEKERS</span>
               </div>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-3 px-4">
@@ -274,8 +274,8 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
           <div className="py-8 md:py-12" data-aos="fade-up">
             <div className="text-center mb-12 md:mb-16">
               <div className="inline-flex items-center gap-2 bg-purple-500/10 dark:bg-purple-500/20 px-4 py-2 rounded-full mb-4">
-                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">FOR EVENT PARTNERS</span>
+                {/* <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" /> */}
+                <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">FOR EVENT ORGANIZERS</span>
               </div>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-3 px-4">
                 Why Partner with <br className="hidden sm:block" />Niko Free
@@ -348,7 +348,7 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 bg-[#27aae2]/10 dark:bg-[#27aae2]/20 px-4 py-2 rounded-full">
-                  <Users className="w-4 h-4 text-[#27aae2]" />
+                  {/* <Users className="w-4 h-4 text-[#27aae2]" /> */}
                   <span className="text-sm font-semibold text-[#27aae2]">OUR VISION</span>
                 </div>
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white leading-tight">
@@ -366,7 +366,7 @@ export default function AboutUs({ onNavigate }: AboutUsProps) {
                     className="group px-8 py-4 bg-gradient-to-r from-[#27aae2] to-[#1e8bb8] text-white rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all flex items-center gap-2"
                   >
                     <span>Join Us Today</span>
-                    <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                    {/* <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" /> */}
                   </button>
                 </div>
               </div>

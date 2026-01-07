@@ -30,6 +30,24 @@ interface PromotedEvent {
   is_paid: boolean;
   views?: number;
   clicks?: number;
+  // Event details
+  event?: {
+    poster_image?: string;
+    title?: string;
+    category?: {
+      name: string;
+    };
+  };
+  // Partner details
+  partner?: {
+    id: number;
+    business_name: string;
+    logo?: string;
+    user?: {
+      first_name?: string;
+      last_name?: string;
+    };
+  };
 }
 
 interface EventsSectionProps {
@@ -852,18 +870,88 @@ export default function EventsSection({ selectedEventId, onClearSelection }: Eve
                     const isPast = now > endDate;
                     const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
                     
+                    // Get event image
+                    const poster = promo.event && typeof promo.event.poster_image === 'string' ? promo.event.poster_image : null;
+                    const eventImage = poster
+                      ? (poster.startsWith('http')
+                          ? poster
+                          : `${API_BASE_URL}${poster.startsWith('/') ? '' : '/'}${poster}`)
+                      : null;
+                    
+                    // Get partner logo
+                    const logo = promo.partner && typeof promo.partner.logo === 'string' ? promo.partner.logo : null;
+                    const partnerLogo = logo
+                      ? (logo.startsWith('http')
+                          ? logo
+                          : `${API_BASE_URL}${logo.startsWith('/') ? '' : '/'}${logo}`)
+                      : null;
+                    
                     return (
                       <tr key={promo.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {promo.event_title}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
+                          <div className="flex items-center gap-3">
+                            {/* Event Image */}
+                            <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+                              {eventImage ? (
+                                <img
+                                  src={eventImage}
+                                  alt={promo.event_title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            {/* Event Details */}
+                            <div>
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {promo.event?.title || promo.event_title}
+                              </div>
+                              {promo.event?.category?.name && (
+                                <span className="inline-block mt-1 px-2 py-0.5 bg-[#27aae2]/10 text-[#27aae2] rounded text-xs font-semibold">
+                                  {promo.event.category.name}
+                                </span>
+                              )}
+                              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
+                              </div>
+                            </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                          {promo.partner_name}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {/* Partner Logo */}
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600">
+                              {partnerLogo ? (
+                                <img
+                                  src={partnerLogo}
+                                  alt={promo.partner_name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#27aae2] to-[#1e8bb8]">
+                                  <span className="text-white font-bold text-sm">
+                                      {((promo.partner?.business_name || promo.partner_name || '').charAt(0) || '?').toUpperCase()}
+                                    </span>
+                                </div>
+                              )}
+                            </div>
+                            {/* Partner Details */}
+                            <div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {promo.partner?.business_name || promo.partner_name}
+                              </div>
+                              {promo.partner?.user && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {promo.partner.user.first_name} {promo.partner.user.last_name}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900 dark:text-white font-medium">
@@ -877,10 +965,10 @@ export default function EventsSection({ selectedEventId, onClearSelection }: Eve
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                            KES {promo.total_cost.toLocaleString()}
+                            KES {(promo.total_cost ?? 0).toLocaleString()}
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            KES {(promo.total_cost / promo.days_count).toFixed(0)}/day
+                            KES {promo.days_count ? Math.round((promo.total_cost ?? 0) / promo.days_count).toLocaleString() : '0'}/day
                           </div>
                         </td>
                         <td className="px-6 py-4">

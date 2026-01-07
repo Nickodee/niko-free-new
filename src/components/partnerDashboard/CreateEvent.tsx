@@ -26,6 +26,7 @@ import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
 import { getCategories } from '../../services/eventService';
 import { generateEventDescription } from '../../services/geminiService';
 import { useEventUpdates } from '../../contexts/EventUpdateContext';
+import ImageCropper from './ImageCropper';
 
 interface CreateEventProps {
   isOpen: boolean;
@@ -47,6 +48,8 @@ interface EventFormData {
   startTime: string;
   endDate: string;
   endTime: string;
+  isRecurring: boolean;
+  recurringDays: string[]; // ['monday', 'tuesday', etc.]
   
   // Step 3: Categories
   closedCategories: string[];
@@ -142,6 +145,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
     startTime: '',
     endDate: '',
     endTime: '',
+    isRecurring: false,
+    recurringDays: [],
     closedCategories: [],
     openInterests: [],
     eventName: '',
@@ -157,6 +162,9 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
   });
 
   const [isOneDayEvent, setIsOneDayEvent] = useState(true);
+  const [eventDurationType, setEventDurationType] = useState<'one-day' | 'multi-day' | 'recurring'>('one-day');
+  const [showCropper, setShowCropper] = useState(false);
+  const [tempImageForCropping, setTempImageForCropping] = useState<string>('');
 
   const totalSteps = 7; // Step 7 for promo codes (paid events only)
 
@@ -254,6 +262,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
           startTime: '',
           endDate: '',
           endTime: '',
+          isRecurring: false,
+          recurringDays: [],
           closedCategories: [],
           openInterests: [],
           eventName: '',
@@ -272,6 +282,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         setEndTimeState(() => parseTime('12:00'));
         // Reset one-day event toggle
         setIsOneDayEvent(true);
+        // Reset event duration type
+        setEventDurationType('one-day');
         // Clear any errors
         setError('');
         setTimeslotErrors({});
@@ -380,10 +392,20 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
             isVerified: h.user?.is_verified || false
           }));
           
-          // Check if event spans multiple days
-          const isMultiDay = endDate && startDate && 
+          // Check if event spans multiple days or is recurring
+          const isRecurring = eventData.is_recurring || false;
+          const isMultiDay = !isRecurring && endDate && startDate && 
             endDate.toDateString() !== startDate.toDateString();
-          setIsOneDayEvent(!isMultiDay);
+          setIsOneDayEvent(!isMultiDay && !isRecurring);
+          
+          // Set event duration type
+          if (isRecurring) {
+            setEventDurationType('recurring');
+          } else if (isMultiDay) {
+            setEventDurationType('multi-day');
+          } else {
+            setEventDurationType('one-day');
+          }
           
           // Populate form with all event data
           setFormData({
@@ -396,6 +418,8 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
             startTime: formattedStartTime,
             endDate: formatDateForInput(endDate),
             endTime: formattedEndTime,
+            isRecurring: eventData.is_recurring || false,
+            recurringDays: eventData.recurring_days || [],
             closedCategories,
             openInterests: parsedInterests,
             eventName: eventData.title || '',
@@ -473,7 +497,11 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         setError('Please select an end time');
         return;
       }
-      if (!isOneDayEvent && !formData.endDate) {
+      if (eventDurationType === 'recurring' && formData.recurringDays.length === 0) {
+        setError('Please select at least one day for recurring events');
+        return;
+      }
+      if (!isOneDayEvent && !formData.endDate && eventDurationType !== 'recurring') {
         setError('Please select an end date for multi-day events');
         return;
       }
@@ -481,7 +509,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         setError('End time must be after start time for one-day events');
         return;
       }
-      if (!isOneDayEvent && formData.endDate && formData.startDate) {
+      if (!isOneDayEvent && formData.endDate && formData.startDate && eventDurationType !== 'recurring') {
         const startDateObj = new Date(formData.startDate);
         const endDateObj = new Date(formData.endDate);
         if (endDateObj < startDateObj) {
@@ -582,12 +610,33 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFormData(prev => ({
-        ...prev,
-        eventPhoto: file,
-        photoPreview: URL.createObjectURL(file)
-      }));
+      const imageUrl = URL.createObjectURL(file);
+      setTempImageForCropping(imageUrl);
+      setShowCropper(true);
     }
+  };
+
+  const handleCropComplete = (croppedImage: File) => {
+    setFormData(prev => ({
+      ...prev,
+      eventPhoto: croppedImage,
+      photoPreview: URL.createObjectURL(croppedImage)
+    }));
+    setShowCropper(false);
+    setTempImageForCropping('');
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setTempImageForCropping('');
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData(prev => ({
+      ...prev,
+      eventPhoto: null,
+      photoPreview: ''
+    }));
   };
 
   const generateAIDescription = async () => {
@@ -894,6 +943,16 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         });
       }
       
+      // Recurring event data
+      if (formData.isRecurring) {
+        formDataToSend.append('is_recurring', 'true');
+        if (formData.recurringDays.length > 0) {
+          formDataToSend.append('recurring_days', JSON.stringify(formData.recurringDays));
+        }
+      } else {
+        formDataToSend.append('is_recurring', 'false');
+      }
+      
       console.log('Submitting event with times:', {
         startDate: formData.startDate,
         startTime: formData.startTime,
@@ -901,7 +960,9 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         endDate: formData.endDate,
         endTime: formData.endTime,
         endTimeState,
-        isOneDayEvent
+        isOneDayEvent,
+        isRecurring: formData.isRecurring,
+        recurringDays: formData.recurringDays
       });
       
       formDataToSend.append('is_free', formData.isFree ? 'true' : 'false');
@@ -1040,13 +1101,26 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        {/* Background overlay */}
-        <div 
-          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"
-          onClick={onClose}
+    <>
+      {/* Image Cropper Modal */}
+      {showCropper && tempImageForCropping && (
+        <ImageCropper
+          image={tempImageForCropping}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          aspectRatio={16 / 9}
+          cropShape="rect"
         />
+      )}
+
+      {/* Main Create Event Modal */}
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          {/* Background overlay */}
+          <div 
+            className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"
+            onClick={onClose}
+          />
 
   {/* Modal panel */}
   <div className="inline-block align-bottom bg-white dark:bg-gray-800 dark:text-gray-100 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
@@ -1215,29 +1289,108 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                     Date & Time <span className="text-red-500">*</span>
                   </h4>
 
-                  {/* Toggle for One-Day or Multiday Event */}
-                  <div className="flex items-center gap-4 mb-6">
-                    <label className="flex items-center gap-2">
+                  {/* Toggle for One-Day, Multiday, or Recurring Event */}
+                  <div className="flex items-center gap-4 mb-6 flex-wrap">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="eventDuration"
                         value="oneDay"
-                        checked={isOneDayEvent}
-                        onChange={() => setIsOneDayEvent(true)}
+                        checked={eventDurationType === 'one-day'}
+                        onChange={() => {
+                          setEventDurationType('one-day');
+                          setIsOneDayEvent(true);
+                          setFormData(prev => ({ ...prev, isRecurring: false, recurringDays: [] }));
+                        }}
+                        className="w-4 h-4 text-[#27aae2] focus:ring-[#27aae2]"
                       />
-                      One-Day Event
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">One-Day Event</span>
                     </label>
-                    <label className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="eventDuration"
                         value="multiDay"
-                        checked={!isOneDayEvent}
-                        onChange={() => setIsOneDayEvent(false)}
+                        checked={eventDurationType === 'multi-day'}
+                        onChange={() => {
+                          setEventDurationType('multi-day');
+                          setIsOneDayEvent(false);
+                          setFormData(prev => ({ ...prev, isRecurring: false, recurringDays: [] }));
+                        }}
+                        className="w-4 h-4 text-[#27aae2] focus:ring-[#27aae2]"
                       />
-                      Multiday Event
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Multi-Day Event</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="eventDuration"
+                        value="recurring"
+                        checked={eventDurationType === 'recurring'}
+                        onChange={() => {
+                          setEventDurationType('recurring');
+                          setIsOneDayEvent(false);
+                          setFormData(prev => ({ ...prev, isRecurring: true }));
+                        }}
+                        className="w-4 h-4 text-[#27aae2] focus:ring-[#27aae2]"
+                      />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Recurring Event</span>
                     </label>
                   </div>
+
+                  {/* Recurring Days Selector - Alarm Clock Style */}
+                  {eventDurationType === 'recurring' && (
+                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Select Days <span className="text-red-500">*</span>
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Choose which days of the week this event repeats
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { key: 'monday', label: 'Mon' },
+                          { key: 'tuesday', label: 'Tue' },
+                          { key: 'wednesday', label: 'Wed' },
+                          { key: 'thursday', label: 'Thu' },
+                          { key: 'friday', label: 'Fri' },
+                          { key: 'saturday', label: 'Sat' },
+                          { key: 'sunday', label: 'Sun' }
+                        ].map(day => (
+                          <button
+                            key={day.key}
+                            type="button"
+                            onClick={() => {
+                              const isSelected = formData.recurringDays.includes(day.key);
+                              setFormData(prev => ({
+                                ...prev,
+                                recurringDays: isSelected
+                                  ? prev.recurringDays.filter(d => d !== day.key)
+                                  : [...prev.recurringDays, day.key]
+                              }));
+                            }}
+                            className={`px-4 py-2 rounded-full font-semibold text-sm transition-all ${
+                              formData.recurringDays.includes(day.key)
+                                ? 'bg-[#27aae2] text-white shadow-md'
+                                : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-[#27aae2]'
+                            }`}
+                          >
+                            {day.label}
+                          </button>
+                        ))}
+                      </div>
+                      {formData.recurringDays.length > 0 && (
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-2 font-medium">
+                          ✓ Event will repeat on: {formData.recurringDays.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(', ')}
+                        </p>
+                      )}
+                      {formData.recurringDays.length === 0 && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-medium">
+                          Please select at least one day
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Date and Time Inputs */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1297,7 +1450,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                     </div>
 
                     {/* End Date for Multiday Events */}
-                    {!isOneDayEvent && (
+                    {eventDurationType === 'multi-day' && (
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                           End Date <span className="text-red-500">*</span>
@@ -1308,6 +1461,25 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                           onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
                         className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
                       />
+                    </div>
+                    )}
+
+                    {/* End Date for Recurring Events (when the recurrence ends) */}
+                    {eventDurationType === 'recurring' && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Recurrence End Date <span className="text-gray-500">(Optional)</span>
+                      </label>
+                      <input
+                          type="date"
+                          value={formData.endDate}
+                          onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#27aae2]"
+                        placeholder="Leave empty for ongoing events"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Leave empty if the event continues indefinitely
+                      </p>
                     </div>
                     )}
 
@@ -1499,21 +1671,34 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                     </label>
                     
                     {formData.photoPreview ? (
-                      <div className="relative">
+                      <div className="relative group">
                         <img
                           src={formData.photoPreview}
                           alt="Event preview"
                           className="w-full h-64 object-cover rounded-lg"
                         />
-                        <button
-                          onClick={() => setFormData(prev => ({ ...prev, eventPhoto: null, photoPreview: '' }))}
-                          className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-lg flex items-center justify-center gap-3">
+                          <label className="opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 cursor-pointer font-medium flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4" />
+                            Change Photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePhotoUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            onClick={handleRemovePhoto}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-[#27aae2] transition-colors">
+                      <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-[#27aae2] transition-colors bg-gray-50 dark:bg-gray-700/30">
                         <Upload className="w-12 h-12 text-gray-400 mb-2" />
                         <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload event photo</p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG up to 10MB</p>
@@ -2378,6 +2563,7 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

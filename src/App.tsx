@@ -13,6 +13,7 @@ import CalendarPage from './pages/CalendarPage';
 import AllEventsPage from './pages/AllEventsPage';
 import DownloadTicket from './pages/DownloadTicket';
 import TermsOfService from './pages/TermsOfService';
+import { extractEventIdFromSlug } from './utils/slugify';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import ContactUs from './pages/ContactUs';
 import Feedback from './pages/Feedback';
@@ -29,7 +30,9 @@ import { useAuth } from './contexts/AuthContext';
 // Wrapper component to extract eventId from URL params
 function EventDetailPageWrapper({ onNavigate }: { onNavigate: (page: string, params?: any) => void }) {
   const { eventId } = useParams<{ eventId: string }>();
-  return <EventDetailPage eventId={eventId || '1'} onNavigate={onNavigate} />;
+  // Extract numeric ID from slug (e.g., "summer-festival-25" -> "25")
+  const numericId = eventId ? extractEventIdFromSlug(eventId) : '1';
+  return <EventDetailPage eventId={numericId} onNavigate={onNavigate} />;
 }
 
 // Wrapper component to extract partnerId from URL params
@@ -139,14 +142,17 @@ function AppContent() {
     });
   }, []);
 
-  const navigateToEventDetail = (eventId: string) => {
-    navigate(`/event-detail/${eventId}`);
+  const navigateToEventDetail = (eventIdOrSlug: string) => {
+    // If it's already a slug (contains hyphens and ends with a number), use it directly
+    // Otherwise, it's just an ID, so we navigate to it directly
+    navigate(`/event-detail/${eventIdOrSlug}`);
   };
 
   const navigateTo = (page: string, params?: any) => {
     if (page === 'partner-profile' && params?.partnerId) {
       navigate(`/partner/${params.partnerId}`);
     } else if (page === 'event-detail' && params?.eventId) {
+      // eventId might be a slug or just an ID
       navigate(`/event-detail/${params.eventId}`);
     } else {
       navigate(`/${page === 'landing' ? '' : page}`);

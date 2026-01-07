@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import SEO from '../components/SEO';
 import { applyAsPartner } from '../services/partnerService';
+import ImageCropper from '../components/partnerDashboard/ImageCropper';
 
 interface BecomePartnerProps {
   onNavigate: (page: string) => void;
@@ -38,6 +39,8 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isGeneratingAbout, setIsGeneratingAbout] = useState(false);
+  const [showCropper, setShowCropper] = useState(false);
+  const [tempImageForCropping, setTempImageForCropping] = useState<string>('');
 
   // Categories matching backend database IDs
   const categories = [
@@ -284,9 +287,32 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
 
   const handleLogoUpload = (file: File | null) => {
     if (file) {
-      validateLogo(file);
-      setFormData({ ...formData, logo: file });
+      // First validate the file
+      if (!validateLogo(file)) {
+        return; // Stop if validation fails
+      }
+      // Open cropper with the image
+      const imageUrl = URL.createObjectURL(file);
+      setTempImageForCropping(imageUrl);
+      setShowCropper(true);
     }
+  };
+
+  const handleCropComplete = (croppedImage: File) => {
+    setFormData({ ...formData, logo: croppedImage });
+    setShowCropper(false);
+    setTempImageForCropping('');
+    setLogoError(''); // Clear any previous errors
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    setTempImageForCropping('');
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData({ ...formData, logo: null });
+    setLogoError('');
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -422,6 +448,16 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
 
   return (
     <>
+      {/* Image Cropper Modal */}
+      {showCropper && tempImageForCropping && (
+        <ImageCropper
+          image={tempImageForCropping}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          aspectRatio={1}
+          cropShape="rect"
+        />
+      )}
       <SEO
         title="Become a Partner - Niko Free | Event Organizer Platform"
         description="Join Niko Free as an event organizer partner. Create, manage, and promote your events in Kenya. Reach thousands of attendees and grow your event business."
@@ -517,41 +553,68 @@ export default function BecomePartner({ onNavigate }: BecomePartnerProps) {
                   <Upload className="w-4 h-4" />
                   <span>Logo/Profile Picture Upload *</span>
                 </label>
-                <div 
-                  className={`border-2 border-dashed dark:bg-gray-800 rounded-xl p-8 text-center transition-colors cursor-pointer ${
-                    logoError ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-                  }`}
-                  style={{ borderColor: formData.logo && !logoError ? '#27aae2' : '' }}
-                  onMouseEnter={(e) => { if (!logoError) e.currentTarget.style.borderColor = '#27aae2'; }}
-                  onMouseLeave={(e) => { if (!formData.logo && !logoError) e.currentTarget.style.borderColor = ''; }}
-                  onClick={handleUploadClick}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                >
-                  {formData.logo ? (
-                    <div className="space-y-2">
-                      <CheckCircle className="w-12 h-12 mx-auto" style={{ color: '#27aae2' }} />
+                
+                {formData.logo ? (
+                  <div className="relative group">
+                    <div className="border-2 rounded-xl p-8 text-center transition-colors" style={{ borderColor: '#27aae2' }}>
+                      <img 
+                        src={URL.createObjectURL(formData.logo)} 
+                        alt="Logo preview" 
+                        className="w-32 h-32 mx-auto object-cover rounded-lg mb-4"
+                      />
                       <p className="text-gray-900 dark:text-gray-100 font-medium">{formData.logo.name}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {(formData.logo.size / 1024 / 1024).toFixed(2)} MB
                       </p>
-                      <p className="text-sm" style={{ color: '#27aae2' }}>Click to change</p>
                     </div>
-                  ) : (
-                    <>
-                      <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-                      <p className="text-gray-600 dark:text-gray-400 mb-2">Click to upload or drag and drop</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-500">PNG, JPG up to 5MB</p>
-                    </>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    className="hidden"
-                    onChange={handleFileInputChange}
-                  />
-                </div>
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-xl flex items-center justify-center gap-3">
+                      <label className="opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 cursor-pointer font-medium flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Change Logo
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveLogo();
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium flex items-center gap-2"
+                      >
+                        <X className="w-4 h-4" />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    className={`border-2 border-dashed dark:bg-gray-800 rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                      logoError ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                    }`}
+                    onMouseEnter={(e) => { if (!logoError) e.currentTarget.style.borderColor = '#27aae2'; }}
+                    onMouseLeave={(e) => { if (!logoError) e.currentTarget.style.borderColor = ''; }}
+                    onClick={handleUploadClick}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                  >
+                    <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                    <p className="text-gray-600 dark:text-gray-400 mb-2">Click to upload or drag and drop</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">PNG, JPG up to 5MB</p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      className="hidden"
+                      onChange={handleFileInputChange}
+                    />
+                  </div>
+                )}
+                
                 {logoError && (
                   <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
                     <span>⚠</span>

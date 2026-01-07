@@ -727,7 +727,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
           description={eventData.description || `Join us for ${eventData.title}. Book your tickets now on Niko Free.`}
           keywords={`${eventData.title}, ${eventData.category?.name || 'event'}, ${eventData.interests?.map((i: any) => i.name).join(', ') || ''}, events kenya, tickets kenya, ${eventData.venue_name || eventData.venue_address || 'kenya'}, event booking, niko free, ${eventData.partner?.business_name || ''}`}
           image={eventData.poster_image ? (eventData.poster_image.startsWith('http') ? eventData.poster_image : `${API_BASE_URL}${eventData.poster_image.startsWith('/') ? '' : '/'}${eventData.poster_image}`) : 'https://niko-free.com/src/images/Niko%20Free%20Logo.png'}
-          url={`https://niko-free.com/event-detail/${eventId}`}
+          url={`https://niko-free.com/event-detail/${eventData.title.toLowerCase().replace(/\s+/g, '-')}-${eventId}`}
           type="website"
           event={{
             name: eventData.title,

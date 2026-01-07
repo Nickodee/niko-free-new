@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { addToBucketlist, removeFromBucketlist } from '../services/userService';
 import { API_BASE_URL, getImageUrl } from '../config/api';
+import { generateEventSlug } from '../utils/slugify';
 
 interface EventCardProps {
   id: string;
@@ -76,7 +77,7 @@ export default function EventCard({
   return (
     <div
       className="group bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100 dark:border-gray-700 relative"
-      onClick={() => onClick(id)}
+      onClick={() => onClick(generateEventSlug(title, id))}
     >
       <div className="relative overflow-hidden aspect-[16/9]">
         <img

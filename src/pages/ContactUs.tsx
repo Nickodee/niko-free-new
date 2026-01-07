@@ -104,8 +104,8 @@ export default function ContactUs({ onNavigate }: ContactUsProps) {
               <p className="text-gray-600 dark:text-gray-300 mb-3">
                 Mon-Fri from 9am to 6pm
               </p>
-              <a href="tel:+254700000000" className="text-[#27aae2] hover:underline font-medium">
-                +254 700 000 000
+              <a href="tel: +254768938999" className="text-[#27aae2] hover:underline font-medium">
+                 +254 768 938 999
               </a>
             </div>
 
@@ -118,12 +118,12 @@ export default function ContactUs({ onNavigate }: ContactUsProps) {
                 Chat with us directly
               </p>
               <a 
-                href="https://wa.me/254700000000" 
+                href="https://wa.me/254768938999" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-[#27aae2] hover:underline font-medium"
               >
-                +254 700 000 000
+                 +254 768 938 999
               </a>
             </div>
           </div>
