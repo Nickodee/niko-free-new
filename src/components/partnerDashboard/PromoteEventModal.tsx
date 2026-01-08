@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Sparkles, CreditCard, CheckCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Sparkles, CreditCard, CheckCircle, Loader2, Zap, Star } from 'lucide-react';
 import { promoteEvent } from '../../services/partnerService';
 import { checkPaymentStatus } from '../../services/paymentService';
 
@@ -16,104 +16,73 @@ export default function PromoteEventModal({
   event,
   onSuccess,
 }: PromoteEventModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState<'free' | 'paid'>('free');
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [daysCount, setDaysCount] = useState(7);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [paymentInitiated, setPaymentInitiated] = useState(false);
   const [paymentId, setPaymentId] = useState<number | null>(null);
-  const [checkoutRequestId, setCheckoutRequestId] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState('');
-  const [startTime, setStartTime] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  // Initialize with current date/time when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      const now = new Date();
-      const dateStr = now.toISOString().split('T')[0];
-      const timeStr = now.toTimeString().split(' ')[0].slice(0, 5); // HH:MM format
-      setStartDate(dateStr);
-      setStartTime(timeStr);
+  const boostTiers = [
+    {
+      id: 'cant-miss',
+      name: "Can't Miss!",
+      originalPrice: 1000,
+      price: 400,
+      duration: 'per day',
+      description: 'Featured at the top of the homepage',
+      features: [
+        'Top homepage placement',
+        'Priority in search results',
+        'Highlighted in category listings',
+        'Social media promotion',
+        'Newsletter feature'
+      ],
+      badge: 'Most Popular',
+      badgeColor: 'bg-pink-500',
+      color: 'from-purple-600 to-pink-600',
+      isSelectable: true
+    },
+    {
+      id: 'category-featured',
+      name: 'Category Featured',
+      originalPrice: 500,
+      price: 200,
+      duration: 'per day',
+      description: 'Featured within your event category',
+      features: [
+        'Category page prominence',
+        'Enhanced search visibility',
+        'Category newsletter inclusion',
+        'Social media mentions'
+      ],
+      badge: 'Best Value',
+      badgeColor: 'bg-blue-400',
+      color: 'from-blue-600 to-teal-600',
+      isSelectable: false
+    },
+    {
+      id: 'homepage-banner',
+      name: 'Homepage Banner',
+      price: 50000,
+      duration: 'per week',
+      description: 'Exclusive homepage banner placement',
+      features: [
+        'Full-width banner on homepage',
+        'Maximum visibility',
+        'Priority support',
+        'Dedicated account manager',
+        'Custom creative design',
+        'Performance analytics'
+      ],
+      badge: 'Premium',
+      badgeColor: 'bg-red-700',
+      color: 'from-orange-600 to-red-600',
+      isSelectable: false
     }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const costPerDay = 400;
-  const totalCost = selectedPlan === 'free' ? 0 : daysCount * costPerDay;
-
-  const handlePromote = async () => {
-    if (selectedPlan === 'paid' && !phoneNumber.trim()) {
-      setError('Please enter your phone number');
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-      setError('');
-
-      // Prepare promotion data
-      let promotionData: any = {
-        days_count: daysCount,
-        is_free: selectedPlan === 'free',
-      };
-
-      // Calculate start and end dates
-      let startDateTime: Date;
-      let endDateTime: Date;
-      
-      if (startDate && startTime) {
-        // Use selected start date/time
-        startDateTime = new Date(`${startDate}T${startTime}`);
-        
-        if (startDateTime < new Date()) {
-          setError('Start date/time cannot be in the past');
-          return;
-        }
-        
-        // Calculate end date based on start date + days_count
-        endDateTime = new Date(startDateTime);
-        endDateTime.setDate(endDateTime.getDate() + daysCount);
-      } else {
-        // Default to start now
-        startDateTime = new Date();
-        endDateTime = new Date();
-        endDateTime.setDate(endDateTime.getDate() + daysCount);
-      }
-      
-      promotionData.start_date = startDateTime.toISOString();
-      promotionData.end_date = endDateTime.toISOString();
-
-      if (selectedPlan === 'paid' && phoneNumber) {
-        promotionData.phone_number = phoneNumber;
-      }
-
-      const result = await promoteEvent(
-        event.id,
-        promotionData.days_count,
-        promotionData.is_free,
-        promotionData.phone_number,
-        promotionData.start_date,
-        promotionData.end_date
-      );
-
-      if (selectedPlan === 'free') {
-        // Free promotion - success immediately
-        onSuccess();
-        onClose();
-      } else {
-        // Paid promotion - payment initiated, poll for status
-        setPaymentId(result.payment_id);
-        setCheckoutRequestId(result.checkout_request_id);
-        setPaymentInitiated(true);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to promote event');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  ];
 
   // Poll payment status if payment was initiated
   useEffect(() => {
@@ -126,8 +95,12 @@ export default function PromoteEventModal({
         if (result.payment?.status === 'completed') {
           clearInterval(pollInterval);
           setPaymentInitiated(false);
-          onSuccess();
-          onClose();
+          setSuccess(true);
+          setTimeout(() => {
+            setSuccess(false);
+            onSuccess();
+            onClose();
+          }, 3000);
         } else if (result.payment?.status === 'failed') {
           clearInterval(pollInterval);
           setPaymentInitiated(false);
@@ -140,6 +113,77 @@ export default function PromoteEventModal({
 
     return () => clearInterval(pollInterval);
   }, [paymentInitiated, paymentId, onSuccess, onClose]);
+
+  if (!isOpen) return null;
+
+  const selectedTierData = boostTiers.find(t => t.id === selectedTier);
+  const totalCost = selectedTierData 
+    ? (selectedTierData.duration === 'per week' 
+        ? selectedTierData.price * Math.ceil(daysCount / 7)
+        : selectedTierData.price * daysCount)
+    : 0;
+
+  const handlePromote = async () => {
+    // Validate event
+    if (!event || !event.id) {
+      setError('Invalid event selected');
+      return;
+    }
+
+    // Validate tier selection
+    if (!selectedTier) {
+      setError('Please select a promotion tier');
+      return;
+    }
+
+    const tier = boostTiers.find(t => t.id === selectedTier);
+    if (!tier) {
+      setError('Invalid promotion tier selected');
+      return;
+    }
+
+    // Phone number is required for all paid promotions
+    if (!phoneNumber.trim()) {
+      setError('Please enter your phone number for payment');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setError('');
+
+      console.log('Promoting event:', {
+        eventId: event.id,
+        daysCount: daysCount,
+        isFree: false,
+        phoneNumber: phoneNumber || undefined
+      });
+
+      const result = await promoteEvent(
+        event.id,
+        daysCount,
+        false, // All promotions are paid now
+        phoneNumber || undefined
+      );
+
+      console.log('Promotion result:', result);
+
+      // Paid promotion - payment initiated, poll for status
+      if (result.payment_id) {
+        setPaymentId(result.payment_id);
+        setPaymentInitiated(true);
+      } else {
+        setError('Payment initiation failed. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Promotion error:', err);
+      // Extract error message from response if available
+      const errorMessage = err.message || err.error || 'Failed to promote event. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <>
@@ -173,150 +217,156 @@ export default function PromoteEventModal({
               </p>
             </div>
 
-            {/* Plan Selection */}
+            {/* Boost Tiers */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Select Promotion Plan
+                Select Promotion Tier
               </label>
-              <div className="grid grid-cols-2 gap-4">
-                {/* Free Plan */}
-                <button
-                  onClick={() => setSelectedPlan('free')}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
-                    selectedPlan === 'free'
-                      ? 'border-[#27aae2] bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <Sparkles className="w-5 h-5 text-[#27aae2]" />
-                    {selectedPlan === 'free' && (
-                      <CheckCircle className="w-5 h-5 text-[#27aae2]" />
-                    )}
-                  </div>
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">
-                    Free Promotion
-                  </h3>
-                  <p className="text-2xl font-bold text-[#27aae2] mb-2">KES 0</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Perfect for testing
-                  </p>
-                </button>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {boostTiers.map((tier) => (
+                  <div
+                    key={tier.id}
+                    className={`bg-white dark:bg-gray-700 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all relative ${
+                      selectedTier === tier.id ? 'ring-2 ring-[#27aae2]' : ''
+                    }`}
+                  >
+                    {/* Header with gradient */}
+                    <div className={`bg-gradient-to-r ${tier.color} p-4 text-white relative`}>
+                      {tier.badge && (
+                        <div className="absolute top-2 right-2">
+                          <span className={`${tier.badgeColor} text-white px-2 py-1 rounded-full text-xs font-semibold`}>
+                            {tier.badge}
+                          </span>
+                        </div>
+                      )}
+                      <Zap className="w-8 h-8 mb-2" />
+                      <h3 className="text-xl font-bold mb-1">{tier.name}</h3>
+                      <p className="text-white/90 text-xs">{tier.description}</p>
+                    </div>
 
-                {/* Paid Plan */}
-                <button
-                  onClick={() => setSelectedPlan('paid')}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
-                    selectedPlan === 'paid'
-                      ? 'border-[#27aae2] bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <CreditCard className="w-5 h-5 text-[#27aae2]" />
-                    {selectedPlan === 'paid' && (
-                      <CheckCircle className="w-5 h-5 text-[#27aae2]" />
-                    )}
-                  </div>
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-1">
-                    Paid Promotion
-                  </h3>
-                  <p className="text-2xl font-bold text-[#27aae2] mb-2">
-                    KES {costPerDay}/day
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Maximum visibility
-                  </p>
-                </button>
-              </div>
-            </div>
+                    <div className={`p-4 ${!tier.isSelectable ? 'blur-sm' : ''}`}>
+                      {/* Price */}
+                      <div className="mb-4">
+                        {tier.originalPrice && (
+                          <div className="mb-1">
+                            <span className="text-gray-400 dark:text-gray-500 line-through text-sm">
+                              Ksh {tier.originalPrice.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-baseline space-x-2">
+                          <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                            Ksh {tier.price.toLocaleString()}
+                          </span>
+                          <span className="text-gray-600 dark:text-gray-400 text-sm">
+                            {tier.duration}
+                          </span>
+                        </div>
+                        {tier.originalPrice && (
+                          <div className="mt-1">
+                            <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full text-xs font-semibold">
+                              Save {Math.round(((tier.originalPrice - tier.price) / tier.originalPrice) * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
 
-            {/* Start Date & Time Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Promotion Start Date & Time
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#27aae2] dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                    Time
-                  </label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#27aae2] dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
+                      {/* Features */}
+                      <ul className="space-y-2 mb-4">
+                        {tier.features.map((feature, index) => (
+                          <li key={index} className="flex items-start space-x-2">
+                            <Star className="w-4 h-4 text-[#27aae2] flex-shrink-0 mt-0.5" />
+                            <span className="text-gray-700 dark:text-gray-300 text-xs">
+                              {feature}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Select Button */}
+                      <button
+                        onClick={() => { 
+                          if (tier.isSelectable) {
+                            setSelectedTier(tier.id);
+                          }
+                        }}
+                        disabled={!tier.isSelectable || isProcessing || paymentInitiated}
+                        className={`w-full py-2 rounded-lg font-semibold transition-all text-sm ${
+                          !tier.isSelectable
+                            ? 'bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed blur-sm'
+                            : selectedTier === tier.id
+                            ? 'bg-[#27aae2] text-white'
+                            : 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-500'
+                        }`}
+                      >
+                        {selectedTier === tier.id ? 'Selected' : 'Select Plan'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Leave empty or set to current date/time to start immediately. The promotion will end after the duration period.
-              </p>
             </div>
 
             {/* Promotion Duration */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Promotion Duration
-              </label>
-              <div className="flex items-center space-x-4">
-                <input
-                  type="range"
-                  min="1"
-                  max="30"
-                  value={daysCount}
-                  onChange={(e) => setDaysCount(parseInt(e.target.value))}
-                  className="flex-1"
-                />
-                <div className="w-20 text-center">
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">
-                    {daysCount}
-                  </span>
-                  <span className="text-sm text-gray-600 dark:text-gray-400 ml-1">
-                    days
-                  </span>
+            {selectedTier && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Promotion Duration
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="range"
+                      min="1"
+                      max="30"
+                      value={daysCount}
+                      onChange={(e) => setDaysCount(parseInt(e.target.value))}
+                      disabled={isProcessing || paymentInitiated}
+                      className="flex-1"
+                    />
+                    <div className="w-20 text-center">
+                      <span className="text-lg font-bold text-gray-900 dark:text-white">
+                        {daysCount}
+                      </span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 ml-1">
+                        days
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    Total Cost: <span className="font-semibold">KES {totalCost.toLocaleString()}</span>
+                  </p>
                 </div>
-              </div>
-              {selectedPlan === 'paid' && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                  Total Cost: <span className="font-semibold">KES {totalCost.toLocaleString()}</span>
-                </p>
-              )}
-              {startDate && startTime && (
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                  Promotion will run from {new Date(`${startDate}T${startTime}`).toLocaleString()} for {daysCount} day{daysCount !== 1 ? 's' : ''}
-                </p>
-              )}
-            </div>
 
-            {/* Phone Number (for paid) */}
-            {selectedPlan === 'paid' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Phone Number (for payment)
-                </label>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="254712345678"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#27aae2] focus:border-transparent dark:bg-gray-700 dark:text-white"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Enter your M-Pesa phone number
-                </p>
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Phone Number (Required for payment)
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="254712345678"
+                    disabled={isProcessing || paymentInitiated}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#27aae2] focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Enter your M-Pesa phone number
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Success Message */}
+            {success && (
+              <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <p className="text-sm font-medium text-green-900 dark:text-green-300">
+                    Event promoted successfully!
+                  </p>
+                </div>
               </div>
             )}
 
@@ -338,14 +388,14 @@ export default function PromoteEventModal({
             )}
 
             {/* Error Message */}
-            {error && !paymentInitiated && (
+            {error && !paymentInitiated && !success && (
               <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg p-3">
                 <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
               </div>
             )}
 
             {/* Actions */}
-            {!paymentInitiated && (
+            {!paymentInitiated && !success && (
               <div className="flex space-x-3 pt-4">
                 <button
                   onClick={onClose}
@@ -361,18 +411,13 @@ export default function PromoteEventModal({
                 >
                   {isProcessing ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Processing...</span>
-                    </>
-                  ) : selectedPlan === 'paid' ? (
-                    <>
-                      <CreditCard className="w-4 h-4" />
-                      <span>Proceed to Payment</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Promote Event (Free)</span>
+                      <CreditCard className="w-4 h-4" />
+                      <span>Proceed to Payment</span>
                     </>
                   )}
                 </button>

@@ -1241,7 +1241,7 @@ export default function EventDetailPage({ eventId, onNavigate }: EventDetailPage
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} onOpenLoginModal={() => setShowLoginModal(true)} />
 
       {/* Login Modal */}
       <LoginModal

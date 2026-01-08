@@ -40,6 +40,7 @@ import {
   getEventAttendees,
 } from "../services/eventService";
 import { API_BASE_URL, getImageUrl } from "../config/api";
+import { generateEventSlug } from "../utils/slugify";
 import dancingIcon from "../images/dancing.png";
 import technologyIcon from "../images/technology.png";
 
@@ -1509,7 +1510,7 @@ export default function LandingPage({
                     <div
                       key={`cant-miss-${event.id}`}
                       className="flex-shrink-0 snap-start snap-always w-[calc(75vw)] sm:w-[280px] md:w-[300px] lg:w-[calc(25%-18px)] cursor-pointer group"
-                      onClick={() => onEventClick(event.id)}
+                      onClick={() => onEventClick(generateEventSlug(event.title, event.id))}
                     >
                       <div className="rounded-2xl overflow-hidden h-full">
                         <div className="relative h-48 sm:h-36 md:h-40">
@@ -1559,10 +1560,12 @@ export default function LandingPage({
                             onClick={(e) => {
                               e.stopPropagation();
                               if (navigator.share) {
+                                const eventSlug = generateEventSlug(event.title, event.id);
+                                const eventUrl = `${window.location.origin}/event-detail/${eventSlug}`;
                                 navigator.share({
                                   title: event.title,
                                   text: `Check out this event: ${event.title}`,
-                                  url: window.location.href,
+                                  url: eventUrl,
                                 });
                               }
                             }}

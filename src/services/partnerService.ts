@@ -426,6 +426,8 @@ export const logoutPartner = () => {
 export const promoteEvent = async (
   eventId: number,
   daysCount: number,
+  isFree: boolean = false,
+  phoneNumber?: string,
   startDate?: string,
   endDate?: string
 ): Promise<any> => {
@@ -436,7 +438,12 @@ export const promoteEvent = async (
 
   const payload: any = {
     days_count: daysCount,
+    is_free: isFree,
   };
+
+  if (phoneNumber && phoneNumber.trim()) {
+    payload.phone_number = phoneNumber.trim();
+  }
 
   if (startDate) {
     payload.start_date = startDate;

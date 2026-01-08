@@ -1548,20 +1548,21 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                   {/* Closed Categories */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Select Category <span className="text-red-500">*</span>
+                      Select Categories <span className="text-red-500">*</span>
                     </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">You can select multiple categories</p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {categories.length > 0 ? (
                         categories.map(category => (
                           <button
                             key={category.id}
                             onClick={() => {
-                              // Only allow one category selection
+                              // Allow multiple category selection
                               setFormData(prev => ({
                                 ...prev,
                                 closedCategories: prev.closedCategories.includes(category.id.toString())
-                                  ? []
-                                  : [category.id.toString()]
+                                  ? prev.closedCategories.filter(id => id !== category.id.toString())
+                                  : [...prev.closedCategories, category.id.toString()]
                               }));
                             }}
                             className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${

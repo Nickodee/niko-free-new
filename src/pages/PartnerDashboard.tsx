@@ -19,6 +19,7 @@ import MyProfile from '../components/partnerDashboard/MyProfile';
 import CreateEvent from '../components/partnerDashboard/CreateEvent';
 import WithdrawFunds from '../components/partnerDashboard/WithdrawFunds';
 import Analytics from '../components/partnerDashboard/Analytics';
+import nikologo from '../images/TRANSPARENT 2.png';
 
 interface PartnerDashboardProps {
   onNavigate: (page: string) => void;
@@ -208,7 +209,7 @@ export default function PartnerDashboard({ onNavigate }: PartnerDashboardProps) 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-">
                   <img 
-                    src="/src/images/TRANSPARENT 2.png" 
+                    src={nikologo} 
                     alt="Niko Free Logo" 
                     className="w-20 h-10 "
                   />
