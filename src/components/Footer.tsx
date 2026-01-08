@@ -21,18 +21,42 @@ export default function Footer({ onNavigate, onOpenLoginModal }: FooterProps) {
               Discover amazing events and connect with your community. Join us in creating unforgettable experiences.
             </p>
             <div className="flex space-x-3">
-              <button className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors">
+              <a 
+                href="https://www.facebook.com/NikoFree-Leisure" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+                aria-label="Visit our Facebook page"
+              >
                 <Facebook className="w-4 h-4" />
-              </button>
-              <button className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors">
+              </a>
+              <a 
+                href="https://x.com/NikoFreeLeisure" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+                aria-label="Follow us on X (Twitter)"
+              >
                 <Twitter className="w-4 h-4" />
-              </button>
-              <button className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors">
+              </a>
+              <a 
+                href="https://www.instagram.com/_nikofree" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+                aria-label="Follow us on Instagram"
+              >
                 <Instagram className="w-4 h-4" />
-              </button>
-              <button className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors">
+              </a>
+              <a 
+                href="https://www.linkedin.com/in/niko-free-5381a83a3" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
+                aria-label="Connect with us on LinkedIn"
+              >
                 <Linkedin className="w-4 h-4" />
-              </button>
+              </a>
             </div>
           </div>
 
