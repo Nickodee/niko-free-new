@@ -880,8 +880,16 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
         return;
       }
       
-      if (!formData.locationName) {
-        setError('Location name is required');
+      // Only require location for physical events, not online events
+      if (formData.locationType !== 'online' && !formData.locationName) {
+        setError('Location name is required for physical events');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Require online link for online events
+      if (formData.locationType === 'online' && !formData.onlineLink) {
+        setError('Online meeting link is required for online events');
         setIsLoading(false);
         return;
       }
@@ -902,7 +910,21 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
       // Add all form fields
       formDataToSend.append('title', formData.eventName);
       formDataToSend.append('description', formData.description || '');
-      formDataToSend.append('category_id', formData.closedCategories[0] || '');
+      
+      // Send all selected categories (up to 2)
+      if (formData.closedCategories.length > 0) {
+        // Send primary category
+        formDataToSend.append('category_id', formData.closedCategories[0]);
+        
+        // Send all categories as an array for multi-category support
+        formDataToSend.append('categories', JSON.stringify(formData.closedCategories));
+        
+        // If there's a second category, send it separately for backward compatibility
+        if (formData.closedCategories.length > 1) {
+          formDataToSend.append('secondary_category_id', formData.closedCategories[1]);
+        }
+      }
+      
       formDataToSend.append('location_type', formData.locationType);
       
       if (formData.locationName) {
@@ -1550,33 +1572,49 @@ export default function CreateEvent({ isOpen, onClose, onEventCreated, eventId }
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                       Select Categories <span className="text-red-500">*</span>
                     </label>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">You can select multiple categories</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      You can select up to 2 categories ({formData.closedCategories.length}/2 selected)
+                    </p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {categories.length > 0 ? (
-                        categories.map(category => (
-                          <button
-                            key={category.id}
-                            onClick={() => {
-                              // Allow multiple category selection
-                              setFormData(prev => ({
-                                ...prev,
-                                closedCategories: prev.closedCategories.includes(category.id.toString())
-                                  ? prev.closedCategories.filter(id => id !== category.id.toString())
-                                  : [...prev.closedCategories, category.id.toString()]
-                              }));
-                            }}
-                            className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
-                              formData.closedCategories.includes(category.id.toString())
-                                ? 'border-[#27aae2] bg-[#27aae2] text-white'
-                                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-[#27aae2]'
-                            }`}
-                          >
-                            {formData.closedCategories.includes(category.id.toString()) && (
-                              <Check className="w-4 h-4 inline mr-1" />
-                            )}
-                            {category.name}
-                          </button>
-                        ))
+                        categories.map(category => {
+                          const isSelected = formData.closedCategories.includes(category.id.toString());
+                          const canSelect = isSelected || formData.closedCategories.length < 2;
+                          
+                          return (
+                            <button
+                              key={category.id}
+                              onClick={() => {
+                                if (isSelected) {
+                                  // Allow deselecting
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    closedCategories: prev.closedCategories.filter(id => id !== category.id.toString())
+                                  }));
+                                } else if (canSelect) {
+                                  // Allow selecting if under limit
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    closedCategories: [...prev.closedCategories, category.id.toString()]
+                                  }));
+                                }
+                              }}
+                              disabled={!canSelect && !isSelected}
+                              className={`px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                                isSelected
+                                  ? 'border-[#27aae2] bg-[#27aae2] text-white'
+                                  : canSelect
+                                  ? 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-[#27aae2]'
+                                  : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50'
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check className="w-4 h-4 inline mr-1" />
+                              )}
+                              {category.name}
+                            </button>
+                          );
+                        })
                       ) : (
                         <p className="text-gray-500 dark:text-gray-400">Loading categories...</p>
                       )}

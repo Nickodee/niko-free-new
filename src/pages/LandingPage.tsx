@@ -371,9 +371,14 @@ export default function LandingPage({
         : "https://images.pexels.com/photos/3822647/pexels-photo-3822647.jpeg?auto=compress&cs=tinysrgb&w=600",
       date: dateStr,
       time: timeStr,
-      location: event.venue_name || event.venue_address || "Online",
+      location: event.is_online && event.online_link 
+        ? event.online_link 
+        : event.is_online 
+        ? "Online Event"
+        : event.venue_name || event.venue_address || "Location TBD",
       attendees: event.attendee_count || 0,
       category: event.category?.name || "General",
+      categories: event.categories || null, // Pass multiple categories if available
       categorySlug: event.category?.slug || event.category?.name?.toLowerCase().replace(/\s+/g, "-") || "general",
       price: event.is_free
         ? "Free"
@@ -518,7 +523,11 @@ export default function LandingPage({
                 : "https://images.pexels.com/photos/2774556/pexels-photo-2774556.jpeg?auto=compress&cs=tinysrgb&w=800",
               date: dateStr,
               time: timeStr,
-              location: event.venue_name || event.venue_address || "Online",
+              location: event.is_online && event.online_link 
+                ? event.online_link 
+                : event.is_online 
+                ? "Online Event"
+                : event.venue_name || event.venue_address || "Location TBD",
               attendees: event.attendee_count || 0,
               category: event.category?.name || "General",
               price: event.is_free
@@ -613,7 +622,11 @@ export default function LandingPage({
               : "https://images.pexels.com/photos/3822647/pexels-photo-3822647.jpeg?auto=compress&cs=tinysrgb&w=600",
             date: dateStr,
             time: timeStr,
-            location: event.venue_name || event.venue_address || "Online",
+            location: event.is_online && event.online_link 
+              ? event.online_link 
+              : event.is_online 
+              ? "Online Event"
+              : event.venue_name || event.venue_address || "Location TBD",
             attendees: event.attendee_count || 0,
             category: event.category?.name || "General",
             price: event.is_free

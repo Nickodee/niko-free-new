@@ -14,6 +14,7 @@ interface EventCardProps {
   location: string;
   attendees: number;
   category: string;
+  categories?: Array<{ id: number; name: string }> | string[]; // Optional multiple categories
   price: string;
   onClick: (id: string) => void;
   inBucketlist?: boolean; // Optional prop to indicate if already in bucketlist
@@ -29,6 +30,7 @@ export default function EventCard({
   location,
   attendees,
   category,
+  categories,
   price,
   onClick,
   inBucketlist: initialInBucketlist = false,
@@ -99,9 +101,23 @@ export default function EventCard({
           </button>
         </div>
         <div className="absolute top-1 sm:top-1.5 md:top-2 lg:top-3 left-1 sm:left-1.5 md:left-2 lg:left-3">
-          <span className="px-1.5 py-0.5 sm:px-2 sm:py-0.5 md:px-2.5 md:py-1 lg:px-3 lg:py-1 backdrop-blur-sm text-white text-[9px] sm:text-[10px] md:text-xs font-semibold rounded-full" style={{ backgroundColor: 'rgba(39, 170, 226, 0.9)' }}>
-            {category}
-          </span>
+          {categories && categories.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {categories.slice(0, 2).map((cat, idx) => (
+                <span 
+                  key={idx} 
+                  className="px-1.5 py-0.5 sm:px-2 sm:py-0.5 md:px-2.5 md:py-1 lg:px-3 lg:py-1 backdrop-blur-sm text-white text-[9px] sm:text-[10px] md:text-xs font-semibold rounded-full" 
+                  style={{ backgroundColor: 'rgba(39, 170, 226, 0.9)' }}
+                >
+                  {typeof cat === 'string' ? cat : cat.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="px-1.5 py-0.5 sm:px-2 sm:py-0.5 md:px-2.5 md:py-1 lg:px-3 lg:py-1 backdrop-blur-sm text-white text-[9px] sm:text-[10px] md:text-xs font-semibold rounded-full" style={{ backgroundColor: 'rgba(39, 170, 226, 0.9)' }}>
+              {category}
+            </span>
+          )}
         </div>
         {price === 'Free' ? (
           <div className="absolute bottom-1 sm:bottom-1.5 md:bottom-2 lg:bottom-3 left-1 sm:left-1.5 md:left-2 lg:left-3">

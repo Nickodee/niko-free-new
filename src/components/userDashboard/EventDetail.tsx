@@ -311,11 +311,22 @@ export default function EventDetail({ event, onBack }: EventDetailProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
         
-        {/* Category Badge */}
-        <div className="absolute top-4 left-4">
-          <span className="px-3 py-1 bg-[#27aae2] text-white text-xs sm:text-sm font-semibold rounded-full">
-            {eventData.category || 'General'}
-          </span>
+        {/* Category Badge(s) */}
+        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+          {eventData.categories && eventData.categories.length > 0 ? (
+            eventData.categories.map((cat: any, idx: number) => (
+              <span 
+                key={idx} 
+                className="px-3 py-1 bg-[#27aae2] text-white text-xs sm:text-sm font-semibold rounded-full"
+              >
+                {cat.name || cat}
+              </span>
+            ))
+          ) : (
+            <span className="px-3 py-1 bg-[#27aae2] text-white text-xs sm:text-sm font-semibold rounded-full">
+              {eventData.category || 'General'}
+            </span>
+          )}
         </div>
 
         {/* Action Buttons */}

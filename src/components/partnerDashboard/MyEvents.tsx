@@ -344,6 +344,9 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
 
   const getEventLocation = (event: any): string => {
     if (event.is_online && event.online_link) {
+      return event.online_link;
+    }
+    if (event.is_online) {
       return 'Online Event';
     }
     return event.venue_name || event.venue_address || 'Location TBD';
@@ -846,14 +849,29 @@ export default function MyEvents({ onCreateEvent }: MyEventsProps) {
                             </div>
                           </div>
 
-                          {selectedEventForDetails.category && (
+                          {(selectedEventForDetails.categories || selectedEventForDetails.category) && (
                             <div className="flex items-start space-x-3">
                               <Tag className="w-5 h-5 text-[#27aae2] mt-0.5 flex-shrink-0" />
                               <div>
-                                <p className="text-sm font-medium text-gray-900 dark:text-white">Category</p>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  {selectedEventForDetails.category.name || selectedEventForDetails.category}
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {selectedEventForDetails.categories && selectedEventForDetails.categories.length > 1 ? 'Categories' : 'Category'}
                                 </p>
+                                {selectedEventForDetails.categories && selectedEventForDetails.categories.length > 0 ? (
+                                  <div className="flex flex-wrap gap-2 mt-1">
+                                    {selectedEventForDetails.categories.map((cat: any, idx: number) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#27aae2]/10 text-[#27aae2] border border-[#27aae2]/20"
+                                      >
+                                        {cat.name || cat}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    {selectedEventForDetails.category.name || selectedEventForDetails.category}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           )}
